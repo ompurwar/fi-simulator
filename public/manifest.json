@@ -1,0 +1,15 @@
+{
+  "name": "Fi-Plan",
+  "short_name": "Fi-Plan",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f9fa",
+  "theme_color": "#f8f9fa",
+  "categories": ["finance", "education", "money", "wealth"],
+  "description": "Fi-Plan - a platform that helps you take charge of your financial health.",
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
