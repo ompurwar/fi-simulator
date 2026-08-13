@@ -14,3 +14,7 @@ npm-debug.log*
 next-env.d.ts
 vercel.json
 standalone/dist/
+standalone/dev.log
+standalone/.commit-msg
+cypress/videos/
+cypress/screenshots/
