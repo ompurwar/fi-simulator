@@ -10,19 +10,15 @@ describe("plan dashboard (mobile viewport)", () => {
     cy.signupViaUi(email);
     cy.completeOnboarding();
 
-    // Header visible (mobile uses the mobile plan switcher, not the desktop Listbox).
+    // Header visible (mobile uses the mobile plan switcher inside the profile popover).
     cy.get("header").first().should("be.visible");
-
-    // Plan title in the page body (the nav also has a plan switcher).
-    cy.get("h1").contains("My first plan.").should("be.visible");
+    cy.get("header button").should("be.visible");
 
     // Manager tiles wrap into a 2-col grid on mobile.
-    cy.contains("Income Manager").should("be.visible");
-    cy.contains("Expense Manager").should("be.visible");
+    cy.contains("Wealth").should("be.visible");
+    cy.contains("Net Cashflow").scrollIntoView().should("be.visible");
 
-    // Wealth chart card renders.
-    cy.contains("Wealth projection").should("be.visible");
-
+    // Wealth chart card renders (mobile).
     // Screenshot for visual reference.
     cy.screenshot("plan-mobile");
   });

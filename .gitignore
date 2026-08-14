@@ -13,8 +13,8 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 vercel.json
-standalone/dist/
-standalone/dev.log
-standalone/.commit-msg
+# standalone folder is debug-only; keep server.ts tracked
+standalone/*
+!standalone/server.ts
 cypress/videos/
 cypress/screenshots/

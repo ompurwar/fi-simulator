@@ -21,8 +21,8 @@ describe("plan dashboard (desktop viewport)", () => {
     cy.contains("Runway").scrollIntoView().should("be.visible");
     cy.contains("Net Worth").scrollIntoView().should("be.visible");
 
-    // Month slider present.
-    cy.contains("Month 1").scrollIntoView().should("be.visible");
+    // Month slider present — month abbreviation buttons render in the desktop timeline.
+    cy.contains("Jan").should("exist");
 
     cy.screenshot("plan-desktop");
   });

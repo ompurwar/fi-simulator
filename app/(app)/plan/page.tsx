@@ -13,9 +13,287 @@ import { MonthSlider } from "@/components/plan/MonthSlider";
 import { Disclosure, Popover } from "@headlessui/react";
 import { FireNotification } from "@/store/notifications";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faWallet, faArrowRightArrowLeft, faSackDollar, faCoins, faShareNodes } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowRightToBracket,
+  faArrowRightFromBracket,
+  faLandmarkFlag,
+  faSackDollar,
+  faFileInvoice,
+  faCircleDollarToSlot,
+  faFileLines,
+  faChevronDown,
+  faChevronLeft,
+  faChevronRight,
+  faScaleBalanced,
+  faFloppyDisk,
+  faGauge,
+  faEllipsisVertical,
+  faUpLong,
+  faDownLong,
+  faArrowRightArrowLeft,
+  faBolt,
+  faPiggyBank,
+  faVault,
+  faMoneyBillTrendUp,
+} from "@fortawesome/free-solid-svg-icons";
 
-/** Port of pages/plan.page.vue — the main financial dashboard. */
+function GetMonthAndYear(plan: any, month: number) {
+  if (!plan?.timestamp) return "";
+  const start = new Date(plan.timestamp);
+  const d = new Date(start.getFullYear(), start.getMonth() + (month - 1), 1);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[d.getMonth()]}-${d.getFullYear()}`;
+}
+
+function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any; category: "income" | "expense"; previous?: number }) {
+  const total = category === "income" ? cashflow?.total_income : cashflow?.total_expense;
+  const breakdown = category === "income" ? cashflow?.income_breakdown : cashflow?.expense_breakdown;
+  const count = breakdown?.length || 0;
+
+  return (
+    <div className="flex h-min-[8rem] flex-col gap-2 rounded-2xl border bg-dark-50 p-4 shadow-sm md:h-[9rem] md:w-[14.2em] md:gap-1 md:p-6 md:shadow-none">
+      <div className="flex gap-2 md:gap-3">
+        <div
+          className={`relative grid h-[2.3rem] w-[2.3rem] place-content-center self-center rounded-md p-1 sm:h-[2.9rem] sm:w-[2.9rem] md:h-[2rem] md:w-[2rem] ${
+            category === "income" ? "bg-success-100 text-success-300" : "bg-danger-100 text-danger-300"
+          }`}
+        >
+          <div
+            className={`absolute -right-1 -top-1 grid h-[17px] w-[17px] place-content-center self-center rounded border text-[11px] font-medium sm:h-[20px] sm:w-[20px] sm:rounded-md sm:text-sm md:h-[15px] md:w-[15px] md:rounded-sm md:border-0 md:text-[10px] md:font-normal ${
+              category === "income"
+                ? "border-primary-200 bg-dark-50 text-success-300"
+                : "border-danger-200 bg-dark-50 text-danger-300"
+            }`}
+          >
+            {count}
+          </div>
+          <FontAwesomeIcon
+            icon={category === "income" ? faArrowRightToBracket : faArrowRightFromBracket}
+            className={`self-center text-xl md:text-lg ${category === "income" ? "rotate-[135deg]" : "rotate-[-45deg]"}`}
+          />
+        </div>
+        <div className="self-center text-sm text-dark-500 first-letter:uppercase md:text-dark-700">{category}</div>
+      </div>
+      <div className="self-center-">
+        <DisplayAmount
+          className="text-2xl font-semibold md:text-4xl"
+          notation={Math.abs(total || 0) > 9999 ? "compact" : "standard"}
+          amount={total || 0}
+        />
+      </div>
+      {previous ? (
+        <div className="text-[10px] text-dark-300 sm:text-xs">
+          <span className={total >= previous ? "text-success-300" : "text-danger-300"}>
+            {Math.abs(((total - previous) / previous) * 100).toFixed(1)}%
+            <FontAwesomeIcon icon={total >= previous ? faUpLong : faDownLong} className="text-[10px] sm:text-xs" />
+          </span>{" "}
+          vs last month
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MonthlyStatement({ details, mobile = false }: { details: any; mobile?: boolean }) {
+  const income = details?.income?.income_breakdown || [];
+  const expense = details?.expense?.expense_breakdown || [];
+  const row = (b: any, i: number) => (
+    <div key={i} className="flex justify-between gap-2">
+      <span className="truncate text-xs font-medium text-dark-500 first-letter:uppercase">{b.cashflow_title}</span>
+      <span className="ml-auto flex items-center gap-1">
+        <DisplayAmount className="text-sm" amount={b.amount} />
+        {b.change > 0 ? <FontAwesomeIcon icon={faUpLong} className="text-xs text-success-400" /> : b.change < 0 ? <FontAwesomeIcon icon={faDownLong} className="text-xs text-danger-400" /> : null}
+      </span>
+    </div>
+  );
+
+  const content = (
+    <div className="flex flex-col justify-between gap-4 md:flex-row">
+      <div className="flex flex-col gap-1 md:w-1/2">
+        <div className="text-xs font-bold uppercase">Income</div>
+        {income.length ? income.map(row) : <div className="mt-2 grid h-10 place-content-center rounded-md border-2 border-dashed text-xs">No income available</div>}
+      </div>
+      <div className="flex flex-col gap-1 border-t pt-3 md:w-1/2 md:border-l md:border-t-0 md:px-4 md:pt-0">
+        <div className="text-xs font-bold uppercase">Expense</div>
+        {expense.length ? expense.map(row) : <div className="mt-2 grid h-10 place-content-center rounded-md border-2 border-dashed text-xs">No expense available</div>}
+      </div>
+    </div>
+  );
+
+  if (mobile) {
+    return (
+      <Disclosure as="div" defaultOpen>
+        {({ open }) => (
+          <>
+            <Disclosure.Button className={`flex w-full justify-between rounded-lg bg-dark-100 px-4 py-4 text-sm font-semibold text-dark-500 ${open ? "mb-2" : "mb-3"}`}>
+              <span><FontAwesomeIcon icon={faFileLines} className="mr-1" /> Monthly Statement</span>
+              <FontAwesomeIcon icon={faChevronDown} className={`w-4 h-4 self-center text-dark-400 ${open ? "rotate-180 transform" : ""}`} />
+            </Disclosure.Button>
+            <Disclosure.Panel className="mb-3 w-full rounded-b-xl rounded-t-md border p-4 text-sm transition-all">{content}</Disclosure.Panel>
+          </>
+        )}
+      </Disclosure>
+    );
+  }
+
+  return (
+    <Disclosure as="div" defaultOpen>
+      {({ open }) => (
+        <>
+          <Disclosure.Button className={`flex w-full justify-between rounded-lg bg-dark-100 px-4 py-2 text-sm font-semibold text-dark-500 ${open ? "mb-2" : "mb-3"}`}>
+            <span><FontAwesomeIcon icon={faFileLines} className="mr-1" /> Monthly Statement</span>
+            <FontAwesomeIcon icon={faChevronDown} className={`w-4 h-4 self-center text-dark-400 ${open ? "rotate-180 transform" : ""}`} />
+          </Disclosure.Button>
+          <Disclosure.Panel className="mb-3 rounded-b-xl rounded-t-md border p-4 text-sm transition-all">{content}</Disclosure.Panel>
+        </>
+      )}
+    </Disclosure>
+  );
+}
+
+function BalanceAndTxn({
+  balances,
+  month,
+  fdpMonthMap,
+  accountList,
+  expenseStatement,
+  alignment = "v",
+}: {
+  balances: any[];
+  month: number;
+  fdpMonthMap?: Record<number, any>;
+  accountList?: any[];
+  expenseStatement?: any[];
+  alignment?: "h" | "v";
+}) {
+  const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
+  const sorted = useBalanceSeq(balances).sort(
+    (a: any, b: any) => (seq[a.balance?.[0]?.category] || 99) - (seq[b.balance?.[0]?.category] || 99)
+  );
+  const { runway, avg_expense, net_worth } = useRunway(expenseStatement || [], balances, month);
+  const currentFdp = fdpMonthMap?.[month];
+
+  function getRoi(category: string) {
+    return accountList?.find((a: any) => a.category === category)?.roi ?? "";
+  }
+
+  function netVariation(txn: any[] = []) {
+    return txn.reduce((acc, t) => {
+      if (t.tran_type === "cr") return acc + (t.amount || 0);
+      if (t.tran_type === "dr") return acc - (t.amount || 0);
+      return acc;
+    }, 0);
+  }
+
+  return (
+    <div className={`flex h-full flex-col justify-between gap-4 ${alignment === "h" ? "md:flex-row" : ""}`}>
+      <div className={`flex flex-col gap-4 ${alignment === "h" ? "md:flex-row" : ""}`}>
+        <div className={`flex flex-col justify-center gap-1 divide-y divide-dark-400 rounded-2xl bg-dark-900 p-4 px-3 ${alignment === "v" ? "w-full" : "md:w-[14.5rem]"}`}>
+          <div className="relative flex justify-between">
+            <div className="flex flex-col gap-1- grow self-center">
+              <div className="flex justify-between gap-3">
+                <div className="text-lg font-medium">Runway</div>
+                  {currentFdp?.strategy && (
+                  <div className="self-center whitespace-nowrap rounded-md bg-warning-200 px-2 py-0.5 text-right text-[10px] text-warning-800">
+                    {currentFdp.strategy}
+                  </div>
+                )}
+              </div>
+              {avg_expense > 0 && (
+                <div className={`text-3xl font-bold ${runway < 6 ? "text-danger-400" : "text-success-400"}`}>
+                  {runway < 12 ? runway.toFixed(1) : (runway / 12).toFixed(1)}{" "}
+                  <span className="text-lg">{runway < 12 ? "mth" : "yrs"}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-between pt-2">
+            <div className="flex flex-col">
+              <div className="md:text-xs">Net Worth</div>
+              <DisplayAmount className="text-lg font-bold text-dark-400" notation="compact" amount={net_worth} />
+            </div>
+            <div className="flex flex-col">
+              <div className="md:text-xs">Burn Rate</div>
+              <DisplayAmount className="text-lg font-bold text-dark-400" notation="compact" amount={avg_expense} />
+            </div>
+          </div>
+        </div>
+
+        <div className={`flex flex-col gap-2 ${alignment === "h" ? "" : "w-full"}`}>
+          {sorted.map((account: any, idx: number) => {
+            const b = account.balance?.[0];
+            if (!b) return null;
+            const variation = netVariation(account.txn);
+            return (
+              <div
+                key={b.account_id || idx}
+                className={`flex flex-col gap-4 rounded-2xl border bg-dark-50 p-2 shadow-sm sm:min-h-[100px] sm:p-4 md:mb-0 ${alignment === "v" ? "w-full" : "md:w-[14.5rem]"}`}
+              >
+                <div className="flex gap-2 self-center md:mb-2 md:w-full">
+                  <div className="relative grid h-[2.5rem] w-[2.5rem] place-content-center self-center rounded-md bg-dark-100 text-dark-400 sm:h-[3rem] sm:w-[3rem]">
+                    {(b.category === "s" || b.category === "savings") && <FontAwesomeIcon icon={faPiggyBank} className="text-xl sm:text-2xl" />}
+                    {(b.category === "e" || b.category === "emergency") && <FontAwesomeIcon icon={faVault} className="text-xl sm:text-2xl" />}
+                    {(b.category === "i" || b.category === "investment") && <FontAwesomeIcon icon={faMoneyBillTrendUp} className="text-xl sm:text-2xl" />}
+                    {!["s", "savings", "e", "emergency", "i", "investment"].includes(b.category) && (
+                      <span className="text-xs font-bold text-dark-400">{b.category?.[0]?.toUpperCase()}</span>
+                    )}
+                    {currentFdp && getRoi(b.category) && (
+                      <div className="absolute -right-1 -top-2 grid w-[1.6rem] place-content-center rounded-md border border-dark-200 bg-dark-50 px-4 text-[10px] font-semibold sm:w-[3em] sm:px-0 sm:text-xs sm:leading-[1.2rem]">
+                        {getRoi(b.category)}%
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col self-center">
+                    <div className="py-0 text-[10px] text-dark-200 sm:text-xs">{b.acc_name}</div>
+                    <div className="flex flex-col gap-2- p-1 py-0 font-bold">
+                      <DisplayAmount
+                        className="text-[12px] sm:text-lg"
+                        notation={b.balance > 9999 ? "compact" : "standard"}
+                        amount={b.balance}
+                      />
+                      <span
+                        className={`flex gap-1 text-[10px] sm:gap-2 ${
+                          variation > 0 ? "text-success-300" : "text-danger-300"
+                        }`}
+                      >
+                        <FontAwesomeIcon icon={variation > 0 ? faUpLong : faDownLong} />
+                        <DisplayAmount
+                          notation={Math.abs(variation) > 99999 ? "compact" : "standard"}
+                          amount={variation}
+                        />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <hr className="mb-1 hidden md:block" />
+                <div className="flex h-16 flex-col gap-1 self-center border-l-2 pl-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
+                  {(account.txn || [])
+                    .filter((t: any) => t.amount > 0)
+                    .map((txn: any, tidx: number) => (
+                      <div key={tidx} className="mr-1 flex gap-2 text-[9px] text-dark-200 sm:mr-3 sm:text-[12px] md:text-[10px]">
+                        <span className="font-medium md:font-normal">{txn.tran_desc}</span>
+                        <div className="ml-auto flex">
+                          <strong>
+                            <DisplayAmount
+                              className="text-dark-400"
+                              notation={txn.amount > 999999 ? "compact" : "standard"}
+                              amount={txn.amount}
+                            />
+                          </strong>
+                        </div>
+                        <div className={txn.tran_type === "cr" ? "text-success-400" : "text-red-400"}>{txn.tran_type}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,10 +306,10 @@ function PlanPageInner() {
   const setGodPlanEntity = useFiPlanStore((s) => s.set_god_plan_entity);
   const setShareData = useFiPlanStore((s) => s.set_share_data);
   const sync_plan = useFiPlanStore((s) => s.sync_plan);
-  const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
+  const plan_synced_map = useFiPlanStore((s) => s.plan_synced_map);
 
   const [current_month, setCurrentMonth] = useState(1);
-  const [show_simulation_modal, setShowSimulationModal] = useState(false);
+  const [simulation_open, setSimulationOpen] = useState(false);
 
   const plan = useMemo(
     () => plans.find((p) => p._id === (plan_id || selected_plan_id)) || plans[0],
@@ -39,26 +317,30 @@ function PlanPageInner() {
   );
 
   const engine = usePlanEngine(plan, plan_duration);
-  const { cashflow, balance_and_transaction_by_month, net_cashflow, account_balances_and_transactions } = engine;
-  const { runway } = useRunway(cashflow.expense_statement, account_balances_and_transactions.account_balances, current_month);
-  const sorted_balances = useBalanceSeq(account_balances_and_transactions.account_balances);
+  const { cashflow, income_list, loan_account_list, income_expense_and_net_cashflow, account_balances_and_transactions } = engine;
+
+  const monthly_details = income_expense_and_net_cashflow[current_month - 1] || null;
+  const previous_details = current_month > 1 ? income_expense_and_net_cashflow[current_month - 2] || null : null;
+
+  const current_month_balances = monthly_details?.balances || [];
+  const { runway } = useRunway(cashflow.expense_statement, current_month_balances, current_month);
+
   const startWalkThrough = useWalkThrough(plan);
 
   useEffect(() => {
     if (plan_id && plan_id !== selected_plan_id) setSelectedPlanId(plan_id);
   }, [plan_id, selected_plan_id, setSelectedPlanId]);
 
-  // simulation modal on mount for unsynced plans
   useEffect(() => {
     if (plan && !plan.modified_at) {
-      setShowSimulationModal(true);
-      const t = setTimeout(() => setShowSimulationModal(false), 2500);
+      setSimulationOpen(true);
+      const t = setTimeout(() => setSimulationOpen(false), 2500);
       return () => clearTimeout(t);
     }
   }, [plan]);
 
-  function HandleEdit(entity_type: string, entity_id = "", meta_data = {}) {
-    setGodPlanEntity({ active: true, plan_id: plan?._id, entity_type, entity_id, meta_data });
+  function HandleEdit(entity_type: string, sub_entity_type = "", meta_data = {}) {
+    setGodPlanEntity({ active: true, plan_id: plan?._id, entity_type, sub_entity_type, meta_data });
     router.push("/edit");
   }
 
@@ -89,238 +371,250 @@ function PlanPageInner() {
     );
   }
 
-  const month_balances = balance_and_transaction_by_month.find((b: any) => b.month === current_month);
-  const chart_months = Math.min(20, plan_duration);
-  const chart_labels = Array.from({ length: chart_months }, (_, i) => `M${i + 1}`);
-  const chart_datasets = [
-    {
-      label: "Emergency",
-      data: Array.from({ length: chart_months }, (_, i) =>
-        account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === "e")?.balance || 0
-      ),
-      backgroundColor: "rgba(244,63,94,0.7)",
-    },
-    {
-      label: "Savings",
-      data: Array.from({ length: chart_months }, (_, i) =>
-        account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === "s")?.balance || 0
-      ),
-      backgroundColor: "rgba(16,185,129,0.7)",
-    },
-    {
-      label: "Investment",
-      data: Array.from({ length: chart_months }, (_, i) =>
-        account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === "i")?.balance || 0
-      ),
-      backgroundColor: "rgba(6,182,212,0.7)",
-    },
-  ];
+  const balance_chart_months = Math.min(20, plan_duration);
+  const balance_chart_labels = Array.from({ length: balance_chart_months }, (_, i) => GetMonthAndYear(plan, i + 1));
+  const balance_chart_datasets = ["e", "s", "i"].map((cat, idx) => ({
+    label: cat === "e" ? "EMERGENCY" : cat === "s" ? "SAVINGS" : "INVESTMENT",
+    data: Array.from({ length: balance_chart_months }, (_, i) =>
+      account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === cat)?.balance || 0
+    ),
+    backgroundColor: idx === 0 ? "rgba(100,116,139,0.8)" : idx === 1 ? "rgba(8,145,178,0.8)" : "rgba(16,185,129,0.8)",
+    borderRadius: { topLeft: 3, topRight: 3 },
+    order: [3, 2, 1][idx],
+  }));
 
-  const income_obj = cashflow.income_statement[current_month - 1];
-  const expense_obj = cashflow.expense_statement[current_month - 1];
-  const prev_income = cashflow.income_statement[current_month - 2];
-  const prev_expense = cashflow.expense_statement[current_month - 2];
+  const aggregated_balance_for_month = current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0);
+  const is_plan_synced = plan_synced_map[plan._id] !== false;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      {/* header */}
-      <div className="plan-header mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-dark-800">{plan.title}</h1>
-          {plan.description && <p className="text-sm text-dark-500">{plan.description}</p>}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="neutral" size="sm" onClick={OnCompare}>
-            <FontAwesomeIcon icon={faArrowRightArrowLeft} className="mr-1 h-3 w-3" /> Compare
-          </Button>
-          <Button size="sm" onClick={Save}>Save</Button>
-          <Button variant="accent" size="sm" onClick={OnShare}>
-            <FontAwesomeIcon icon={faShareNodes} className="mr-1 h-3 w-3" /> Share
-          </Button>
-          <Button variant="neutral" size="sm" onClick={startWalkThrough}>Tour</Button>
-        </div>
-      </div>
-
-      {/* manager tiles (left sidebar on md+) */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div
-          className="income-manager card flex cursor-pointer items-center gap-3 hover:shadow-lg"
-          onClick={() => HandleEdit("cashflow", "", { category: "i" })}
-        >
-          <FontAwesomeIcon icon={faWallet} className="text-primary-500" />
-          <div>
-            <p className="text-sm font-semibold">Income Manager</p>
-            <p className="text-xs text-dark-400">{engine.income_list.length} streams</p>
+    <div className="flex flex-col gap-3 md:flex-row md:gap-10">
+      {/* Left manager sidebar (desktop) */}
+      <div className="mt-24 hidden w-56 flex-wrap justify-between gap-3 bg-transparent px-4 md:flex md:mt-0 md:flex-col md:border-r md:px-0 md:p-4">
+        <div className="fixed">
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("cashflow", "income")}>
+            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-success-100 p-2 text-success-300">
+              <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-2xl" />
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-success-200 bg-dark-50 text-primary-300">{income_list.length}</div>
+            </div>
+            <div className="self-center">
+              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Income Manager</div>
+            </div>
           </div>
-        </div>
-        <div
-          className="expense-manager card flex cursor-pointer items-center gap-3 hover:shadow-lg"
-          onClick={() => HandleEdit("cashflow", "", { category: "e" })}
-        >
-          <FontAwesomeIcon icon={faCoins} className="text-danger-500" />
-          <div>
-            <p className="text-sm font-semibold">Expense Manager</p>
-            <p className="text-xs text-dark-400">{engine.expense_list.length} streams</p>
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-danger-100" onClick={() => HandleEdit("cashflow", "expense")}>
+            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-danger-100 p-2 text-danger-300">
+              <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-2xl" />
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-danger-200 bg-dark-50 text-danger-300">{engine.expense_list.length}</div>
+            </div>
+            <div className="self-center">
+              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Expense Manager</div>
+            </div>
           </div>
-        </div>
-        <div
-          className="loan-manager card flex cursor-pointer items-center gap-3 hover:shadow-lg"
-          onClick={() => HandleEdit("loan", "")}
-        >
-          <FontAwesomeIcon icon={faSackDollar} className="text-warning-500" />
-          <div>
-            <p className="text-sm font-semibold">Loan Manager</p>
-            <p className="text-xs text-dark-400">{plan.loan_accounts?.length || 0} loans</p>
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-dark-100" onClick={() => HandleEdit("loan", "")}>
+            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-dark-100 p-2 text-dark-300">
+              <FontAwesomeIcon icon={faLandmarkFlag} className="text-2xl" />
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-dark-200 bg-dark-50 text-dark-300">{loan_account_list.length}</div>
+            </div>
+            <div className="self-center">
+              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Loan Manager</div>
+            </div>
           </div>
-        </div>
-        <div
-          className="money-manager card flex cursor-pointer items-center gap-3 hover:shadow-lg"
-          onClick={() => HandleEdit("account", "")}
-        >
-          <FontAwesomeIcon icon={faCoins} className="text-accent-500" />
-          <div>
-            <p className="text-sm font-semibold">Money Manager</p>
-            <p className="text-xs text-dark-400">{plan.account_list?.length || 0} accounts</p>
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-warning-100" onClick={() => HandleEdit("fdp", "")}>
+            <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-warning-100 p-2 text-warning-300">
+              <FontAwesomeIcon icon={faSackDollar} className="text-2xl" />
+            </div>
+            <div className="self-center">
+              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300 hover:text-warning-300">Money Manager</div>
+            </div>
+          </div>
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-blue-100">
+            <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-blue-100 p-2 text-blue-300">
+              <FontAwesomeIcon icon={faFileInvoice} className="text-2xl" />
+            </div>
+            <div className="relative self-center">
+              <div className="absolute bottom-2 -right-3 rounded-md bg-purple-100 px-2 py-0.5 text-[9px] font-bold text-purple-400">Coming Soon</div>
+              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300 hover:text-blue-300">Tax Manager</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* wealth chart */}
-      <div className="card mb-6">
-        <h2 className="mb-3 text-lg font-semibold text-dark-700">Wealth projection</h2>
-        <div className="h-64">
-          <MyChart labels={chart_labels} dataset={chart_datasets} stacked chart_type="bar" />
-        </div>
-      </div>
-
-      {/* income / expense cards */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-dark-700">Income</h3>
-            <span className="rounded-full bg-success-50 px-2 py-0.5 text-xs text-success-600">
-              {prev_income && income_obj && prev_income.total_income
-                ? `${(((income_obj.total_income - prev_income.total_income) / prev_income.total_income) * 100).toFixed(1)}%`
-                : "—"}
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-success-600">
-            <DisplayAmount amount={income_obj?.total_income || 0} />
-          </p>
-          <Disclosure>
-            {({ open }) => (
-              <>
-                <Disclosure.Button className="mt-2 text-xs text-primary-500 underline">
-                  {open ? "Hide" : "Show"} breakdown
-                </Disclosure.Button>
-                <Disclosure.Panel className="mt-2">
-                  {income_obj?.income_breakdown?.map((b: any) => (
-                    <div key={b.id} className="flex justify-between py-1 text-sm">
-                      <span className="text-dark-500">{b.cashflow_title}</span>
-                      <span className="text-dark-700"><DisplayAmount amount={b.amount} /></span>
-                    </div>
-                  ))}
-                </Disclosure.Panel>
-              </>
-            )}
-          </Disclosure>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-dark-700">Expense</h3>
-            <span className="rounded-full bg-danger-50 px-2 py-0.5 text-xs text-danger-600">
-              {prev_expense && expense_obj && prev_expense.total_expense
-                ? `${(((expense_obj.total_expense - prev_expense.total_expense) / prev_expense.total_expense) * 100).toFixed(1)}%`
-                : "—"}
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-danger-600">
-            <DisplayAmount amount={expense_obj?.total_expense || 0} />
-          </p>
-          <Disclosure>
-            {({ open }) => (
-              <>
-                <Disclosure.Button className="mt-2 text-xs text-primary-500 underline">
-                  {open ? "Hide" : "Show"} breakdown
-                </Disclosure.Button>
-                <Disclosure.Panel className="mt-2">
-                  {expense_obj?.expense_breakdown?.map((b: any) => (
-                    <div key={b.id} className="flex justify-between py-1 text-sm">
-                      <span className="text-dark-500">{b.cashflow_title}</span>
-                      <span className="text-dark-700"><DisplayAmount amount={b.amount} /></span>
-                    </div>
-                  ))}
-                </Disclosure.Panel>
-              </>
-            )}
-          </Disclosure>
-        </div>
-      </div>
-
-      {/* net cashflow + runway */}
-      <div className="balance-card mb-6 grid gap-4 md:grid-cols-3">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-dark-500">Net Cashflow</h3>
-          <p className="mt-1 text-xl font-bold text-dark-800">
-            <DisplayAmount amount={net_cashflow[current_month - 1]?.total || 0} />
-          </p>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-semibold text-dark-500">Runway</h3>
-          <Popover className="relative">
-            <Popover.Button className="text-xl font-bold text-primary-600 underline-dotted">
-              {runway ? runway.toFixed(1) : "—"} months
+      {/* Center column */}
+      <div className="flex w-full flex-col gap-4 p-2 md:mt-2 md:w-[50%] md:gap-2 md:pt-5">
+        {/* Month slider + cockpit popover */}
+        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:mb-3 md:w-full md:rounded-xl md:bg-dark-900 md:m-1 md:shadow-md">
+          <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
+          <Popover className="absolute top-[-1.5rem] flex justify-center rounded-full self-center md:hidden">
+            <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 bg-dark-800 text-2xl font-medium text-dark-50 md:bg-accent-400">
+              <FontAwesomeIcon icon={faGauge} className="md:hidden" />
             </Popover.Button>
-            <Popover.Panel className="absolute z-10 mt-1 rounded-lg bg-dark-800 p-3 text-xs text-white shadow-xl">
-              Your savings could sustain current expenses for {runway ? runway.toFixed(1) : 0} months.
+            <Popover.Panel className="absolute z-10 mt-3 w-[100vw] -translate-y-[105%] transform md:w-fit">
+              <div className="mx-3 overflow-hidden rounded-lg border border-dark-100 bg-dark-50 shadow-4xl">
+                <div className="relative flex flex-col gap-3 p-4">
+                  <div className="flex gap-2">
+                    <div className="font-bold">Cockpit</div>
+                    <Popover.Button className="ml-auto grid h-[25px] w-[25px] place-content-center rounded-md bg-dark-100 text-dark-500">
+                      <FontAwesomeIcon icon={faEllipsisVertical} />
+                    </Popover.Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["income", "expense"].map((c) => (
+                      <div key={c} className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("cashflow", c)}>
+                        <div className={`grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md p-2 sm:h-[3rem] ${c === "income" ? "bg-success-100 text-success-300" : "bg-danger-100 text-danger-300"}`}>
+                          <FontAwesomeIcon icon={c === "income" ? faArrowRightToBracket : faArrowRightFromBracket} className={`text-xl sm:text-2xl ${c === "income" ? "rotate-[135deg]" : "rotate-[-45deg]"}`} />
+                        </div>
+                        <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </Popover.Panel>
           </Popover>
         </div>
-        <div className="card">
-          <h3 className="text-sm font-semibold text-dark-500">Net Worth</h3>
-          <p className="mt-1 text-xl font-bold text-dark-800">
-            <DisplayAmount amount={sorted_balances.reduce((acc, b: any) => acc + (b.balance || 0), 0)} />
-          </p>
+
+        {/* Mobile wealth card */}
+        <div className="mt-20 flex flex-col rounded-2xl bg-dark-900 p-4 md:hidden md:mt-0">
+          <div className="flex justify-between rounded-lg bg-dark-600 p-1 sm:p-2">
+            <div className="text-primary-400">
+              <div className="text-xs text-dark-200 sm:text-base">Wealth</div>
+              <DisplayAmount className="text-sm sm:text-base" amount={aggregated_balance_for_month} />
+            </div>
+            <div className="flex flex-col text-primary-400">
+              <div className="flex justify-end gap-1">
+                {is_plan_synced && (
+                  <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-[10px] sm:text-xs" onClick={OnCompare}>
+                    <FontAwesomeIcon icon={faScaleBalanced} className="self-center text-primary-500" />
+                    <div>Compare</div>
+                  </button>
+                )}
+                {!is_plan_synced && (
+                  <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-[11px] sm:text-xs" onClick={Save}>
+                    <span>Save</span>
+                    <FontAwesomeIcon icon={faFloppyDisk} className="self-center text-primary-500" />
+                  </button>
+                )}
+              </div>
+              <div className="px-1 text-sm sm:text-base">{GetMonthAndYear(plan, current_month)}</div>
+            </div>
+          </div>
+          <div className="mt-auto h-[350px] w-full">
+            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350} show_legend={true} />
+          </div>
+        </div>
+
+        {/* Income/Expense + Net Cashflow */}
+        <div className="mt-[32rem] flex flex-wrap justify-between gap-2 sm:gap-3 md:mt-0 md:flex-nowrap md:gap-6">
+          <MonthlyIncomeExpense cashflow={monthly_details?.income} category="income" previous={previous_details?.income?.total_income} />
+          <MonthlyIncomeExpense cashflow={monthly_details?.expense} category="expense" previous={previous_details?.expense?.total_expense} />
+          <div className="flex grow md:hidden">
+            <MonthlyStatement details={monthly_details} mobile />
+          </div>
+          <div className="flex w-full flex-col gap-2 rounded-2xl border bg-dark-50 p-4 md:h-[9rem] md:w-[19rem] md:gap-1 md:p-6 md:shadow-none">
+            <div className="flex gap-3">
+              <div className={`grid h-[2.4rem] w-[2.4rem] place-content-center rounded-md bg-dark-100 p-1 md:h-[2rem] md:w-[2rem] ${(monthly_details?.net_cashflow?.total || 0) < 0 ? "text-danger-300 bg-danger-100" : "text-warning-300 bg-warning-100"}`}>
+                <FontAwesomeIcon icon={faCircleDollarToSlot} className="self-center text-xl sm:text-2xl md:text-lg" />
+              </div>
+              <div className="self-center text-xl text-dark-500 md:text-sm md:text-dark-700">Net Cashflow</div>
+            </div>
+            <DisplayAmount className="text-2xl font-semibold md:text-4xl" amount={monthly_details?.net_cashflow?.total || 0} />
+            {previous_details?.net_cashflow?.total ? (
+              <div className="text-xs text-dark-300">
+                <span className={monthly_details?.net_cashflow?.total >= previous_details?.net_cashflow?.total ? "text-success-300" : "text-danger-300"}>
+                  {(((monthly_details?.net_cashflow?.total - previous_details?.net_cashflow?.total) / previous_details?.net_cashflow?.total) * 100).toFixed(1)}%
+                  <FontAwesomeIcon icon={monthly_details?.net_cashflow?.total >= previous_details?.net_cashflow?.total ? faUpLong : faDownLong} className="text-xs" />
+                </span> vs last month
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Monthly statement (desktop) */}
+        <div className="hidden w-full md:flex">
+          <MonthlyStatement details={monthly_details} />
+        </div>
+
+        {/* Net worth chart + BalanceAndTxn (desktop) */}
+        <div className="mb-20 flex flex-col justify-between gap-4 md:mb-0 md:flex-row">
+          <div className="hidden h-full flex-col rounded-2xl border bg-dark-900 p-4 md:flex">
+            <div className="flex flex-row-reverse justify-between gap-5">
+              <div className="flex">
+                <button className="rounded-md bg-transparent p-1 text-warning-300 transition-colors duration-200 hover:bg-dark-600 disabled:opacity-50" disabled={current_month === 1} onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}>
+                  <FontAwesomeIcon icon={faChevronLeft} className="self-center text-lg" />
+                </button>
+                <div className="mx-3 w-[8ch] self-center text-center text-xl text-dark-200">{GetMonthAndYear(plan, current_month)}</div>
+                <button className="rounded-md bg-transparent p-1 text-warning-300 transition-colors duration-200 hover:bg-dark-600 disabled:opacity-50" disabled={current_month === plan_duration} onClick={() => setCurrentMonth((m) => Math.min(plan_duration, m + 1))}>
+                  <FontAwesomeIcon icon={faChevronRight} className="self-center text-lg" />
+                </button>
+              </div>
+              <div className="flex flex-col-reverse text-xl text-primary-400">
+                <DisplayAmount amount={aggregated_balance_for_month} />
+                <div className="self-end text-xs text-dark-200">Net worth</div>
+              </div>
+            </div>
+            <div className="mt-auto h-[400px] w-[28rem]">
+              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={400} width={400} show_legend={true} />
+            </div>
+          </div>
+          <BalanceAndTxn
+            balances={current_month_balances}
+            month={current_month}
+            fdpMonthMap={account_balances_and_transactions.FDP_month_map}
+            accountList={engine.account_list}
+            expenseStatement={cashflow.expense_statement}
+            alignment="v"
+          />
         </div>
       </div>
 
-      {/* month slider */}
-      <MonthSlider value={current_month} max={plan_duration} onChange={setCurrentMonth} />
-
-      {/* transactions for current month */}
-      <div className="card mt-4">
-        <h3 className="mb-3 font-semibold text-dark-700">Transactions — Month {current_month}</h3>
-        {month_balances?.data?.length ? (
-          <div className="space-y-2">
-            {month_balances.data.map((acc: any) => (
-              <div key={acc.account_id} className="rounded-lg bg-dark-50 p-3">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">{acc.acc_name}</span>
-                  <span><DisplayAmount amount={acc.balance?.[0]?.balance || 0} /></span>
-                </div>
-                {acc.txn?.map((t: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs text-dark-500">
-                    <span>{t.tran_desc}</span>
-                    <span className={t.tran_type === "cr" ? "text-success-600" : "text-danger-600"}>
-                      {t.tran_type === "cr" ? "+" : "-"}<DisplayAmount amount={Math.abs(t.amount)} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+      {/* Transactions sidebar */}
+      <div className="hidden h-fit grow overflow-hidden rounded-none transition-all duration-200 md:flex md:flex-col md:border-l">
+        <div className="flex justify-end gap-3 border-t bg-white px-4 pb-5 pt-6">
+          <div className="mr-auto flex grow gap-2 border-r-2">
+            <div className="grid place-content-center rounded-md bg-dark-100 p-2 text-dark-300">
+              <FontAwesomeIcon icon={faArrowRightArrowLeft} className="rotate-[-45deg]" />
+            </div>
+            <div className="self-center">Transactions</div>
           </div>
-        ) : (
-          <p className="text-sm text-dark-400">No transactions this month.</p>
-        )}
+          <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-dark-100 disabled:opacity-70" onClick={Save} disabled={is_plan_synced}>
+            <span>Save</span>
+            <FontAwesomeIcon icon={faFloppyDisk} className="self-center text-primary-500" />
+          </button>
+          <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-dark-100" onClick={OnCompare}>
+            <div>Compare</div>
+            <FontAwesomeIcon icon={faScaleBalanced} className="self-center text-primary-500" />
+          </button>
+        </div>
+        <div className="flex flex-col">
+          {income_expense_and_net_cashflow.map((d: any) => (
+            <div key={d.month} className={`cursor-pointer border-t-2 p-2 ${d.month === current_month ? "border-primary-500 bg-primary-50" : "border-dark-100"}`} onClick={() => setCurrentMonth(d.month)}>
+              <div className="text-xs font-semibold">{GetMonthAndYear(plan, d.month)}</div>
+              <div className="flex justify-between text-xs text-dark-500">
+                <span>Income</span>
+                <span><DisplayAmount amount={d.income?.total_income || 0} /></span>
+              </div>
+              <div className="flex justify-between text-xs text-dark-500">
+                <span>Expense</span>
+                <span><DisplayAmount amount={d.expense?.total_expense || 0} /></span>
+              </div>
+              <div className="flex justify-between text-xs font-semibold text-dark-700">
+                <span>Net</span>
+                <span><DisplayAmount amount={d.net_cashflow?.total || 0} /></span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* simulation modal */}
-      {show_simulation_modal && (
+      {simulation_open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/60">
-          <div className="rounded-2xl bg-white p-8 text-center shadow-2xl">
+          <div className="rounded-2xl bg-dark-50 p-8 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex w-fit gap-2 rounded-lg border bg-dark-900 p-2 py-1 text-xl font-bold text-dark-500">
+              <FontAwesomeIcon icon={faBolt} className="self-center text-warning-400" />
+              <div>Setting up plan</div>
+            </div>
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
-            <p className="font-semibold text-dark-800">Setting up plan...</p>
-            <p className="text-sm text-dark-400">Simulating your financial future</p>
+            <p className="font-semibold text-dark-800">Simulating your financial life</p>
           </div>
         </div>
       )}
