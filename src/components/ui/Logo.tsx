@@ -11,18 +11,20 @@ export function Logo({ className = "" }: { className?: string }) {
   return (
     <Link
       href={selected_plan_id ? `/plan?p_id=${selected_plan_id}` : "/plan"}
-      className={`grid h-[2.5rem] place-content-center text-primary-500 ${className}`}
+      className={`grid font-exo2 font-extrabold h-[2.5rem] place-content-center text-primary-500 bg-dark-50 cursor-pointer ${className}`}
       onClick={(e) => {
         e.preventDefault();
         router.push(selected_plan_id ? `/plan?p_id=${selected_plan_id}` : "/plan");
       }}
     >
-      <span className="flex place-content-center gap-1 px-4 font-exo2 font-extrabold">
-        <span>Fi</span>
-        <span>-</span>
-        <span>Plan</span>
-        <span className="self-center border border-blue-400 rounded-sm px-1 bg-blue-50 text-center text-blue-700 font-normal">
-          <span className="text-[0.4ch] font-bold uppercase leading-3">Beta</span>
+      <span className="flex p-2 px-4 rounded-lg place-content-center relative">
+        <span className="flex self-center gap-1">
+          <span>Fi</span>
+          <span>-</span>
+          <span>Plan</span>
+        </span>
+        <span className="border border-blue-400 box-border rounded-sm px-1 self-center ml-1 font-normal h-fit bg-blue-50 text-center text-blue-700 grid">
+          <span className="text-[.4ch] font-bold py-0.5 leading-3 uppercase">Beta</span>
         </span>
       </span>
     </Link>

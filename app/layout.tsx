@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${exo2.variable} ${montserrat.variable} ${balsamiq.variable} bg-dark-50 text-dark-800 antialiased`}
+        className={`${inter.variable} ${exo2.variable} ${montserrat.variable} ${balsamiq.variable} font-montserrat font-medium bg-[#f8f9fa] text-dark-600`}
       >
         {children}
         <NotificationList />

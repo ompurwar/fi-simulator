@@ -11,7 +11,7 @@ import { Logo } from "@/components/ui/Logo";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { InitiateTracker } from "@/lib/tracker";
 
-const PUBLIC_PATHS = ["/login", "/forgot_password", "/link_page", "/onboarding"];
+const PUBLIC_PATHS = ["/login", "/forgot_password", "/link_page"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -54,7 +54,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     bootstrap();
   }, [pathname, router, set_common_collection, setLoading, setPlans, setProfile, setSelectedPlanId]);
 
-  const isLoginPage = pathname === "/login";
+  // original App.vue: show_top_nav = !["/login", "/onboarding"].includes(path)
+  const show_top_nav = !["/login", "/onboarding"].includes(pathname);
 
   if (loading) {
     return (
@@ -67,9 +68,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="w-auto h-screen overflow-y-auto">
-      {email && !isLoginPage && <TopNav />}
+      {email && show_top_nav && <TopNav />}
       <ErrorBoundary>
-        <div className={email && !isLoginPage ? "pt-16" : ""}>{children}</div>
+        {/* matches original App.vue: <error-boundary class="w-full md:mt-16 md:px-2"> */}
+        <div className="w-full md:mt-16 md:px-2">{children}</div>
       </ErrorBoundary>
       {plan_component_state === "open" && <CreatePlan />}
       {share_data?.modal_state === "open" && <ShareObjectModal />}

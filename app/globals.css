@@ -46,38 +46,48 @@
   --color-danger-800: #991b1b;
   --color-danger-900: #7f1d1d;
 
+  /* warning / dark / accent palettes copied from original fi-plan-fe/src/index.css */
   --color-warning-50: #fffbeb;
-  --color-warning-100: #fef3c7;
-  --color-warning-200: #fde68a;
-  --color-warning-300: #fcd34d;
-  --color-warning-400: #fbbf24;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-warning-700: #b45309;
-  --color-warning-800: #92400e;
+  --color-warning-100: #f0e6c8;
+  --color-warning-200: #e1d0a8;
+  --color-warning-300: #d2b98a;
+  --color-warning-400: #c3a26f;
+  --color-warning-500: #b48a56;
+  --color-warning-600: #a57440;
+  --color-warning-700: #965d2d;
+  --color-warning-800: #87481d;
   --color-warning-900: #78350f;
 
   --color-dark-50: #f8fafc;
-  --color-dark-100: #f1f5f9;
-  --color-dark-200: #e2e8f0;
-  --color-dark-300: #cbd5e1;
-  --color-dark-400: #94a3b8;
-  --color-dark-500: #64748b;
-  --color-dark-600: #475569;
-  --color-dark-700: #334155;
-  --color-dark-800: #1e293b;
+  --color-dark-100: #d1dae5;
+  --color-dark-200: #adbccd;
+  --color-dark-300: #8d9fb6;
+  --color-dark-400: #70839f;
+  --color-dark-500: #566987;
+  --color-dark-600: #3f5170;
+  --color-dark-700: #2c3b59;
+  --color-dark-800: #1c2841;
   --color-dark-900: #0f172a;
 
   --color-accent-50: #ecfeff;
-  --color-accent-100: #cffafe;
-  --color-accent-200: #a5f3fc;
-  --color-accent-300: #67e8f9;
-  --color-accent-400: #22d3ee;
-  --color-accent-500: #06b6d4;
-  --color-accent-600: #0891b2;
-  --color-accent-700: #0e7490;
-  --color-accent-800: #155e75;
+  --color-accent-100: #c9ebee;
+  --color-accent-200: #a9d7dc;
+  --color-accent-300: #8cc3cb;
+  --color-accent-400: #72afba;
+  --color-accent-500: #5a9ba8;
+  --color-accent-600: #458797;
+  --color-accent-700: #337386;
+  --color-accent-800: #236074;
   --color-accent-900: #164e63;
+}
+
+/* Tailwind v3 preflight default border color (#e5e7eb); v4 defaults to currentColor */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: #e5e7eb;
+  }
 }
 
 @layer components {

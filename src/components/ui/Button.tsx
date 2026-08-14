@@ -53,10 +53,10 @@ export function Button({
   );
 }
 
-/** Money display — port of DisplayAmount.vue. */
+/** Money display — port of DisplayAmount.vue (defaults to standard notation). */
 export function DisplayAmount({
   amount,
-  notation = "compact",
+  notation,
   className = "",
 }: {
   amount: number;
@@ -68,19 +68,21 @@ export function DisplayAmount({
   const symbol = GetCurrencySymbol(currency || "INR");
 
   if (amount === undefined || amount === null || isNaN(amount)) return <span>-</span>;
+  const is_negative = amount < 0;
   let formatted: string;
   try {
-    formatted = new Intl.NumberFormat(local || "en-IN", {
-      notation,
-      maximumSignificantDigits: 3,
-    }).format(Math.abs(amount));
+    const config: Intl.NumberFormatOptions = notation ? { notation } : {};
+    formatted = Intl.NumberFormat(local || "en-IN", config).format(Number(Math.abs(amount).toFixed(0)));
   } catch {
     formatted = Math.abs(amount).toFixed(0);
   }
   return (
-    <span className={className}>
-      {symbol}
-      {formatted}
-    </span>
+    <div className={`flex gap-1 ${className}`}>
+      <span className="tracking-wide" style={{ display: is_negative ? undefined : "none" }}>
+        -
+      </span>
+      <span className="tracking-wide"> {symbol}</span>
+      <span className="tracking-wide"> {formatted}</span>
+    </div>
   );
 }

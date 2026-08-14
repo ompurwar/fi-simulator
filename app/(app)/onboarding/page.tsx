@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFiPlanStore, SetDataToLocalStorage } from "@/store";
 import { api } from "@/lib/api";
@@ -119,6 +119,12 @@ export default function OnboardingPage() {
   const setProfile = useFiPlanStore((s) => s.set_profile);
   const setPlans = useFiPlanStore((s) => s.set_plans);
   const setSelectedPlanId = useFiPlanStore((s) => s.set_selected_plan_id);
+  const profile = useFiPlanStore((s) => s.profile);
+
+  // original onboardingPanel.vue beforeMount: already onboarded -> OpenPage("/plan")
+  useEffect(() => {
+    if (profile?.ob_params) router.replace("/plan");
+  }, [profile, router]);
 
   const [stage_number, setStageNumber] = useState(1);
   const [answers, setAnswers] = useState<Record<string, any>>({});

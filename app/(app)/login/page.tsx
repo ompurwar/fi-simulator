@@ -169,22 +169,22 @@ function LoginInner() {
     "appearance-none relative block w-full md:w-[37ch] text-center md:text-start p-5 px-9 shadow-sm border-[1.6px] border-dark-300 placeholder-dark-300 text-dark-300 rounded-[.5rem] focus:outline-none focus:ring-2 focus:ring-dark-300 focus:border-dark-300 focus:shadow-primary-500 bg-dark-100 focus:bg-dark-100 sm:text-sm";
 
   return (
-    <div className="flex justify-center md:-mt-16 md:left-0 md:absolute md:w-[100vw] min-h-screen">
-      <div className="flex w-full transition-all duration-300">
+    <div className="flex justify-center md:-mt-16 md:left-0 md:absolute md:w-[100vw] h-[100vh]">
+      <div className="flex w-full transition-all duration-300 md:p-3">
         {/* Desktop carousel */}
-        <div className="hidden md:flex md:flex-col place-content-center self-center grow w-[35rem] bg-warning-100 rounded-xl md:px-11 md:py-16 gap-6">
-          <div className="h-[80vh] grow-0 select-none flex overflow-y-clip rounded-lg gap-11">
-            <div className="h-[80%] w-full shrink-0 flex flex-col snap-center self-center">
+        <div className="hidden h-full md:flex md:flex-col place-content-center self-center grow w-[35rem] bg-warning-100 rounded-xl md:px-11 md:py-16 gap-6">
+          <div className="h-[80vh] grow-0 select-none flex overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
+            <div className="h-[80%] w-full scroll-mx-6 shrink-0 flex flex-col snap-center self-center snap-always rounded-lg">
               <img
                 src={SLIDES[current_image_number].img}
-                className="h-[80%] object-contain w-full"
+                className="h-[80%] object-contain w-full rounded-lg"
                 alt={SLIDES[current_image_number].title}
               />
-              <div className="flex flex-col gap-2 mt-auto">
-                <div className="text-xl font-bold text-center uppercase tracking-wide">
+              <div className="flex flex-col gap-1 mt-auto">
+                <div className="text-xl font-semibold text-center uppercase">
                   {SLIDES[current_image_number].title}
                 </div>
-                <div className="text-center text-dark-400 leading-relaxed">
+                <div className="text-center text-dark-400">
                   {SLIDES[current_image_number].sub}
                 </div>
               </div>
@@ -193,26 +193,26 @@ function LoginInner() {
         </div>
 
         {/* Right action panel */}
-        <div className="flex flex-col gap-3 justify-evenly backdrop-blur-sm w-[75vw] md:w-[57vw] min-h-screen">
+        <div className="flex flex-col gap-3 justify-evenly backdrop-blur-sm w-[75vw] md:w-[57vw] h-[100vh] md:h-[97vh]">
           <div className="flex flex-col justify-center md:hidden mt-11 h-[15vh]">
-            <Logo className="justify-center text-4xl" />
+            <Logo className="justify-center text-4xl md:w-fit md:-ml-4" />
           </div>
 
           {!show_action_stage && (
             <>
               <div className="flex flex-col gap-4 md:gap-3 mb-10 h-[80vh] md:hidden">
                 <div className="h-[60vh] grow-0 w-[17rem] sm:w-[20rem] flex overflow-x-scroll overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
-                  <div className="h-[80%] w-full shrink-0 flex flex-col snap-center self-center">
+                  <div className="h-[80%] w-full scroll-mx-6 shrink-0 flex flex-col snap-center self-center snap-always rounded-lg">
                     <img
                       src={SLIDES[current_image_number].img}
-                      className="h-[80%] object-contain w-full"
+                      className="h-[80%] object-contain w-full rounded-lg"
                       alt={SLIDES[current_image_number].title}
                     />
-                    <div className="flex flex-col gap-2 mt-auto">
-                      <div className="text-lg font-bold text-center uppercase tracking-wide">
+                    <div className="flex flex-col gap-1 mt-auto">
+                      <div className="text-lg font-semibold text-center uppercase">
                         {SLIDES[current_image_number].title}
                       </div>
-                      <div className="text-center text-dark-400 leading-relaxed">
+                      <div className="text-center text-dark-300">
                         {SLIDES[current_image_number].sub}
                       </div>
                     </div>
@@ -243,9 +243,9 @@ function LoginInner() {
           {show_action_stage && (
             <div className="flex md:flex-row flex-col md:p-11 md:justify-center h-[80vh]">
               <form className="flex flex-col gap-4 mb-10 md:gap-3" onSubmit={(e) => e.preventDefault()}>
-                <Logo className="self-center hidden text-4xl md:flex" />
+                <Logo className="self-center hidden text-4xl md:w-fit md:-ml-4 md:flex" />
                 <div className="flex flex-col justify-center">
-                  <div className="flex justify-center my-2 text-2xl md:font-bold">
+                  <div className="flex justify-center my-2 text-2xl md:font-bold first-letter:uppercase">
                     <div className="flex gap-2 text-dark-700">
                       {mode === "login" ? "Sign into" : "Sign up with "} Fi-Plan
                     </div>
@@ -287,7 +287,7 @@ function LoginInner() {
                   type="button"
                   name="standard-log-signup"
                   onClick={() => (mode === "login" ? Login("std") : Signup())}
-                  disabled={logging_in_with_out_google}
+                  disabled={logging_in_with_out_google || !validate_input(values, mode)}
                   className="mt-1 rounded-[.6rem] w-[100%] pl-3 pr-6 h-[60px] grid place-content-center border-2 shadow-sm bg-primary-400 disabled:opacity-60 text-dark-50 focus:ring-dark-900 focus:border-dark-400 border-dark-400"
                 >
                   <div className="flex h-full text-center justify-center py-2 ml-2 font-medium text-[20px] text-dark-50">
@@ -301,7 +301,7 @@ function LoginInner() {
                   </div>
                 </button>
 
-                <div className="flex justify-center gap-2 flex-col place-content-center">
+                <div className="flex justify-center gap-2 place-content-center">
                   <div className="flex justify-center text-sm md:text-xs text-dark-400">
                     <span className="self-center">
                       {mode === "login" ? "Don't have an Account?" : "Already Have an Account?"}

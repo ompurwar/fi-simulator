@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { usePlanEngine } from "@/hooks/usePlanEngine";
@@ -35,6 +36,7 @@ import {
   faPiggyBank,
   faVault,
   faMoneyBillTrendUp,
+  faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -396,8 +398,10 @@ function PlanPageInner() {
               <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-2xl" />
               <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-success-200 bg-dark-50 text-primary-300">{income_list.length}</div>
             </div>
-            <div className="self-center">
-              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Income Manager</div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium">Income Manager</div>
+              </div>
             </div>
           </div>
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-danger-100" onClick={() => HandleEdit("cashflow", "expense")}>
@@ -405,8 +409,10 @@ function PlanPageInner() {
               <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-2xl" />
               <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-danger-200 bg-dark-50 text-danger-300">{engine.expense_list.length}</div>
             </div>
-            <div className="self-center">
-              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Expense Manager</div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium">Expense Manager</div>
+              </div>
             </div>
           </div>
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-dark-100" onClick={() => HandleEdit("loan", "")}>
@@ -414,34 +420,40 @@ function PlanPageInner() {
               <FontAwesomeIcon icon={faLandmarkFlag} className="text-2xl" />
               <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-dark-200 bg-dark-50 text-dark-300">{loan_account_list.length}</div>
             </div>
-            <div className="self-center">
-              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300">Loan Manager</div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium">Loan Manager</div>
+              </div>
             </div>
           </div>
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-warning-100" onClick={() => HandleEdit("fdp", "")}>
             <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-warning-100 p-2 text-warning-300">
               <FontAwesomeIcon icon={faSackDollar} className="text-2xl" />
             </div>
-            <div className="self-center">
-              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300 hover:text-warning-300">Money Manager</div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium hover:text-warning-300">Money Manager</div>
+              </div>
             </div>
           </div>
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-blue-100">
             <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-blue-100 p-2 text-blue-300">
               <FontAwesomeIcon icon={faFileInvoice} className="text-2xl" />
             </div>
-            <div className="relative self-center">
+            <div className="relative self-center w-full">
               <div className="absolute bottom-2 -right-3 rounded-md bg-purple-100 px-2 py-0.5 text-[9px] font-bold text-purple-400">Coming Soon</div>
-              <div className="w-[5rem] text-sm font-medium leading-tight text-dark-300 hover:text-blue-300">Tax Manager</div>
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium hover:text-blue-300">Tax Manager</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Center column */}
-      <div className="flex w-full flex-col gap-4 p-2 md:mt-2 md:w-[50%] md:gap-2 md:pt-5">
+      <div className="flex w-full flex-col gap-4 p-2 md:mt-2 md:w-[50%] md:gap-2">
         {/* Month slider + cockpit popover */}
-        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:mb-3 md:w-full md:rounded-xl md:bg-dark-900 md:m-1 md:shadow-md">
+        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:bottom-2 md:flex md:w-full md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-xl md:bg-dark-900 md:m-1 mb-3 shadow-warning-200 shadow-lg md:shadow-dark-400 md:shadow-md border md:border-0 transition-all duration-250">
           <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
           <Popover className="absolute top-[-1.5rem] flex justify-center rounded-full self-center md:hidden">
             <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 bg-dark-800 text-2xl font-medium text-dark-50 md:bg-accent-400">
@@ -551,8 +563,9 @@ function PlanPageInner() {
                 <div className="self-end text-xs text-dark-200">Net worth</div>
               </div>
             </div>
-            <div className="mt-auto h-[400px] w-[28rem]">
-              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={400} width={400} show_legend={true} />
+            {/* matches original: chart_height=500, chart sits directly below the header */}
+            <div className="h-[500px] w-[28rem]">
+              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={500} width={400} show_legend={true} />
             </div>
           </div>
           <BalanceAndTxn
@@ -584,24 +597,65 @@ function PlanPageInner() {
             <FontAwesomeIcon icon={faScaleBalanced} className="self-center text-primary-500" />
           </button>
         </div>
-        <div className="flex flex-col">
-          {income_expense_and_net_cashflow.map((d: any) => (
-            <div key={d.month} className={`cursor-pointer border-t-2 p-2 ${d.month === current_month ? "border-primary-500 bg-primary-50" : "border-dark-100"}`} onClick={() => setCurrentMonth(d.month)}>
-              <div className="text-xs font-semibold">{GetMonthAndYear(plan, d.month)}</div>
-              <div className="flex justify-between text-xs text-dark-500">
-                <span>Income</span>
-                <span><DisplayAmount amount={d.income?.total_income || 0} /></span>
+        {/* month rows, matching IncomeExpenseAndNetCashflowStatement.vue (text-xs root, ±12 months) */}
+        <div
+          className="flex flex-col items-center justify-between overflow-y-scroll bg-white px-4 py-2 text-xs transition-all duration-200 scroll-smooth md:snap-y snap-mandatory"
+          style={{ maxHeight: "130vh", minHeight: "fit-content" }}
+        >
+          {income_expense_and_net_cashflow.map((d: any, index: number) => {
+            if (Math.abs(current_month - index) >= 12) return null;
+            return (
+              <div
+                key={d.month}
+                className={`relative my-2 flex w-full cursor-pointer flex-col rounded-md border p-4 shadow-sm snap-start overflow-x-clip snap-always hover:bg-dark-200 ${
+                  d.month === current_month
+                    ? "border-primary-100 bg-primary-100 shadow-md shadow-primary-100"
+                    : "bg-dark-50"
+                }`}
+                onClick={() => setCurrentMonth(d.month)}
+              >
+                <div className="flex flex-col md:flex-row">
+                  <div className="w-full md:w-1/4">
+                    <div className={`w-[70px] py-2 text-center text-dark-500 ${d.month === current_month ? "font-bold" : ""}`}>
+                      {GetMonthAndYear(plan, d.month)}
+                    </div>
+                  </div>
+                  <div className="w-full md:w-1/4">
+                    <div className="flex flex-col">
+                      <span className="text-dark-300 md:text-xs">Income </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-400" amount={d.income?.total_income || 0} />
+                    </div>
+                  </div>
+                  <div className="w-full md:w-1/4">
+                    <div className="flex flex-col">
+                      <span className="text-dark-300 md:text-xs">Expense </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-400" amount={d.expense?.total_expense || 0} />
+                    </div>
+                  </div>
+                  <div className="w-full md:w-1/4">
+                    <div className="flex flex-col">
+                      <span className="text-dark-300 md:text-xs">Net </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-600" amount={d.net_cashflow?.total || 0} />
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute bottom-0 left-0 flex h-[.15rem] w-full rounded-b-xl">
+                  <div
+                    className="h-full bg-success-500 opacity-[.5]"
+                    style={{
+                      width: `${100 - ((d.expense?.total_expense || 0) / (d.income?.total_income || 1)) * 100}%`,
+                    }}
+                  />
+                  <div
+                    className="h-full border-l-2 border-dark-400 bg-danger-500 opacity-[.5]"
+                    style={{
+                      width: `${((d.expense?.total_expense || 0) / (d.income?.total_income || 1)) * 100}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="flex justify-between text-xs text-dark-500">
-                <span>Expense</span>
-                <span><DisplayAmount amount={d.expense?.total_expense || 0} /></span>
-              </div>
-              <div className="flex justify-between text-xs font-semibold text-dark-700">
-                <span>Net</span>
-                <span><DisplayAmount amount={d.net_cashflow?.total || 0} /></span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -618,6 +672,23 @@ function PlanPageInner() {
           </div>
         </div>
       )}
+
+      {/* Share button teleported into the top nav (#share-button), matching plan.page.vue */}
+      {plan &&
+        typeof document !== "undefined" &&
+        document.getElementById("share-button") &&
+        createPortal(
+          <button
+            onClick={OnShare}
+            className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-md hover:opacity-75 font-medium border-2 hover:shadow-sm border-primary-400 text-primary-500 bg-primary-50 h-[2.5rem] px-3"
+          >
+            <div className="flex gap-2">
+              <span className="self-center hidden md:inline">Share</span>
+              <FontAwesomeIcon icon={faShareNodes} className="self-center text-lg font-bold" />
+            </div>
+          </button>,
+          document.getElementById("share-button")!
+        )}
     </div>
   );
 }
