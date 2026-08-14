@@ -11,42 +11,42 @@ export class FiPlanError extends Error {
 
 export class UniqueConstraintError extends FiPlanError {
   constructor(message = "duplicate entry") {
-    super(message);
+    super(message, 601);
     this.name = "UniqueConstraintError";
   }
 }
 
 export class InvalidPropertyError extends FiPlanError {
   constructor(message: string) {
-    super(message);
+    super(message, 400);
     this.name = "InvalidPropertyError";
   }
 }
 
 export class RequiredParameterError extends FiPlanError {
   constructor(message: string) {
-    super(message);
+    super(message, 400);
     this.name = "RequiredParameterError";
   }
 }
 
 export class DbInsertFailedError extends FiPlanError {
   constructor(message = "db insert failed") {
-    super(message);
+    super(message, 500);
     this.name = "DbInsertFailedError";
   }
 }
 
 export class DbUpdateFailedError extends FiPlanError {
   constructor(message = "db update failed") {
-    super(message);
+    super(message, 500);
     this.name = "DbUpdateFailedError";
   }
 }
 
 export class UserNotFoundByEmailError extends FiPlanError {
   constructor(message = "user not found by email") {
-    super(message);
+    super(message, 404);
     this.name = "UserNotFoundByEmailError";
   }
 }
@@ -67,7 +67,7 @@ export class InvalidAuthTokenError extends FiPlanError {
 
 export class InvalidOperationError extends FiPlanError {
   constructor(message: string) {
-    super(message);
+    super(message, 401);
     this.name = "InvalidOperationError";
   }
 }

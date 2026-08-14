@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { api } from "@/lib/api";
 import { TopNav } from "@/components/layout/TopNav";
-import { NotificationList } from "@/components/ui/NotificationList";
 import { CreatePlan } from "@/components/plan/CreatePlan";
 import { ShareObjectModal } from "@/components/share/ShareObjectModal";
 import { Logo } from "@/components/ui/Logo";
@@ -72,7 +71,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <ErrorBoundary>
         <div className={email && !isLoginPage ? "pt-16" : ""}>{children}</div>
       </ErrorBoundary>
-      <NotificationList />
       {plan_component_state === "open" && <CreatePlan />}
       {share_data?.modal_state === "open" && <ShareObjectModal />}
     </div>

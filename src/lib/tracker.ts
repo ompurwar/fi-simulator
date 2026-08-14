@@ -93,27 +93,33 @@ export function Track(event_id: string, event_parameters: any, profile_parameter
   if (typeof window === "undefined") return;
   if (process.env.NODE_ENV !== "production") return;
 
-  const event_configuration = EVENT_TYPES[event_id];
-  if (!event_configuration) return;
+  try {
+    const event_configuration = EVENT_TYPES[event_id];
+    if (!event_configuration) return;
 
-  if (event_configuration.identity === "i") {
-    if (!event_parameters || !event_parameters.$email) return;
-    mixpanel.identify(event_parameters.$email.toLowerCase());
-    mixpanel.register_once({ distinct_id: event_parameters.$email.toLowerCase() });
-  }
+    if (event_configuration.identity === "i") {
+      if (!event_parameters || !event_parameters.$email) return;
+      mixpanel.identify(event_parameters.$email.toLowerCase());
+      mixpanel.register_once({ distinct_id: event_parameters.$email.toLowerCase() });
+    }
 
-  if (event_parameters === undefined) return;
-  mixpanel.track(event_configuration.title, event_parameters);
+    if (event_parameters === undefined) return;
+    mixpanel.track(event_configuration.title, event_parameters);
 
-  if (profile_parameters && CountPropsInObj(profile_parameters)) {
-    const inc = profile_parameters.inc;
-    delete profile_parameters.inc;
-    mixpanel.people.set(profile_parameters);
-    if (inc)
-      for (const property in inc) {
-        if (Object.hasOwnProperty.call(inc, property)) {
-          mixpanel.people.increment(property, inc[property]);
+    if (profile_parameters && CountPropsInObj(profile_parameters)) {
+      const inc = profile_parameters.inc;
+      const people_params = { ...profile_parameters };
+      delete people_params.inc;
+      mixpanel.people.set(people_params);
+      if (inc)
+        for (const property in inc) {
+          if (Object.hasOwnProperty.call(inc, property)) {
+            mixpanel.people.increment(property, inc[property]);
+          }
         }
-      }
+    }
+  } catch {
+    // Analytics must never break the app flow.
+    /* noop */
   }
 }

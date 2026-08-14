@@ -120,7 +120,7 @@ function LoginInner() {
           if (error.code === 401 || error.code === 404) {
             FireNotification({ title: "Login failed", desc: error.message, variant: "danger" });
           }
-          router.push("/login");
+          if (window.location.pathname !== "/login") router.push("/login");
         }
       }
     } catch (error: any) {
@@ -189,28 +189,30 @@ function LoginInner() {
           </div>
 
           {!show_action_stage && (
-            <div className="flex flex-col gap-4 md:gap-3 mb-10 h-[80vh]">
-              <div className="h-[60vh] grow-0 w-[17rem] sm:w-[20rem] flex overflow-x-scroll overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
-                <div className="h-[80%] w-full shrink-0 flex flex-col snap-center self-center">
-                  <img
-                    src={SLIDES[current_image_number].img}
-                    className="h-[80%] object-contain w-full"
-                    alt={SLIDES[current_image_number].title}
-                  />
-                  <div className="flex flex-col gap-2 mt-auto">
-                    <div className="text-lg font-bold text-center uppercase tracking-wide">
-                      {SLIDES[current_image_number].title}
-                    </div>
-                    <div className="text-center text-dark-400 leading-relaxed">
-                      {SLIDES[current_image_number].sub}
+            <>
+              <div className="flex flex-col gap-4 md:gap-3 mb-10 h-[80vh] md:hidden">
+                <div className="h-[60vh] grow-0 w-[17rem] sm:w-[20rem] flex overflow-x-scroll overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
+                  <div className="h-[80%] w-full shrink-0 flex flex-col snap-center self-center">
+                    <img
+                      src={SLIDES[current_image_number].img}
+                      className="h-[80%] object-contain w-full"
+                      alt={SLIDES[current_image_number].title}
+                    />
+                    <div className="flex flex-col gap-2 mt-auto">
+                      <div className="text-lg font-bold text-center uppercase tracking-wide">
+                        {SLIDES[current_image_number].title}
+                      </div>
+                      <div className="text-center text-dark-400 leading-relaxed">
+                        {SLIDES[current_image_number].sub}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="flex justify-between w-full gap-6 mt-auto">
+              <div className="flex justify-between w-full gap-6 mt-auto md:justify-center md:gap-8 md:mb-10">
                 <button
                   onClick={() => SetActionStageMode("signup")}
-                  className={`rounded-[.6rem] px-4 py-2 block grow justify-center border-2 shadow-sm border-dark-500 ${
+                  className={`rounded-[.6rem] px-4 py-2 block grow justify-center border-2 shadow-sm border-dark-500 md:grow-0 md:px-10 md:py-3 ${
                     mode === "signup" ? "bg-primary-400 text-primary-50" : "bg-dark-50 text-dark-500"
                   }`}
                 >
@@ -218,14 +220,14 @@ function LoginInner() {
                 </button>
                 <button
                   onClick={() => SetActionStageMode("login")}
-                  className={`rounded-[.6rem] px-4 py-2 block grow justify-center border-2 shadow-sm border-dark-500 ${
+                  className={`rounded-[.6rem] px-4 py-2 block grow justify-center border-2 shadow-sm border-dark-500 md:grow-0 md:px-10 md:py-3 ${
                     mode === "login" ? "bg-primary-400 text-primary-50" : "bg-dark-50 text-dark-500"
                   }`}
                 >
                   Sign In
                 </button>
               </div>
-            </div>
+            </>
           )}
 
           {show_action_stage && (

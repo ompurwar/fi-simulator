@@ -144,7 +144,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       let the_user = user_being_logging_in[0];
       if (the_user.IsValidPassword!(password)) {
         let session = MakeSession(
-          { user_id: the_user._id },
+          { user_id: the_user._id.toString() },
           { sessionIdLength: 24, sessionTimeoutHours }
         );
         const { success, created } = await session_list.Add(session);
@@ -228,7 +228,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       const credentials = CreateCredentials(new_password);
       user_list.Update({ _id: user_id!, credentials });
       session = MakeSession(
-        { user_id: user!._id },
+        { user_id: user!._id.toString() },
         { sessionIdLength: 24, sessionTimeoutHours }
       );
       const { success, created } = await session_list.Add(session);
@@ -660,6 +660,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       desc,
       start_month,
       end_month,
+      active = true,
+      primary = false,
     } = input;
     let plan = await plan_list.FindById(plan_id);
     if (!plan) throw new InvalidOperationError("Invalid plane Id Assigned");
@@ -673,6 +675,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       desc,
       start_month,
       end_month,
+      active,
+      primary,
       plan_id,
     });
 
@@ -747,6 +751,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       desc,
       start_month,
       end_month,
+      active = true,
+      primary = false,
     } = input;
     let plan = await plan_list.FindById(plan_id);
     if (!plan) throw new InvalidOperationError("Invalid plane Id Assigned");
@@ -760,6 +766,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       desc,
       start_month,
       end_month,
+      active,
+      primary,
       plan_id,
     });
 

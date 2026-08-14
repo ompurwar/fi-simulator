@@ -52,6 +52,8 @@ export function makeUserRepository(database: Database): UserRepository {
         delete doc.password;
       }
       doc.timestamp = Date.now();
+      // Let Mongo assign the ObjectId (matching FindById's MakeId lookup).
+      delete doc._id;
       const { acknowledged, insertedId } = await db
         .collection(userProfilesCollection)
         .insertOne(doc);

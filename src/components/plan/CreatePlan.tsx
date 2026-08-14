@@ -6,6 +6,7 @@ import { ModalUi } from "@/components/ui/ModalUi";
 import { Button } from "@/components/ui/Button";
 import { useFiPlanStore } from "@/store";
 import { Track, EVENT_TYPES } from "@/lib/tracker";
+import { FireNotification } from "@/store/notifications";
 
 /** Port of plan/CreatePlan.vue — Create/Copy plan modal. */
 export function CreatePlan() {
@@ -39,14 +40,17 @@ export function CreatePlan() {
         });
         Track(EVENT_TYPES.PLAN_CREATED.id, { plan_title: plan.title, mode: "new" }, { inc: { plan_count: 1 } });
         setSelectedPlanId(plan._id);
+        setPlanComponentState("closed");
         router.push(`/plan?p_id=${plan._id}`);
       } else {
         const plan = await fork_plan({ plan_id: sourcePlanId, title, description });
         Track(EVENT_TYPES.PLAN_CREATED.id, { plan_title: plan.title, mode: "copy" }, { inc: { plan_count: 1 } });
         setSelectedPlanId(plan._id);
+        setPlanComponentState("closed");
         router.push(`/plan?p_id=${plan._id}`);
       }
-      setPlanComponentState("closed");
+    } catch (e: any) {
+      FireNotification({ title: "Create plan failed", desc: e.message, variant: "danger" });
     } finally {
       setBusy(false);
     }

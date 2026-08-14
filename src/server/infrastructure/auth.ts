@@ -30,8 +30,9 @@ export async function Authenticate(
   cookieSecret: string
 ): Promise<{ user_id: string; session_id: string }> {
   let is_whitelisted = false;
+  const normalized = http_request.path.replace(/\/+$/, "");
   UNAUTHENTICATED_PATHS.forEach((path) => {
-    if (http_request.path.includes(path)) is_whitelisted = true;
+    if (normalized === path || normalized === `/${path}`) is_whitelisted = true;
   });
   if (is_whitelisted) {
     return { user_id: "", session_id: "" };
@@ -46,7 +47,7 @@ export async function Authenticate(
 
   if (!session_id) throw new InvalidAuthTokenError();
 
-  const session = await session_repo.FindByActiveSessionId({ session_id } as any);
+  const session = await session_repo.FindByActiveSessionId(session_id as any);
   if (!session) throw new InvalidAuthTokenError();
 
   return { user_id: session.user_id, session_id: session.session_id };
