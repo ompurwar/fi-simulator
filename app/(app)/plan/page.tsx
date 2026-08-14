@@ -92,6 +92,19 @@ function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any;
           vs last month
         </div>
       ) : null}
+      {/* breakdown list, matching MonthlyIncomeExpense.vue */}
+      <div className="h-20 overflow-x-hidden overflow-y-scroll">
+        {(breakdown || []).map((data: any, index: number) => (
+          <div key={`break-down-income-${index}`} className="flex justify-between w-full">
+            <div className="flex gap-2 text-[11px] font-bold text-dark-400">
+              <DisplayAmount amount={data.amount} />
+              <div className="break-words font-normal">
+                <span>{data.cashflow_title}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -373,6 +386,9 @@ function PlanPageInner() {
     );
   }
 
+  // chart colors read from CSS vars at runtime, matching original balance_chart_data
+  const cssVar = (name: string) =>
+    typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue(name) : "";
   const balance_chart_months = Math.min(20, plan_duration);
   const balance_chart_labels = Array.from({ length: balance_chart_months }, (_, i) => GetMonthAndYear(plan, i + 1));
   const balance_chart_datasets = ["e", "s", "i"].map((cat, idx) => ({
@@ -380,13 +396,44 @@ function PlanPageInner() {
     data: Array.from({ length: balance_chart_months }, (_, i) =>
       account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === cat)?.balance || 0
     ),
-    backgroundColor: idx === 0 ? "rgba(100,116,139,0.8)" : idx === 1 ? "rgba(8,145,178,0.8)" : "rgba(16,185,129,0.8)",
-    borderRadius: { topLeft: 3, topRight: 3 },
+    backgroundColor:
+      idx === 0
+        ? cssVar("--color-dark-300")
+        : idx === 1
+          ? cssVar("--color-accent-600")
+          : cssVar("--color-primary-400"),
+    borderColor:
+      idx === 0
+        ? cssVar("--color-dark-300")
+        : idx === 1
+          ? cssVar("--color-accent-600")
+          : cssVar("--color-primary-500"),
+    pointStyle: "circle",
+    pointRadius: 0,
+    pointHoverRadius: 15,
+    borderRadius: idx === 0 ? { topLeft: 3, topRight: 3 } : 0,
     order: [3, 2, 1][idx],
   }));
 
   const aggregated_balance_for_month = current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0);
   const is_plan_synced = plan_synced_map[plan._id] !== false;
+
+  // matching original ToDisplayableMoney + annotation
+  const ToDisplayableMoney = (value: any) =>
+    Intl.NumberFormat(useFiPlanStore.getState().local || "en-IN", {
+      style: "currency",
+      notation: "compact",
+      currency: useFiPlanStore.getState().currency || "INR",
+      maximumSignificantDigits: 2,
+    }).format(value);
+  const annotation = !aggregated_balance_for_month
+    ? []
+    : [
+        {
+          value: GetMonthAndYear(plan, current_month),
+          content: [GetMonthAndYear(plan, current_month), `Net worth : ${ToDisplayableMoney(aggregated_balance_for_month.toFixed(2))}`],
+        },
+      ];
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-10">
@@ -510,7 +557,7 @@ function PlanPageInner() {
             </div>
           </div>
           <div className="mt-auto h-[350px] w-full">
-            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350} show_legend={true} />
+            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350}  />
           </div>
         </div>
 
@@ -565,7 +612,7 @@ function PlanPageInner() {
             </div>
             {/* matches original: chart_height=500, chart sits directly below the header */}
             <div className="h-[500px] w-[28rem]">
-              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={500} width={400} show_legend={true} />
+              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={500} width={400} annotation={annotation} formatter={ToDisplayableMoney} />
             </div>
           </div>
           <BalanceAndTxn
