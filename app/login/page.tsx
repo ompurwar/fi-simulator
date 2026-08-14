@@ -31,6 +31,7 @@ function LoginInner() {
     modeParam === "signup" ? "signup" : "login"
   );
   const [page_stage, setPageStage] = useState(STAGES.CAROUSEL);
+  const [is_desktop, setIsDesktop] = useState(true);
   const [current_image_number, setCurrentImageNumber] = useState(0);
   const [logging_in_with_google, setLoggingInWithGoogle] = useState(false);
   const [logging_in_with_out_google, setLoggingInWithOutGoogle] = useState(false);
@@ -49,13 +50,22 @@ function LoginInner() {
   }, [modeParam]);
 
   useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImageNumber((n) => (n + 1) % IMAGE_COUNT);
     }, 4000);
     return () => clearInterval(timer);
   }, []);
 
-  const show_action_stage = page_stage === STAGES.ACTION;
+  // Desktop always shows the action form; mobile shows the carousel first.
+  const show_action_stage = is_desktop || page_stage === STAGES.ACTION;
 
   function ToggleMode() {
     const next = mode === "login" ? "signup" : "login";
@@ -156,7 +166,7 @@ function LoginInner() {
   }
 
   const inputClass =
-    "appearance-none relative block w-full md:w-[37ch] text-center md:text-start p-5 px-9 shadow-sm border-[1.6px] border-dark-200 placeholder-dark-400 text-dark-700 rounded-[.5rem] focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 bg-white focus:bg-white sm:text-sm transition-colors";
+    "appearance-none relative block w-full md:w-[37ch] text-center md:text-start p-5 px-9 shadow-sm border-[1.6px] border-dark-300 placeholder-dark-300 text-dark-300 rounded-[.5rem] focus:outline-none focus:ring-2 focus:ring-dark-300 focus:border-dark-300 focus:shadow-primary-500 bg-dark-100 focus:bg-dark-100 sm:text-sm";
 
   return (
     <div className="flex justify-center md:-mt-16 md:left-0 md:absolute md:w-[100vw] min-h-screen">
@@ -329,7 +339,7 @@ function LoginInner() {
                     </div>
                     <div className="grid self-center h-full text-center place-items-center">
                       <p className="ml-1 font-medium text-[20px] text-dark-500">
-                        Google {mode === "login" ? "Login" : "Sign Up"}
+                        <span>oogle</span> {mode === "login" ? "Login" : "Sign Up"}
                       </p>
                     </div>
                   </div>

@@ -1,17 +1,18 @@
 import { uniqueEmail } from "../support/commands";
 
 describe("auth flow", () => {
-  it("shows the login page with carousel and action buttons", () => {
+  it("shows the login form directly on desktop", () => {
     cy.visit("/login");
-    // The carousel stage shows "Sign Up" / "Sign In" buttons.
-    cy.get("button").contains("Sign Up").should("be.visible");
-    cy.get("button").contains("Sign In").should("be.visible");
+    // Desktop always shows the form (matches the original).
+    cy.get('input[name="email"]').should("be.visible");
+    cy.get('input[name="password"]').should("be.visible");
+    cy.contains("Sign into Fi-Plan").should("be.visible");
+    cy.get("button").contains("oogle").should("be.visible");
   });
 
   it("switches between login and signup modes", () => {
     cy.visit("/login");
-    // Click "Sign Up" to enter the signup form.
-    cy.get("button").contains("Sign Up").first().click();
+    cy.get("span").contains("Sign Up").click();
     cy.get('input[name="name"]').should("be.visible");
     cy.get('button[name="standard-log-signup"]').should("contain", "Sign Up");
   });
@@ -38,7 +39,6 @@ describe("auth flow", () => {
 
   it("rejects an invalid login with a toast", () => {
     cy.visit("/login");
-    cy.get("button").contains("Sign In").first().click();
     cy.get('input[name="email"]').type("nobody@test.com");
     cy.get('input[name="password"]').type("wrongpass");
     cy.get('button[name="standard-log-signup"]').click();

@@ -8,8 +8,12 @@ export function uniqueEmail(prefix = "cy"): string {
 /** Sign up a fresh user through the UI and land on the given path. */
 Cypress.Commands.add("signupViaUi", (email: string, password = "secret123") => {
   cy.visit("/login?mode=signup");
-  // The carousel stage shows first — click "Sign Up" to reveal the form.
-  cy.get("button").contains(/^Sign Up$/).first().click();
+  // On mobile the carousel stage shows first; on desktop the form is direct.
+  cy.get("body").then(($body) => {
+    if ($body.find('input[name="name"]').length === 0) {
+      cy.get("button").contains("Sign Up").first().click();
+    }
+  });
   cy.get('input[name="name"]').type("Cypress User");
   cy.get('input[name="email"]').type(email);
   cy.get('input[name="password"]').type(password);
