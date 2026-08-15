@@ -136,7 +136,10 @@ function CashflowCommand({
 }) {
   const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
   const storeCurrency = useFiPlanStore((s) => s.currency);
+  const common_collection = useFiPlanStore((s) => s.common_collection);
   const currency_symbol = GetCurrencySymbol(storeCurrency || "INR");
+  const cashflow_type_options = (common_collection as any)?.cashflow_type || [];
+  const cashflow_frequency_options = (common_collection as any)?.cashflow_frequency || [];
 
   const [state, setState] = useState<any>({
     type: "p",
@@ -265,17 +268,6 @@ function CashflowCommand({
     onDone({ action: "deleted" });
   }
 
-  const typeOptions = [
-    { text: "periodic", value: "p" },
-    { text: "one time", value: "o" },
-  ];
-  const frequencyOptions = [
-    { text: "monthly", value: "m" },
-    { text: "quarterly", value: "q" },
-    { text: "half yearly", value: "h" },
-    { text: "yearly", value: "y" },
-  ];
-
   const inputClass =
     "relative border-[1.6px] rounded-[.5rem] px-3 py-2 w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
 
@@ -341,9 +333,9 @@ function CashflowCommand({
       <div className="flex flex-col gap-1">
         <span className="text-sm text-dark-300">Type</span>
         <div className="flex">
-          {typeOptions.map((option) => (
+          {(cashflow_type_options as any[]).map((option, index) => (
             <button
-              key={option.value}
+              key={index}
               disabled={mode === "edit"}
               className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
                 state.type === option.value ? "bg-dark-300 text-dark-50" : ""
@@ -359,9 +351,9 @@ function CashflowCommand({
         <div className="flex flex-col gap-1">
           <span className="text-sm text-dark-300">Frequency</span>
           <div className="flex">
-            {frequencyOptions.map((option) => (
+            {(cashflow_frequency_options as any[]).map((option, index) => (
               <button
-                key={option.value}
+                key={index}
                 disabled={mode === "edit"}
                 className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 disabled:opacity-50 ${
                   state.frequency === option.value ? "bg-dark-300 text-dark-50" : ""
@@ -376,32 +368,35 @@ function CashflowCommand({
       )}
 
       <div className="mt-3 flex gap-4">
-        <div className="flex grow flex-col gap-1 transition-all duration-200">
+        <div className="flex min-w-0 grow flex-col gap-1 transition-all duration-200">
           <span className="text-sm text-dark-300">{start_month_label}</span>
-          <input
-            type="month"
-            className={`${inputClass} py-[.25rem]`}
-            value={monthToValue(start_month)}
-            onChange={(e) => {
-              const m = valueToMonth(e.target.value);
-              setStartMonth(m);
-              setState((s: any) => ({ ...s, start_month: m }));
-            }}
-          />
+          {/* month picker styled like the original @vuepic/vue-datepicker (monthPicker) */}
+          <div className="relative">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+              <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
+            </div>
+            <input
+              type="text"
+              readOnly
+              className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]"
+              value={GetMMYYYYNameFromMM(start_month, plan.timestamp)}
+            />
+          </div>
         </div>
         {state.type === "p" && (
-          <div className="flex grow flex-col gap-1 transition-all duration-200">
+          <div className="flex min-w-0 grow flex-col gap-1 transition-all duration-200">
             <span className="text-sm text-dark-300">End Month</span>
-            <input
-              type="month"
-              className={`${inputClass} py-[.25rem]`}
-              value={monthToValue(end_month)}
-              onChange={(e) => {
-                const m = valueToMonth(e.target.value);
-                setEndMonth(m);
-                setState((s: any) => ({ ...s, end_month: m }));
-              }}
-            />
+            <div className="relative">
+              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+                <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
+              </div>
+              <input
+                type="text"
+                readOnly
+                className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]"
+                value={GetMMYYYYNameFromMM(end_month, plan.timestamp)}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -988,7 +983,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
       <div className="mb-12 flex h-full flex-col-reverse gap-3 md:mb-0 md:mt-0 md:flex-row md:gap-0">
         {/* cashflow list */}
         {show_cashflow_list && (
-          <div className="flex w-full snap-y flex-col md:h-[580px] md:w-1/3">
+          <div className="flex w-full snap-y flex-col md:h-[580px] md:w-1/3 md:shrink-0">
             <div className="overflow-x-hidden overflow-y-scroll px-0 md:pl-2">
               {cashflow_list.map((entity: any) => (
                 <div key={entity._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
@@ -1121,14 +1116,14 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
 
         {/* divider */}
         {show_cashflow_command && (
-          <div className="mx-4 hidden md:flex">
+          <div className="mx-4 hidden md:flex md:shrink-0">
             <FontAwesomeIcon className="mt-5 self-center text-3xl text-primary-300" icon={faChevronRight} />
           </div>
         )}
 
         {/* command column */}
         {(show_cashflow_command || show_cashflow_change_command) && (
-          <div className="flex h-full w-full flex-col md:h-[580px] md:w-[470px]">
+          <div className="flex h-full w-full flex-col md:h-[580px] md:w-[470px] md:min-w-0">
             {show_cashflow_command && (
               <div className="flex flex-col">
                 <CashflowCommand
@@ -1160,7 +1155,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
 
         {/* projection chart column */}
         <div
-          className={`flex h-full flex-col gap-3 transition-all duration-300 md:ml-auto md:pl-3 ${
+          className={`flex h-full flex-col gap-3 transition-all duration-300 md:ml-auto md:pl-3 md:shrink-0 ${
             show_cashflow_command || show_cashflow_change_command ? "md:w-1/3" : "md:w-2/3"
           }`}
         >
