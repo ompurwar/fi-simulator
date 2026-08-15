@@ -759,7 +759,8 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
       const statement_object = statement[month - 1];
       if (!statement_object) continue;
       labels.push(GetMMYYYYNameFromMM(month, plan.timestamp));
-      const breakdown_list = statement_object[breakdown_field] || [];
+      // snapshot shape: { month, net_cashflow, income: { income_breakdown }, expense: { expense_breakdown } }
+      const breakdown_list = statement_object[cashflow_category_id === "i" ? "income" : "expense"]?.[breakdown_field] || [];
       for (const cashflow_id of Object.keys(projection_map)) {
         const found = breakdown_list.find((b: any) => b.id === cashflow_id);
         projection_map[cashflow_id].data.push(found ? found.amount : null);
@@ -775,7 +776,8 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
     const breakdown_field = cashflow_category_id === "i" ? "income_breakdown" : "expense_breakdown";
     const month_obj = statement[current_hover_month - 1];
     if (!month_obj) return [];
-    let breakdown = month_obj[breakdown_field] || [];
+    // snapshot shape: { month, net_cashflow, income: { income_breakdown }, expense: { expense_breakdown } }
+    let breakdown = month_obj[cashflow_category_id === "i" ? "income" : "expense"]?.[breakdown_field] || [];
     if (selected_cashflow_id) breakdown = breakdown.filter((b: any) => b.id === selected_cashflow_id);
     return breakdown;
   }, [snapshot, cashflow_category_id, current_hover_month, selected_cashflow_id]);

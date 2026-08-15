@@ -49,8 +49,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         if (e.code === 401 && !isPublic) router.replace("/login");
       }
     }
+    // load once at startup (original App.vue behavior) — re-running on route change
+    // would clobber unsynced local plan edits made in the editor
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     bootstrap();
-  }, [pathname, router, set_common_collection, setLoading, setPlans, setProfile, setSelectedPlanId]);
+  }, []);
 
   // original App.vue: show_top_nav = !["/login", "/onboarding"].includes(path)
   const show_top_nav = !["/login", "/onboarding"].includes(pathname);
