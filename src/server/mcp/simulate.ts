@@ -1,0 +1,183 @@
+/** What-if scenario patching — pure, never mutates the input plan. */
+
+import { DeepCopy } from "../engine/utils";
+import {
+  GenerateRandomString,
+  MakeCashFlow,
+  MakeCashFlowChange,
+  MakeFundDistributionPercentage,
+  MakeLoanAccount,
+} from "../domain/entities";
+import { CASHFLOW_CHANGE_CONSTANTS, LOAN_CONSTANTS } from "../domain/constants";
+import { InvalidPropertyError } from "../domain/errors";
+
+/** Default end month for open-ended cashflows/changes — far beyond any plan duration. */
+const ONGOING_MONTHS = 1200;
+
+type PatchApplicator = (plan: any, patch: any) => void;
+
+function ApplyAddCashflow(plan: any, patch: any, category: "i" | "e"): void {
+  const cashflow = patch.cashflow;
+  if (!cashflow || typeof cashflow !== "object")
+    throw new InvalidPropertyError("invalid: cashflow should be an object");
+
+  if (cashflow.category !== undefined && cashflow.category !== category)
+    throw new InvalidPropertyError("invalid: cashflow category does not match op");
+
+  const { desc, amount, start_month, end_month, frequency } = cashflow;
+  const end = end_month === undefined ? start_month + ONGOING_MONTHS : end_month;
+  let type: "o" | "p";
+  let freq: "m" | "y" | "q" | "h" | null;
+  if (frequency !== undefined && frequency !== null) {
+    type = "p";
+    freq = frequency;
+  } else if (end === start_month) {
+    type = "o";
+    freq = null;
+  } else {
+    type = "p";
+    freq = "m";
+  }
+
+  const entry = MakeCashFlow({
+    _id: GenerateRandomString(6),
+    category,
+    type,
+    frequency: freq,
+    amount,
+    desc,
+    start_month,
+    end_month: end,
+    active: true,
+    primary: false,
+  });
+
+  plan.cashflow_list = plan.cashflow_list || [];
+  plan.cashflow_list.push(entry);
+}
+
+function ApplyAddCashflowChange(plan: any, patch: any): void {
+  const change = patch.change;
+  if (!change || typeof change !== "object")
+    throw new InvalidPropertyError("invalid: change should be an object");
+
+  const { cashflow_id, change_desc, value, start_month, change_category, change_type } = change;
+  const cashflow_exists = (plan.cashflow_list || []).some((cf: any) => cf._id === cashflow_id);
+  if (!cashflow_exists)
+    throw new InvalidPropertyError("assign of cashflow-changes to non existing cashflow");
+
+  const entry = MakeCashFlowChange({
+    cashflow_id,
+    category: change_category,
+    change_type: change_type ?? CASHFLOW_CHANGE_CONSTANTS.TYPE.PERCENTAGE,
+    value,
+    title: change_desc || "Cashflow change",
+    desc: change_desc || "",
+    start_month,
+    end_month: change.end_month === undefined ? start_month + ONGOING_MONTHS : change.end_month,
+    frequency: change.frequency ?? CASHFLOW_CHANGE_CONSTANTS.FREQUENCY.MONTHLY,
+    active: true,
+  });
+
+  plan.cashflow_change_list = plan.cashflow_change_list || [];
+  plan.cashflow_change_list.push(entry);
+}
+
+function ApplyAddLoan(plan: any, patch: any): void {
+  const loan = patch.loan;
+  if (!loan || typeof loan !== "object")
+    throw new InvalidPropertyError("invalid: loan should be an object");
+
+  const { loan_name, amount, interest_rate, tenure, start_month, parent_id } = loan;
+  if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
+    throw new InvalidPropertyError("invalid: loan tenure should be a positive number");
+
+  const start = start_month ?? 1;
+  const entry = MakeLoanAccount({
+    title: loan_name || "Simulated Loan",
+    principal_amount: amount,
+    interest_rate,
+    start_month: start,
+    end_month: start + tenure - 1,
+    type: loan.type ?? LOAN_CONSTANTS.TYPE.OTHER,
+    ref_id: parent_id ?? null,
+    deposit_to_bank: loan.deposit_to_bank ?? false,
+  });
+
+  plan.loan_accounts = plan.loan_accounts || [];
+  plan.loan_accounts.push(entry);
+}
+
+function ApplyAddFdp(plan: any, patch: any): void {
+  const fdp = patch.fdp;
+  if (!fdp || typeof fdp !== "object")
+    throw new InvalidPropertyError("invalid: fdp should be an object");
+
+  const { name, amount, interest_rate, tenure, start_month, account_id } = fdp;
+  if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
+    throw new InvalidPropertyError("invalid: fdp tenure should be a positive number");
+
+  const start = start_month ?? 1;
+  const entry = MakeFundDistributionPercentage({
+    start_month: start,
+    end_month: start + tenure - 1,
+    s: 0,
+    e: 0,
+    i: 100,
+    name: name || "Fixed Deposit",
+    amount,
+    interest_rate,
+    account_id,
+  });
+
+  plan.fund_distribution_percentage = plan.fund_distribution_percentage || [];
+  plan.fund_distribution_percentage.push(entry);
+}
+
+function ApplySetAccountBalance(plan: any, patch: any): void {
+  const { account_id, month, balance } = patch;
+  if (typeof account_id !== "string" || account_id.length === 0)
+    throw new InvalidPropertyError("invalid: account_id is required");
+  if (typeof month !== "number" || !Number.isFinite(month) || month < 1)
+    throw new InvalidPropertyError("invalid: month should be a positive number");
+  if (typeof balance !== "number" || !Number.isFinite(balance))
+    throw new InvalidPropertyError("invalid: balance should be a number");
+
+  const account = (plan.account_list || []).find((a: any) => a._id === account_id);
+  if (!account) throw new InvalidPropertyError(`invalid: account not found with id ${account_id}`);
+
+  account.init_balance = balance;
+  account.balance_month = month;
+}
+
+const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
+  add_income: (plan, patch) => ApplyAddCashflow(plan, patch, "i"),
+  add_expense: (plan, patch) => ApplyAddCashflow(plan, patch, "e"),
+  add_cashflow_change: ApplyAddCashflowChange,
+  add_loan: ApplyAddLoan,
+  add_fdp: ApplyAddFdp,
+  set_account_balance: ApplySetAccountBalance,
+};
+
+/**
+ * Apply an ordered list of scenario patches to a deep copy of the plan.
+ * The input plan is never mutated; every patch is validated against the same
+ * domain entities the web app uses, so invalid fields throw InvalidPropertyError.
+ */
+export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
+  if (!plan || typeof plan !== "object")
+    throw new InvalidPropertyError("invalid: plan should be an object");
+  if (!Array.isArray(patches))
+    throw new InvalidPropertyError("invalid: patches should be an array");
+
+  const scenario = DeepCopy(plan);
+
+  patches.forEach((patch, index) => {
+    const op = patch?.op;
+    const apply = PATCH_APPLICATORS[op];
+    if (!apply) throw new InvalidPropertyError(`invalid: unknown scenario op '${String(op)}' at index ${index}`);
+    apply(scenario, patch);
+  });
+
+  return scenario;
+}

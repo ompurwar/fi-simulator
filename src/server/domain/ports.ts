@@ -82,6 +82,13 @@ export interface PasswordResetSessionRepository {
   Delete(_id: string): Promise<{ success: boolean }>;
 }
 
+export interface ApiTokenRepository {
+  Add(info: Record<string, any>): Promise<{ success: boolean; created: any }>;
+  FindByTokenHash(token_hash: string): Promise<any | null>;
+  FindByUserId(user_id: string): Promise<any[]>;
+  Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
+}
+
 export interface CommonCollectionRepository {
   GetCommonCollectionList(): Promise<any>;
 }

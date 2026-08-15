@@ -209,8 +209,8 @@ export function MakeCashFlowChange(input: Record<string, any>): CashFlowChange {
 
   return {
     _id,
-    title: other_info.title || "",
-    desc: other_info.desc || "",
+    title,
+    desc,
     category,
     cashflow_id,
     change_type,
@@ -577,6 +577,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     );
 
   cashflow_list.forEach((cashflow, index) => {
+    if (typeof cashflow !== "object" || cashflow === null) return;
     try {
       MakeCashFlow(cashflow);
     } catch (e: any) {
@@ -586,6 +587,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     }
   });
   cashflow_change_list.forEach((cashflow_change, index) => {
+    if (typeof cashflow_change !== "object" || cashflow_change === null) return;
     try {
       MakeCashFlowChange(cashflow_change);
     } catch (e: any) {
@@ -595,6 +597,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     }
   });
   account_list.forEach((account, index) => {
+    if (typeof account !== "object" || account === null) return;
     try {
       MakeAccount(account);
     } catch (e: any) {
@@ -604,6 +607,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     }
   });
   loan_accounts.forEach((loan_account: Record<string, any>, index: number) => {
+    if (typeof loan_account !== "object" || loan_account === null) return;
     try {
       MakeLoanAccount(loan_account);
     } catch (e: any) {
@@ -613,6 +617,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     }
   });
   fund_distribution_percentage.forEach((fund_distribution_obj, index) => {
+    if (typeof fund_distribution_obj !== "object" || fund_distribution_obj === null) return;
     try {
       MakeFundDistributionPercentage(fund_distribution_obj);
     } catch (e: any) {
@@ -759,4 +764,47 @@ export function MakePasswordResetSession(
     throw new InvalidPropertyError("Plan used should be of type boolean");
 
   return Object.freeze({ user_id, secret, expires_at, used, ...other_info });
+}
+
+/* ------------------------------ ApiToken ------------------------------ */
+
+export interface ApiToken {
+  _id: string;
+  user_id: string;
+  name: string;
+  token_hash: string;
+  status: "active" | "deleted";
+  created_at: number;
+  last_used_at?: number;
+}
+
+export function MakeApiToken(input: Record<string, any>): ApiToken {
+  const {
+    _id = GenerateRandomString(24),
+    user_id,
+    name,
+    token_hash,
+    status = "active",
+    created_at = Date.now(),
+    ...other_info
+  } = input;
+
+  if (typeof user_id !== "string" || user_id.length === 0)
+    throw new InvalidPropertyError("invalid: user_id is required");
+  if (typeof name !== "string" || name.length === 0)
+    throw new InvalidPropertyError("invalid: name is required");
+  if (typeof token_hash !== "string" || token_hash.length === 0)
+    throw new InvalidPropertyError("invalid: token_hash is required");
+  if (status && !/^(active|deleted)$/.test(status))
+    throw new InvalidPropertyError("status should be active | deleted");
+
+  return Object.freeze({
+    _id,
+    user_id,
+    name,
+    token_hash,
+    status,
+    created_at,
+    ...other_info,
+  });
 }

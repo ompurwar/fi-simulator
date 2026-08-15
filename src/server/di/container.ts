@@ -1,6 +1,7 @@
 import type { Env } from "../config/env";
 import { loadEnv } from "../config/env";
 import type {
+  ApiTokenRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
   CommonCollectionRepository,
@@ -22,6 +23,7 @@ import {
   VerifyCookie,
 } from "../infrastructure/crypto";
 import {
+  makeApiTokenRepository,
   makeCashFlowChangeRepository,
   makeCashFlowRepository,
   makeCommonCollectionRepository,
@@ -53,6 +55,7 @@ export interface Container {
   share_object_list: ShareObjectRepository;
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
+  api_token_list: ApiTokenRepository;
   app: ApplicationLayer;
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
@@ -98,6 +101,7 @@ export async function buildContainer(
     pwResetSessionLengthMin,
   });
   const common_collection_list = makeCommonCollectionRepository(db);
+  const api_token_list = makeApiTokenRepository(db);
 
   const networth_repo = makeNetWorthRepository(db);
   const networth_provider =
@@ -116,6 +120,8 @@ export async function buildContainer(
     isDev: env.NODE_ENV !== "production",
   };
 
+  const cookieSecret = env.COOKIE_SECRET;
+
   const app = MakeApplicationLayer({
     user_list,
     session_list,
@@ -125,18 +131,19 @@ export async function buildContainer(
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    api_token_list,
     networth_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
     sessionTimeoutHours,
     pwResetSessionLengthMin,
+    cookieSecret,
     clientApplication,
     sendTemplateMail: (args) => SendTemplateMail(mailConfig, args),
   });
 
   const googleOAuth = buildGoogleOAuth(env);
-  const cookieSecret = env.COOKIE_SECRET;
 
   return {
     env,
@@ -149,6 +156,7 @@ export async function buildContainer(
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    api_token_list,
     app,
     networth_repo,
     networth_provider,

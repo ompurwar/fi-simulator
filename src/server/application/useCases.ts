@@ -1,4 +1,5 @@
 import type {
+  ApiTokenRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
   CommonCollectionRepository,
@@ -18,6 +19,7 @@ import {
 } from "../domain/constants";
 import {
   MakeAccount,
+  MakeApiToken,
   MakeCashFlow,
   MakeCashFlowChange,
   MakePlan,
@@ -25,6 +27,7 @@ import {
   MakeShareObject,
   MakeUser,
   MakePasswordResetSession,
+  GenerateRandomString,
 } from "../domain/entities";
 import {
   DbInsertFailedError,
@@ -47,12 +50,14 @@ export interface UseCaseDeps {
   share_object_list: ShareObjectRepository;
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
+  api_token_list: ApiTokenRepository;
   networth_service: NetWorthService;
   GenerateHash: (pass: string, salt: string) => string;
   CreateCredentials: (password: string) => { salt: string; hash: string };
   defaultPlanDuration: number;
   sessionTimeoutHours: number;
   pwResetSessionLengthMin: number;
+  cookieSecret: string;
   clientApplication: string;
   sendTemplateMail: (args: {
     to: { Email: string; Name: string };
@@ -113,6 +118,9 @@ export interface ApplicationLayer {
   OptinShareObject(input: { share_id: string; user_id: string }): Promise<any>;
   DeleteShareObject(input: { id: string; user_id: string }): Promise<any>;
   GetCommonCollection(): Promise<any>;
+  CreateApiToken(input: { user_id: string; name: string }): Promise<any>;
+  ListApiTokens(input: { user_id: string }): Promise<any>;
+  RevokeApiToken(input: { user_id: string; token_id: string }): Promise<any>;
   PlanSnapshot(input: { plan: any; duration?: number }): Promise<any>;
   GetNetWorthStatus(input: { user_id: string }): Promise<any>;
   ConnectNetWorth(input: { user_id: string; redirect_url: string }): Promise<any>;
@@ -131,12 +139,14 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    api_token_list,
     networth_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
     sessionTimeoutHours,
     pwResetSessionLengthMin,
+    cookieSecret,
     clientApplication,
     sendTemplateMail,
   } = deps;
@@ -696,7 +706,19 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   }
 
   async function UpdateIncome(input: Record<string, any>) {
-    const { _id, plan_id, user_id, type, frequency, amount, desc, start_month, end_month } = input;
+    const {
+      _id,
+      plan_id,
+      user_id,
+      type,
+      frequency,
+      amount,
+      desc,
+      start_month,
+      end_month,
+      active = true,
+      primary = false,
+    } = input;
     MakeCashFlow({
       category: CASHFLOW_CONSTANTS.CATEGORY.INCOME,
       plan_id,
@@ -708,6 +730,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       start_month,
       end_month,
       _id,
+      active,
+      primary,
     });
     let { updated } = await cashflow_list.Update({
       category: CASHFLOW_CONSTANTS.CATEGORY.INCOME,
@@ -787,7 +811,19 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   }
 
   async function UpdateExpense(input: Record<string, any>) {
-    const { _id, plan_id, user_id, type, frequency, amount, desc, start_month, end_month } = input;
+    const {
+      _id,
+      plan_id,
+      user_id,
+      type,
+      frequency,
+      amount,
+      desc,
+      start_month,
+      end_month,
+      active = true,
+      primary = false,
+    } = input;
     MakeCashFlow({
       category: CASHFLOW_CONSTANTS.CATEGORY.EXPENSE,
       plan_id,
@@ -799,6 +835,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       start_month,
       end_month,
       _id,
+      active,
+      primary,
     });
     let { updated } = await cashflow_list.Update({
       category: CASHFLOW_CONSTANTS.CATEGORY.EXPENSE,
@@ -973,7 +1011,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   async function UpdateShareObject(input: Record<string, any>) {
     const { _id, title, description = "", type, category, promotional_links, creator_name, user_id, img_url, plan_ids, ...other_info } = input;
     let _object = await share_object_list.FindById({ share_ids: [_id] });
-    if (_object && _object.creator_id !== user_id)
+    if (_object && String(_object.creator_id) !== String(user_id))
       throw new InvalidOperationError("Unauthorized access to share object");
 
     const share_object = MakeShareObject({
@@ -1028,7 +1066,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   async function DeleteShareObject({ id, user_id }: { id: string; user_id: string }) {
     let share_object = await share_object_list.FindById({ share_ids: [id] });
     if (share_object) {
-      if (share_object.creator_id !== user_id)
+      if (String(share_object.creator_id) !== String(user_id))
         throw new InvalidOperationError("Un authorized access to the share_object");
       let { success } = await share_object_list.Delete(id);
       if (success) return true;
@@ -1041,6 +1079,48 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     let common_collection = await common_collection_list.GetCommonCollectionList();
     if (common_collection) return common_collection;
     return {};
+  }
+
+  /* ----------------------------- ApiToken ----------------------------- */
+
+  async function CreateApiToken({ user_id, name }: { user_id: string; name: string }) {
+    if (!name) RequiredParam("name");
+    const raw = "fp_" + GenerateRandomString(32);
+    const token_hash = GenerateHash(raw, cookieSecret);
+    const api_token = MakeApiToken({ user_id, name, token_hash });
+    const { success, created } = await api_token_list.Add(api_token);
+    if (success) return { api_token: raw, token_id: created._id };
+    throw new DbInsertFailedError();
+  }
+
+  async function ListApiTokens({ user_id }: { user_id: string }) {
+    const tokens = await api_token_list.FindByUserId(user_id);
+    return tokens.map((token: any) => ({
+      _id: token._id,
+      name: token.name,
+      status: token.status,
+      created_at: token.created_at,
+      last_used_at: token.last_used_at,
+    }));
+  }
+
+  async function RevokeApiToken({
+    user_id,
+    token_id,
+  }: {
+    user_id: string;
+    token_id: string;
+  }) {
+    if (!token_id) RequiredParam("token_id");
+    const tokens = await api_token_list.FindByUserId(user_id);
+    if (!tokens.some((token: any) => token._id === token_id))
+      throw new InvalidOperationError("Unauthorized access to api token");
+    const { success } = await api_token_list.Update({
+      _id: token_id,
+      status: "deleted",
+    });
+    if (success) return { revoked: true };
+    throw new InvalidOperationError("Something went wrong.");
   }
 
   /* ---------------------------- Engine snapshot ---------------------------- */
@@ -1084,6 +1164,9 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     OptinShareObject,
     DeleteShareObject,
     GetCommonCollection,
+    CreateApiToken,
+    ListApiTokens,
+    RevokeApiToken,
     PlanSnapshot,
     GetNetWorthStatus: (input: { user_id: string }) => networth_service.GetStatus(input),
     ConnectNetWorth: (input: { user_id: string; redirect_url: string }) =>
