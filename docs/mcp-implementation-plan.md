@@ -221,7 +221,7 @@ sequenceDiagram
   APP->>R: Add({ user_id, name, token_hash, status: "active" })
   R->>DB: insert Api_Token_Store
   DB-->>U: (raw token returned ONCE to UI)
-  Note over U,DB: Subsequent agent calls carry the raw token; server only ever compares hashes
+  Note over U,DB: Subsequent agent calls carry the raw token - the server only ever compares hashes
 ```
 
 ---
@@ -436,7 +436,7 @@ sequenceDiagram
   AU-->>R: { user_id }
   R->>S: transport.handleRequest(req, { authInfo: { token, clientId, scopes, extra: { user_id } } })
   S->>T: handler(args, extra)
-  T->>T: user_id = extra.authInfo.extra.user_id; zod-validate args
+  T->>T: read user_id from extra.authInfo.extra.user_id, then zod-validate args
   T->>APP: app.GetIncome({ plan_id, user_id })
   APP->>D: repository (ownership enforced)
   D-->>T: rows
@@ -533,10 +533,10 @@ flowchart TB
   subgraph MCPMOD["src/server/mcp/"]
     IDX[index.ts]
     TY[types.ts<br/>ToolContext · envelopes]
-    AU[auth.ts<br/>resolveToken → AuthInfo{ extra: { user_id } }]
+    AU["auth.ts<br/>resolveToken → AuthInfo{ extra: { user_id } }"]
     SIM[simulate.ts<br/>ApplyScenarioToPlan — pure]
     REG[registry.ts<br/>makeToolRegistry — ONE tool list]
-    SRV[server.ts<br/>makeMcpServer(container)<br/>zod + registerTool wrapper]
+    SRV["server.ts<br/>makeMcpServer(container)<br/>zod + registerTool wrapper"]
     subgraph TOOLS["tools/ (definitions)"]
       TP[plans.ts]
       TC[cashflows.ts]
