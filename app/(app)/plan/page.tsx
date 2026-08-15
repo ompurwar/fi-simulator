@@ -38,6 +38,7 @@ import {
   faMoneyBillTrendUp,
   faShareNodes,
   faCircleExclamation,
+  faPenToSquare,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -162,6 +163,7 @@ function BalanceAndTxn({
   accountList,
   expenseStatement,
   alignment = "v",
+  onEdit,
 }: {
   balances: any[];
   month: number;
@@ -169,6 +171,7 @@ function BalanceAndTxn({
   accountList?: any[];
   expenseStatement?: any[];
   alignment?: "h" | "v";
+  onEdit?: (account_id: string) => void;
 }) {
   const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
   const sorted = useBalanceSeq(balances).sort(
@@ -294,6 +297,16 @@ function BalanceAndTxn({
                     </div>
                   </div>
                 </div>
+                {/* account edit button (matches BalanceAndTxn.vue OnEditAccount) */}
+                <div className="flex ml-auto mr-2 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => onEdit?.(b.account_id)}
+                    className="self-start py-1 text-xs font-medium text-dark-300 hover:bg-opacity-30 focus:outline-none sm:px-2 sm:text-sm md:px-0"
+                  >
+                    <FontAwesomeIcon icon={faPenToSquare} />
+                  </button>
+                </div>
                 <hr className="hidden mb-1 md:block" />
                 <div className="flex flex-col self-center h-16 gap-1 pl-2 border-l-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
                   {(account.txn || [])
@@ -368,8 +381,8 @@ function PlanPageInner() {
     }
   }, [plan]);
 
-  function HandleEdit(entity_type: string, sub_entity_type = "", meta_data = {}) {
-    setGodPlanEntity({ active: true, plan_id: plan?._id, entity_type, sub_entity_type, meta_data });
+  function HandleEdit(entity_type: string, sub_entity_type = "", entity_id = "") {
+    setGodPlanEntity({ active: true, plan_id: plan?._id, entity_type, sub_entity_type, entity_id, meta_data: null });
     router.push("/edit");
   }
 
@@ -646,6 +659,7 @@ function PlanPageInner() {
             accountList={engine.account_list}
             expenseStatement={cashflow.expense_statement}
             alignment="v"
+            onEdit={(account_id) => HandleEdit("account", "", account_id)}
           />
         </div>
       </div>

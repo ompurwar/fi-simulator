@@ -12,6 +12,7 @@ import { GetRandomString } from "@/lib/utils";
 import { GetCurrencySymbol } from "@/lib/country";
 import { FDPEditor } from "@/components/edit/FDPEditor";
 import { LoanEditor } from "@/components/edit/LoanEditor";
+import { AccountEditor } from "@/components/edit/AccountEditor";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -1496,8 +1497,21 @@ export default function EditPage() {
     );
   }
 
+  // Account editor (Emergency/Savings/Investment cards edit button)
+  if (entity_type === "account") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex justify-between gap-5">
+            <AccountEditor plan_id={plan._id} selected_account_id={god_plan_entity.entity_id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!is_cashflow_related) {
-    // non-cashflow editors (account) — keep the simple fallback for now
+    // unknown entity types — simple fallback
     return (
       <div className="flex h-screen items-center justify-center">
         <Button onClick={() => router.push("/plan")}>Back to plan</Button>
