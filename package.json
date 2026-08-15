@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "standalone": "tsx standalone/server.ts",
+    "mcp:stdio": "tsx standalone/mcp-stdio.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "cypress run",

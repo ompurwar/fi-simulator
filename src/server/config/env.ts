@@ -22,6 +22,10 @@ const envSchema = z.object({
   SUPPORT_MAIL: z.string().optional(),
   MAILER_NAME: z.string().optional(),
   INDMONEY_MCP_URL: z.string().default("https://mcp.indmoney.com/mcp"),
+  MCP_ENABLED: z.enum(["true", "false"]).default("true"),
+  AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  FIPLAN_API_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
