@@ -43,6 +43,8 @@ import {
   type NetWorthRepository,
   type NetWorthService,
 } from "../networth";
+import { makeAnthropicProvider } from "../ai/provider";
+import type { AiProvider } from "../ai/types";
 
 export interface Container {
   env: Env;
@@ -60,6 +62,7 @@ export interface Container {
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
   networth_service: NetWorthService;
+  ai_provider: AiProvider;
   googleOAuth: GoogleOAuth;
   mailConfig: MailConfig;
   cookieSecret: string;
@@ -78,7 +81,7 @@ export interface Container {
 /** Composition root — wires the entire embedded server. */
 export async function buildContainer(
   envSource: Record<string, string | undefined> = process.env,
-  overrides: { networthProvider?: NetWorthProvider } = {}
+  overrides: { networthProvider?: NetWorthProvider; aiProvider?: AiProvider } = {}
 ): Promise<Container> {
   const env = loadEnv(envSource);
   const db = await makeDatabase(env.DB_URL, env.DB_NAME);
@@ -111,6 +114,9 @@ export async function buildContainer(
     repo: networth_repo,
     provider: networth_provider,
   });
+
+  const ai_provider =
+    overrides.aiProvider ?? makeAnthropicProvider(env.ANTHROPIC_API_KEY || "");
 
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,
@@ -161,6 +167,7 @@ export async function buildContainer(
     networth_repo,
     networth_provider,
     networth_service,
+    ai_provider,
     googleOAuth,
     mailConfig,
     cookieSecret,

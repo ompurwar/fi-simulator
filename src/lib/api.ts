@@ -36,6 +36,10 @@ const ENDPOINTS = {
   NETWORTH_CONNECT: "/networth/connect",
   NETWORTH_SYNC: "/networth/sync",
   NETWORTH_DISCONNECT: "/networth/disconnect",
+  API_TOKEN_CREATE: "/api_token/create",
+  API_TOKEN_LIST: "/api_token/list",
+  API_TOKEN_REVOKE: "/api_token/revoke",
+  ASSISTANT_CHAT: "/assistant/chat",
 };
 
 export { ENDPOINTS };
@@ -115,6 +119,39 @@ export const api = {
     Post(ENDPOINTS.NETWORTH_CONNECT, { data: { redirect_url } }),
   SyncNetWorth: () => Post(ENDPOINTS.NETWORTH_SYNC, { data: {} }),
   DisconnectNetWorth: () => Post(ENDPOINTS.NETWORTH_DISCONNECT, { data: {} }),
+
+  /* ------- api tokens ------- */
+  CreateApiToken: (name: string) => Post(ENDPOINTS.API_TOKEN_CREATE, { data: { name } }),
+  ListApiTokens: () => Post(ENDPOINTS.API_TOKEN_LIST, { data: {} }),
+  RevokeApiToken: (token_id: string) => Post(ENDPOINTS.API_TOKEN_REVOKE, { data: { token_id } }),
+
+  /* ------- assistant ------- */
+  /** Raw SSE fetch for the assistant — returns the Response so the caller can read res.body. */
+  ChatAssistant: async (messages: AssistantMessage[]): Promise<Response> => {
+    try {
+      return await fetch(`${API_BASE}${ENDPOINTS.ASSISTANT_CHAT}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ messages }),
+      });
+    } catch {
+      throw new FiPlanServerHttpError("network error", { code: 0 });
+    }
+  },
 };
+
+export interface ApiToken {
+  _id: string;
+  name: string;
+  status: string;
+  created_at: number;
+  last_used_at?: number | null;
+}
+
+export interface AssistantMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default api;

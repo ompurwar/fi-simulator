@@ -18,13 +18,13 @@ Plan: `docs/mcp-implementation-plan.md`.
 
 | # | Task | Status | Owner | Notes |
 |---|---|---|---|---|
-| 2.1 | ApiToken infra — entity + port + repo + Create/List/Revoke use cases + routes + tests | IN_PROGRESS | — | `Api_Token_Store`; `fp_` + 32 random chars, stored hashed via `GenerateHash(token, COOKIE_SECRET)`; raw token shown once |
-| 2.2 | mcp core — types, registry (`makeToolRegistry`), auth, `ApplyScenarioToPlan`, `makeMcpServer` | TODO | — | Single source of tool schemas (zod) + handlers `(ctx, args) → envelope` |
-| 2.3 | Tool definitions — plans, engine, cashflows, changes, networth, share + tests | TODO | — | Map 1:1 onto `ApplicationLayer` use cases; `user_id` from context, never an argument |
-| 2.4 | API token management UI on profile page | TODO | — | Create (one-time reveal), list, revoke |
-| 2.5 | `app/api/mcp/route.ts` — stateless Streamable HTTP (Bearer auth) | TODO | — | `WebStandardStreamableHTTPServerTransport`, `sessionIdGenerator: undefined`, `enableJsonResponse: true` |
-| 2.6 | `standalone/mcp-stdio.ts` — stdio transport | TODO | — | `FIPLAN_API_TOKEN` env; `npm run mcp:stdio` |
-| 2.7 | ai module — Anthropic provider, agent loop, prompts + tests | TODO | — | LLM via plain `fetch`; tool schemas via SDK `toJsonSchemaCompat` |
-| 2.8 | `app/api/assistant/chat/route.ts` — session auth + SSE streaming + tests | TODO | — | Events: text delta, tool_call, tool_result, error, done |
-| 2.9 | ChatPanel UI — floating assistant panel | TODO | — | Streaming render, tool-call badges, stop button |
-| 2.10 | Agent usage guide + CHANGELOG + TASKS completion | TODO | — | Claude Code / Desktop `mcp add` instructions |
+| 2.1 | ApiToken infra — entity + port + repo + Create/List/Revoke use cases + routes + tests | DONE | — | `Api_Token_Store`; `fp_` + 32 random chars, stored hashed via `GenerateHash(token, COOKIE_SECRET)`; raw token shown once |
+| 2.2 | mcp core — types, registry (`makeToolRegistry`), auth, `ApplyScenarioToPlan`, `makeMcpServer` | DONE | — | Single source of tool schemas (zod) + handlers `(ctx, args) → envelope` |
+| 2.3 | Tool definitions — plans, engine, cashflows, changes, networth, share + tests | DONE | — | 26 tools; also fixed 5 pre-existing app-layer bugs found during wiring |
+| 2.4 | API token management UI on profile page | DONE | — | `src/components/profile/ApiTokens.tsx` — create with one-time reveal, list, revoke |
+| 2.5 | `app/api/mcp/route.ts` — stateless Streamable HTTP (Bearer auth) | DONE | — | Per-request transport (SDK forbids reuse/connect); fresh `McpServer` per request over a cached container |
+| 2.6 | `standalone/mcp-stdio.ts` — stdio transport | DONE | — | `FIPLAN_API_TOKEN` env via `staticAuth` option; `npm run mcp:stdio` |
+| 2.7 | ai module — Anthropic provider, agent loop, prompts + tests | DONE | — | Plain `fetch` + manual SSE parse; `toJsonSchemaCompat` for tool schemas; 8-iteration cap |
+| 2.8 | `app/api/assistant/chat/route.ts` — session auth + SSE streaming + tests | DONE | — | Events: text, tool_call, tool_result, error, done + `[DONE]` |
+| 2.9 | ChatPanel UI — floating assistant panel | DONE | — | `src/components/assistant/ChatPanel.tsx` mounted in `app/(app)/layout.tsx` |
+| 2.10 | Agent usage guide + CHANGELOG + TASKS completion | DONE | — | `docs/mcp-usage.md` |

@@ -10,6 +10,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faKey, faChevronDown, faChevronRight, faCodeBranch, faCompassDrafting, faSwatchbook } from "@fortawesome/free-solid-svg-icons";
 import { faClock } from "@fortawesome/free-regular-svg-icons";
 import { currency_list } from "@/lib/country";
+import { ApiTokens } from "@/components/profile/ApiTokens";
 
 /** moment(timestamp).calendar() equivalent, matching the original FormatTime. */
 function FormatTime(timestamp: string) {
@@ -202,6 +203,8 @@ export default function ProfilePage() {
               )}
             </Disclosure>
           )}
+
+          <ApiTokens />
         </div>
 
         <hr className="mb-3" />
