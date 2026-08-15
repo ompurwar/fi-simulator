@@ -37,6 +37,7 @@ the React/Next components, screenshot both apps, compare, adjust, repeat.
 | forgot_password | 0.01% | 1.25% | |
 | plan | 9.6% | 6.2% | chart.js v3→v4 canvas rendering differences (bars/ticks) |
 | compare | 5.6% | — | ported engine returns month-1 balance where original has 0 (backend biz-logic diff, not UI) |
+| edit (income/expense editor) | 3.1% list / 2.2% add form | — | full 1:1 port of GodPlanEntity + IncomeAndExpenseEditor + Cashflow(Change)Card/Command; remaining = chart axis rendering |
 
 ### Remaining gaps
 1. **Chart internals (plan ~9.6%, compare partial)** — chart.js v4 renders bars/ticks slightly
