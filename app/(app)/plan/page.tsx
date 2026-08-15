@@ -37,6 +37,7 @@ import {
   faVault,
   faMoneyBillTrendUp,
   faShareNodes,
+  faCircleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -152,7 +153,7 @@ function MonthlyStatement({ details, mobile = false }: { details: any; mobile?: 
   }
 
   return (
-    <Disclosure as="div" defaultOpen>
+    <Disclosure as="div" className="w-full" defaultOpen>
       {({ open }) => (
         <>
           <Disclosure.Button className={`flex w-full justify-between rounded-lg bg-dark-100 px-4 py-2 text-sm font-semibold text-dark-500 ${open ? "mb-2" : "mb-3"}`}>
@@ -209,8 +210,11 @@ function BalanceAndTxn({
               <div className="flex justify-between gap-3">
                 <div className="text-lg font-medium">Runway</div>
                   {currentFdp?.strategy && (
-                  <div className="self-center whitespace-nowrap rounded-md bg-warning-200 px-2 py-0.5 text-right text-[10px] text-warning-800">
-                    {currentFdp.strategy}
+                  <div className="h-fit flex gap-1 text-right peer text-[10px] py-0.5 px-2 self-center bg-warning-200 rounded-md text-warning-800">
+                    <div className="ml-auto">
+                      {currentFdp.strategy}
+                      <FontAwesomeIcon icon={faCircleExclamation} className="text-warning-500" />
+                    </div>
                   </div>
                 )}
               </div>
@@ -242,7 +246,7 @@ function BalanceAndTxn({
             return (
               <div
                 key={b.account_id || idx}
-                className={`flex flex-col gap-4 rounded-2xl border bg-dark-50 p-2 shadow-sm sm:min-h-[100px] sm:p-4 md:mb-0 ${alignment === "v" ? "w-full" : "md:w-[14.5rem]"}`}
+                className="flex relative flex-col gap-4 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
               >
                 <div className="flex gap-2 self-center md:mb-2 md:w-full">
                   <div className="relative grid h-[2.5rem] w-[2.5rem] place-content-center self-center rounded-md bg-dark-100 text-dark-400 sm:h-[3rem] sm:w-[3rem]">
@@ -419,8 +423,13 @@ function PlanPageInner() {
   const is_plan_synced = plan_synced_map[plan._id] !== false;
 
   // matching original ToDisplayableMoney + annotation
+  // original get_local prefers window.navigator.language
+  const money_local =
+    (typeof window !== "undefined" && window.navigator?.language) ||
+    useFiPlanStore.getState().local ||
+    "en-IN";
   const ToDisplayableMoney = (value: any) =>
-    Intl.NumberFormat(useFiPlanStore.getState().local || "en-IN", {
+    Intl.NumberFormat(money_local, {
       style: "currency",
       notation: "compact",
       currency: useFiPlanStore.getState().currency || "INR",

@@ -64,15 +64,18 @@ export function DisplayAmount({
   className?: string;
 }) {
   const currency = useFiPlanStore((s) => s.currency);
-  const local = useFiPlanStore((s) => s.local);
+  const storeLocal = useFiPlanStore((s) => s.local);
   const symbol = GetCurrencySymbol(currency || "INR");
+  // original getters.get_local: window.navigator.language || profile.ob_params.local || state.local
+  const local =
+    (typeof window !== "undefined" && window.navigator?.language) || storeLocal || "en-IN";
 
   if (amount === undefined || amount === null || isNaN(amount)) return <span>-</span>;
   const is_negative = amount < 0;
   let formatted: string;
   try {
     const config: Intl.NumberFormatOptions = notation ? { notation } : {};
-    formatted = Intl.NumberFormat(local || "en-IN", config).format(Number(Math.abs(amount).toFixed(0)));
+    formatted = Intl.NumberFormat(local, config).format(Number(Math.abs(amount).toFixed(0)));
   } catch {
     formatted = Math.abs(amount).toFixed(0);
   }
