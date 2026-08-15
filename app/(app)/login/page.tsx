@@ -240,7 +240,7 @@ function LoginInner() {
           )}
 
           {show_action_stage && (
-            <div className="flex md:flex-row flex-col md:p-11 md:justify-center h-[80vh]">
+            <div className="flex flex-col md:flex-row md:min-h-[80vh] md:justify-center md:p-11">
               <form className="flex flex-col gap-4 mb-10 md:gap-3" onSubmit={(e) => e.preventDefault()}>
                 <Logo className="self-center hidden text-4xl md:w-fit md:-ml-4 md:flex" />
                 <div className="flex flex-col justify-center">
@@ -337,7 +337,7 @@ function LoginInner() {
                       )}
                     </div>
                     <div className="grid self-center h-full text-center place-items-center">
-                      <p className="ml-1 font-medium text-[20px] text-dark-500">
+                      <p className="ml-1 font-medium text-[20px] whitespace-nowrap text-dark-500">
                         <span>oogle</span> {mode === "login" ? "Login" : "Sign Up"}
                       </p>
                     </div>

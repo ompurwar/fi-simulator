@@ -550,34 +550,34 @@ function PlanPageInner() {
               <FontAwesomeIcon icon={faGauge} className="md:hidden" />
             </Popover.Button>
             <Popover.Panel className="absolute z-10 mt-3 w-[100vw] -translate-y-[105%] transform md:w-fit">
-              <div className="mx-3 overflow-hidden border rounded-lg border-dark-100 bg-dark-50 shadow-4xl">
+              <div className="mx-3 overflow-hidden border rounded-lg border-dark-600 bg-dark-800 shadow-4xl">
                 <div className="relative flex flex-col gap-3 p-4">
                   <div className="flex gap-2">
-                    <div className="font-bold">Cockpit</div>
-                    <Popover.Button className="ml-auto grid h-[25px] w-[25px] place-content-center rounded-md bg-dark-100 text-dark-500">
+                    <div className="font-bold text-dark-100">Cockpit</div>
+                    <Popover.Button className="ml-auto grid h-[25px] w-[25px] place-content-center rounded-md bg-dark-600 text-dark-200">
                       <FontAwesomeIcon icon={faXmark} />
                     </Popover.Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {["income", "expense"].map((c) => (
-                      <div key={c} className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("cashflow", c)}>
+                      <div key={c} className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("cashflow", c)}>
                         <div className={`grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md p-2 sm:h-[3rem] ${c === "income" ? "bg-success-100 text-success-300" : "bg-danger-100 text-danger-300"}`}>
                           <FontAwesomeIcon icon={c === "income" ? faArrowRightToBracket : faArrowRightFromBracket} className={`text-xl sm:text-2xl ${c === "income" ? "rotate-[135deg]" : "rotate-[-45deg]"}`} />
                         </div>
-                        <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
+                        <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
                       </div>
                     ))}
-                    <div key="loan" className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("loan", "")}>
+                    <div key="loan" className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("loan", "")}>
                       <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-dark-100 p-2 text-dark-300 sm:h-[3rem]">
                         <FontAwesomeIcon icon={faLandmarkFlag} className="text-xl sm:text-2xl" />
                       </div>
-                      <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Loan Manager</div>
+                      <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">Loan Manager</div>
                     </div>
-                    <div key="fdp" className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("fdp", "")}>
+                    <div key="fdp" className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("fdp", "")}>
                       <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-warning-100 p-2 text-warning-300 sm:h-[3rem]">
                         <FontAwesomeIcon icon={faSackDollar} className="text-xl sm:text-2xl" />
                       </div>
-                      <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Money Manager</div>
+                      <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">Money Manager</div>
                     </div>
                   </div>
                 </div>
