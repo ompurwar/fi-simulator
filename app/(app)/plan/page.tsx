@@ -54,7 +54,7 @@ function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any;
   const count = breakdown?.length || 0;
 
   return (
-    <div className="flex h-min-[8rem] flex-col gap-2 rounded-2xl border bg-dark-50 p-4 shadow-sm md:h-[9rem] md:w-[14.2em] md:gap-1 md:p-6 md:shadow-none">
+    <div className="flex h-min-[8rem] w-[48.2%] flex-col gap-2 rounded-2xl border bg-dark-50 p-4 shadow-sm md:h-[9rem] md:w-[14.2em] md:gap-1 md:p-6 md:shadow-none">
       <div className="flex gap-2 md:gap-3">
         <div
           className={`relative grid h-[2.3rem] w-[2.3rem] place-content-center self-center rounded-md p-1 sm:h-[2.9rem] sm:w-[2.9rem] md:h-[2rem] md:w-[2rem] ${
@@ -93,19 +93,7 @@ function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any;
           vs last month
         </div>
       ) : null}
-      {/* breakdown list, matching MonthlyIncomeExpense.vue */}
-      <div className="h-20 overflow-x-hidden overflow-y-scroll">
-        {(breakdown || []).map((data: any, index: number) => (
-          <div key={`break-down-income-${index}`} className="flex justify-between w-full">
-            <div className="flex gap-2 text-[11px] font-bold text-dark-400">
-              <DisplayAmount amount={data.amount} />
-              <div className="break-words font-normal">
-                <span>{data.cashflow_title}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* breakdown list exists in the original but collapsed=true hardcodes it hidden */}
     </div>
   );
 }
@@ -138,7 +126,7 @@ function MonthlyStatement({ details, mobile = false }: { details: any; mobile?: 
 
   if (mobile) {
     return (
-      <Disclosure as="div" defaultOpen>
+      <Disclosure as="div" className="w-full" defaultOpen>
         {({ open }) => (
           <>
             <Disclosure.Button className={`flex w-full justify-between rounded-lg bg-dark-100 px-4 py-4 text-sm font-semibold text-dark-500 ${open ? "mb-2" : "mb-3"}`}>
@@ -562,38 +550,43 @@ function PlanPageInner() {
           </Popover>
         </div>
 
-        {/* Mobile wealth card */}
+        {/* Mobile wealth card — matches plan.page.vue chart_ref */}
         <div className="mt-20 flex flex-col rounded-2xl bg-dark-900 p-4 md:hidden md:mt-0">
-          <div className="flex justify-between rounded-lg bg-dark-600 p-1 sm:p-2">
-            <div className="text-primary-400">
-              <div className="text-xs text-dark-200 sm:text-base">Wealth</div>
-              <DisplayAmount className="text-sm sm:text-base" amount={aggregated_balance_for_month} />
+          <div className="flex justify-between rounded-md bg-dark-600 p-1 sm:rounded-lg sm:p-2">
+            <div className="flex-col text-dark-200">
+              <div className="flex flex-col justify-between rounded-md bg-dark-600 p-1 text-primary-400">
+                <div className="flex text-xs sm:text-base">
+                  <div className="self-end text-dark-200">Wealth</div>
+                </div>
+                <DisplayAmount className="text-sm sm:text-base" amount={aggregated_balance_for_month} />
+              </div>
             </div>
             <div className="flex flex-col text-primary-400">
               <div className="flex justify-end gap-1">
                 {is_plan_synced && (
-                  <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-[10px] sm:text-xs" onClick={OnCompare}>
-                    <FontAwesomeIcon icon={faScaleBalanced} className="self-center text-primary-500" />
-                    <div>Compare</div>
+                  <button className="flex flex-row justify-center gap-2 rounded-md bg-dark-900 p-1 px-2 text-[10px] sm:p-2 sm:text-xs h-fit" onClick={OnCompare}>
+                    <FontAwesomeIcon icon={faScaleBalanced} className="self-center text-primary-500 sm:text-md" />
+                    <div className="self-center">Compare</div>
                   </button>
                 )}
                 {!is_plan_synced && (
-                  <button className="flex gap-2 rounded-md bg-dark-900 p-1 px-2 text-[11px] sm:text-xs" onClick={Save}>
-                    <span>Save</span>
-                    <FontAwesomeIcon icon={faFloppyDisk} className="self-center text-primary-500" />
+                  <button className="flex h-full flex-row justify-center gap-2 rounded-md bg-dark-900 p-1 px-2 text-[11px] sm:p-2 sm:text-xs" onClick={Save}>
+                    <span className="self-center">Save</span>
+                    <FontAwesomeIcon icon={faFloppyDisk} className="self-center text-primary-500 text-md" />
                   </button>
                 )}
               </div>
-              <div className="px-1 text-sm sm:text-base">{GetMonthAndYear(plan, current_month)}</div>
+              <div className={`px-1 text-sm sm:text-base ${!is_plan_synced ? "text-right" : ""}`}>{GetMonthAndYear(plan, current_month)}</div>
             </div>
           </div>
-          <div className="mt-auto h-[350px] w-full">
-            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350}  />
+          {/* aspectRatio 400/350 reproduces the original canvas attr ratio (width 400, height 350) */}
+          <div className="mt-auto w-full" style={{ aspectRatio: "400 / 350" }}>
+            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350} width={400} annotation={annotation} formatter={ToDisplayableMoney} />
           </div>
         </div>
 
-        {/* Income/Expense + Net Cashflow */}
-        <div className="mt-[32rem] flex flex-wrap justify-between gap-2 sm:gap-3 md:mt-0 md:flex-nowrap md:gap-6">
+        {/* Income/Expense + Net Cashflow (mt-[32rem]- is a dead class in the original) */}
+        <div className="mb-3 flex flex-wrap justify-between gap-2 sm:gap-3 md:mt-0 md:flex-nowrap md:gap-6">
           <MonthlyIncomeExpense cashflow={monthly_details?.income} category="income" previous={previous_details?.income?.total_income} />
           <MonthlyIncomeExpense cashflow={monthly_details?.expense} category="expense" previous={previous_details?.expense?.total_expense} />
           <div className="flex grow md:hidden">

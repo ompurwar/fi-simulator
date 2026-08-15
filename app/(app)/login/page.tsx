@@ -170,7 +170,7 @@ function LoginInner() {
 
   return (
     <div className="flex justify-center md:-mt-16 md:left-0 md:absolute md:w-[100vw] h-[100vh]">
-      <div className="flex w-full transition-all duration-300 md:p-3">
+      <div className="flex transition-all duration-300 mt-20- md:mt-1- md:w-full md:p-3">
         {/* Desktop carousel */}
         <div className="hidden h-full md:flex md:flex-col place-content-center self-center grow w-[35rem] bg-warning-100 rounded-xl md:px-11 md:py-16 gap-6">
           <div className="h-[80vh] grow-0 select-none flex overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
@@ -194,31 +194,30 @@ function LoginInner() {
 
         {/* Right action panel */}
         <div className="flex flex-col gap-3 justify-evenly backdrop-blur-sm w-[75vw] md:w-[57vw] h-[100vh] md:h-[97vh]">
-          <div className="flex flex-col justify-center md:hidden mt-11 h-[15vh]">
+          <div className="flex flex-col justify-center md:hidden mt-11- md:mt-0 h-[15vh]">
             <Logo className="justify-center text-4xl md:w-fit md:-ml-4" />
           </div>
 
           {!show_action_stage && (
-            <>
-              <div className="flex flex-col gap-4 md:gap-3 mb-10 h-[80vh] md:hidden">
-                <div className="h-[60vh] grow-0 w-[17rem] sm:w-[20rem] flex overflow-x-scroll overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
-                  <div className="h-[80%] w-full scroll-mx-6 shrink-0 flex flex-col snap-center self-center snap-always rounded-lg">
-                    <img
-                      src={SLIDES[current_image_number].img}
-                      className="h-[80%] object-contain w-full rounded-lg"
-                      alt={SLIDES[current_image_number].title}
-                    />
-                    <div className="flex flex-col gap-1 mt-auto">
-                      <div className="text-lg font-semibold text-center uppercase">
-                        {SLIDES[current_image_number].title}
-                      </div>
-                      <div className="text-center text-dark-300">
-                        {SLIDES[current_image_number].sub}
-                      </div>
+            <div className="flex flex-col gap-4 md:gap-3 mb-10 h-[80vh] md:hidden">
+              <div className="h-[60vh] grow-0 w-[17rem] sm:w-[20rem] flex overflow-x-scroll overflow-y-clip rounded-lg snap-x gap-11 snap-mandatory">
+                <div className="h-[80%] w-full scroll-mx-6 shrink-0 flex flex-col snap-center self-center snap-always rounded-lg">
+                  <img
+                    src={SLIDES[current_image_number].img}
+                    className="h-[80%] object-contain w-full rounded-lg"
+                    alt={SLIDES[current_image_number].title}
+                  />
+                  <div className="flex flex-col gap-1 mt-auto">
+                    <div className="text-lg font-semibold text-center uppercase">
+                      {SLIDES[current_image_number].title}
+                    </div>
+                    <div className="text-center text-dark-300">
+                      {SLIDES[current_image_number].sub}
                     </div>
                   </div>
                 </div>
               </div>
+              {/* buttons live INSIDE the h-[80vh] container (matches original template) */}
               <div className="flex justify-between w-full gap-6 mt-auto md:justify-center md:gap-8 md:mb-10">
                 <button
                   onClick={() => SetActionStageMode("signup")}
@@ -237,7 +236,7 @@ function LoginInner() {
                   Sign In
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {show_action_stage && (
