@@ -256,7 +256,7 @@ function BalanceAndTxn({
             return (
               <div
                 key={b.account_id || idx}
-                className="flex relative flex-col gap-2 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
+                className="flex relative flex-col gap-1 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
               >
                 <div className="flex self-center gap-2 md:mb-2 md:w-full">
                   <div className="relative grid h-[2.5rem] w-[2.5rem] place-content-center self-center rounded-md bg-dark-100 text-dark-400 sm:h-[3rem] sm:w-[3rem]">
