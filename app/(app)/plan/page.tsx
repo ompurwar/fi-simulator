@@ -207,13 +207,35 @@ function BalanceAndTxn({
         <div className={`flex flex-col justify-center gap-1 divide-y divide-dark-400 rounded-2xl bg-dark-900 p-4 px-3 ${alignment === "v" ? "w-full" : "md:w-[14.5rem]"}`}>
           <div className="relative flex justify-between">
             <div className="flex flex-col gap-1- grow self-center">
-              <div className="flex justify-between gap-3">
+              <div className="relative flex justify-between gap-3">
                 <div className="text-lg font-medium">Runway</div>
                   {currentFdp?.strategy && (
-                  <div className="h-fit flex gap-1 text-right peer text-[10px] py-0.5 px-2 self-center bg-warning-200 rounded-md text-warning-800">
+                  <div className="h-fit flex gap-1 text-right peer text-[10px] py-0.5 px-2 self-center bg-warning-200 rounded-md text-warning-800" aria-describedby="tooltip">
                     <div className="ml-auto">
                       {currentFdp.strategy}
                       <FontAwesomeIcon icon={faCircleExclamation} className="text-warning-500" />
+                    </div>
+                  </div>
+                )}
+                {currentFdp?.strategy && (
+                  <div
+                    role="tooltip"
+                    className="absolute left-0 top-full z-[20] mt-2 flex flex-col gap-1 border border-dark-800 rounded-md bg-dark-900 p-1 px-2 text-xs shadow-md shadow-dark-700 opacity-0 invisible transition-all duration-300 peer-hover:opacity-100 peer-hover:visible"
+                  >
+                    <div className="flex gap-1 mb-1 text-[10px] font-bold">
+                      <div>{currentFdp.strategy}</div> Strategy
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="text-dark-100">{currentFdp.e} %</div>
+                      <div className="ml-auto w-[10ch] text-[10px] text-dark-400">Emergency</div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="text-dark-100">{currentFdp.s} %</div>
+                      <div className="ml-auto w-[10ch] text-[10px] text-dark-400">Savings</div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="text-dark-100">{currentFdp.i} %</div>
+                      <div className="ml-auto w-[10ch] text-[10px] text-dark-400">Investment</div>
                     </div>
                   </div>
                 )}

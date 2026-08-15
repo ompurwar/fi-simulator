@@ -67,12 +67,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="w-auto h-screen overflow-y-auto">
+    <div className="w-auto h-screen font-medium">
       {email && show_top_nav && <TopNav />}
-      <ErrorBoundary>
-        {/* matches original App.vue: <error-boundary class="w-full md:mt-16 md:px-2"> */}
-        <div className="w-full md:mt-16 md:px-2">{children}</div>
-      </ErrorBoundary>
+      {/* flex gap-5 wrapper matches App.vue and prevents the md:mt-16 margin from collapsing through the root */}
+      <div className="flex gap-5">
+        <ErrorBoundary>
+          {/* matches original App.vue: <error-boundary class="w-full md:mt-16 md:px-2"> */}
+          <div className="w-full md:mt-16 md:px-2">{children}</div>
+        </ErrorBoundary>
+      </div>
       {plan_component_state === "open" && <CreatePlan />}
       {share_data?.modal_state === "open" && <ShareObjectModal />}
     </div>
