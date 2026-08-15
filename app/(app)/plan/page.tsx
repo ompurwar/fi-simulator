@@ -39,6 +39,7 @@ import {
   faShareNodes,
   faCircleExclamation,
   faPenToSquare,
+  faWallet,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -297,12 +298,12 @@ function BalanceAndTxn({
                     </div>
                   </div>
                 </div>
-                {/* account edit button (matches BalanceAndTxn.vue OnEditAccount) */}
-                <div className="flex ml-auto mr-2 w-fit">
+                {/* account edit button — top-right corner of the card */}
+                <div className="absolute right-1 top-1 w-fit">
                   <button
                     type="button"
                     onClick={() => onEdit?.(b.account_id)}
-                    className="self-start py-1 text-xs font-medium text-dark-300 hover:bg-opacity-30 focus:outline-none sm:px-2 sm:text-sm md:px-0"
+                    className="py-1 text-xs font-medium text-dark-300 hover:bg-opacity-30 focus:outline-none sm:px-2 sm:text-sm md:px-0"
                   >
                     <FontAwesomeIcon icon={faPenToSquare} />
                   </button>
@@ -472,6 +473,16 @@ function PlanPageInner() {
       {/* Left manager sidebar (desktop) */}
       <div className="flex-wrap justify-between hidden w-56 gap-3 px-4 mt-24 bg-transparent md:flex md:mt-0 md:flex-col md:border-r md:px-0 md:p-4">
         <div className="fixed">
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => router.push("/networth")}>
+            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
+              <FontAwesomeIcon icon={faWallet} className="text-2xl" />
+            </div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium">Net Worth</div>
+              </div>
+            </div>
+          </div>
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("cashflow", "income")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-success-100 p-2 text-success-300">
               <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-2xl" />
@@ -556,6 +567,12 @@ function PlanPageInner() {
                         <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
                       </div>
                     ))}
+                  </div>
+                  <div className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => router.push("/networth")}>
+                    <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-primary-100 p-2 text-primary-600 sm:h-[3rem]">
+                      <FontAwesomeIcon icon={faWallet} className="text-xl sm:text-2xl" />
+                    </div>
+                    <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Net Worth</div>
                   </div>
                 </div>
               </div>
