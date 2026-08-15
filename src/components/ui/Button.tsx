@@ -38,10 +38,11 @@ export function Button({
   children,
   ...rest
 }: ButtonProps) {
-  const text_size = size === "sm" ? "text-xs" : "";
+  // original text_size: xs->text-sm, sm->text-xs, md->none (text-md is not a v3 class), lg->text-lg, xl->text-xl
+  const text_size: Record<string, string> = { xs: "text-sm", sm: "text-xs", lg: "text-lg", xl: "text-xl" };
   const styles = sub_variant === "solid" ? solidStyles : outlineStyles;
   const classes = [
-    `gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 ${text_size} hover:opacity-75 font-medium border-2 hover:shadow-sm`,
+    `gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 ${text_size[size] || ""} hover:opacity-75 font-medium border-2 hover:shadow-sm`,
     styles[variant] || "",
     className,
   ].join(" ");
