@@ -15,39 +15,46 @@ the React/Next components, screenshot both apps, compare, adjust, repeat.
   `src/components/charts/MyChart.vue`, `src/components/transactionsListCard.vue`
 
 ## Ported project
-`D:\projects\personal-projects\node\findependence\fi-plan-next`
+`E:\fi-plan-next` (this repo; note the handoff previously said D: — the port now lives on E:)
 
 ### Running the apps
-- **Ported (prod preview)** — terminal 1: `cd fi-plan-next && PORT=3001 npm start`
-- **Browser automation** — `agent-browser open http://localhost:3001/login` etc.
+- **Backend (original findependence-core)** — `cd findependence-core && CLIENT_APPLICATION=http://localhost:8080 npm start` (port 3000; CORS must allow 8080)
+- **Original frontend** — `cd fi-plan-fe && npx vite --port 8080 --host`
+- **Ported (prod preview)** — `PORT=3001 npm start`
 - Login test creds: `pixelcheck-204230@test.com` / `secret123`
-- Screenshots: `E:\fi-plan-next\standalone\*.png`
+- Fresh (non-onboarded) user for onboarding wizard: `parity-onb-0815@test.com` / `secret123`
+- Screenshots + compare tooling: `E:\fi-plan-next\standalone\` (`compare-pngs.mjs`, `dump-dom.mjs`, `diff-doms.mjs`, `sample-pixels.mjs` — grid pixel-diff via `agent-browser eval --stdin`)
 
-### Current status — plan page (`app/(app)/plan/page.tsx`)
-DONE — structural parity with original three-column dashboard:
+### Parity status (desktop viewport 1262×624 / mobile 390×844, pixel-diff %)
 
-| Section | Status | Notes |
-|---|---|---|
-| Left manager sidebar (5 tiles + badges) | ✅ | Income/Expense/Loan/Money/Tax with count badges, "Coming Soon" pill |
-| MonthSlider | ✅ | Year label + Jan–Dec buttons, chevron/angle nav, current month highlighted |
-| Income / Expense cards | ✅ | Icon + count badge, currency value, pct% vs last month, compact/standard notation |
-| Net Cashflow card | ✅ | Icon, value, pct vs last month |
-| Monthly Statement (mobile + desktop) | ✅ | Income/Expense breakdown with change arrows |
-| Net Worth chart (desktop) | ✅ | Dark card, stacked bars, legend (Investment/Savings/Emergency), chevrons, month label |
-| Wealth chart (mobile) | ✅ | Below MonthSlider for md:hidden |
-| Runway card | ✅ | Runway months/yrs + strategy pill, Net Worth, Burn Rate |
-| Account cards | ✅ | Category icon, acc name, balance, ROI %, transaction variance |
-| Right transactions sidebar | ✅ | Month list with Income/Expense/Net per month |
-| Simulation modal | ✅ | "Setting up plan" spinner |
-| Header (plan title + action buttons) | ✅ | Compare / Save / Share / Tour |
+| Page | Desktop | Mobile | Notes |
+|---|---|---|---|
+| login | 0% | 0.01% | carousel timing inflates diff unless screenshots synced |
+| onboarding | 0.06–0.17% (all stages) | — | fresh-user wizard; currency grid matches original's buggy sort |
+| profile | 0.04% | 0.09% | |
+| shared_templates | 0.05% | 0.08% | |
+| link_page | 0.01% | 0.03% | |
+| forgot_password | 0.01% | 1.25% | |
+| plan | 9.6% | 6.2% | chart.js v3→v4 canvas rendering differences (bars/ticks) |
+| compare | 5.6% | — | ported engine returns month-1 balance where original has 0 (backend biz-logic diff, not UI) |
 
-### Remaining gaps (to address next)
-1. **Account card icons** — fallback rendering on some categories; verify `b.category` values.
-2. **Chart colors** — original uses CSS vars (`--color-dark-300`, `--color-accent-600`,
-   `--color-primary-400`). Currently hardcoded rgba; should read CSS vars at runtime.
-3. **Mobile cockpit popover** — the "Cockpit" Popover (hamburger gauge on mobile) needs
-   click-to-open verified.
-4. **Walkthrough** — original fires a Shephard.js tour on first load; ported uses a simple
-   simulation modal. Low priority unless parity required.
-5. **Remaining pages** — onboarding, compare, profile, shared_templates, link_page still need
-   porting & screenshot comparison.
+### Remaining gaps
+1. **Chart internals (plan ~9.6%, compare partial)** — chart.js v4 renders bars/ticks slightly
+   differently than the original's v3 (antialiasing, tick placement). Colors/labels/annotation
+   now match (CSS vars read at runtime — old gap #2 done).
+2. **Port engine month-1 balance** — `usePlanEngine` fetches `/engine/plan_snapshot` from the
+   ported backend; the original computes client-side. Month-1 emergency balance differs
+   (visible in compare page chart). Needs engine-level comparison.
+3. **Cypress** — machine-level crash (`Illegal instruction` in the Electron binary) on this
+   Windows machine; needs a reboot before `npx cypress run` works. `vitest` unit tests pass (18/18).
+4. **Mobile onboarding/compare** — not yet verified at mobile viewport.
+
+### Systemic fixes applied (apply to any future page port)
+- Tailwind v4 `@layer base` sets `border-color: #e5e7eb` (v3 default) — v4 defaults to currentColor
+- Body: `font-montserrat font-medium bg-[#f8f9fa] text-dark-600` (index.html + App.vue root)
+- dark/warning/accent palettes in `app/globals.css` copied from the original `src/index.css` (not Tailwind defaults)
+- AppShell: `flex gap-5` wrapper around the `md:mt-16 md:px-2` ErrorBoundary wrapper (prevents margin collapse) and loads profile+plans on public pages when a session exists
+- `DisplayAmount` prefers `window.navigator.language` (original `get_local` order) — en vs en-IN compact notation differs (150K vs 1.5L)
+- `Button` is a 1:1 port of Button.vue: no built-in padding (call sites pass px/py), `border-2` always, outline/solid variant maps
+- Trailing-dash Tailwind classes (`mt-[32rem]-`, `grow-`, `mt-11-`, …) are dead classes in v3 — port them as dead too (or drop them), never "fix" them
+- `collapsed` in MonthlyIncomeExpense.vue is hardcoded `true` → the breakdown list never renders
