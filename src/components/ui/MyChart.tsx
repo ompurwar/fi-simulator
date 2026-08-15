@@ -42,6 +42,7 @@ export function MyChart({
   title,
   chart_type = "bar",
   show_legend = true,
+  onClick,
 }: {
   labels?: string[];
   dataset?: any[];
@@ -53,6 +54,8 @@ export function MyChart({
   title?: string;
   chart_type?: "doughnut" | "line" | "bar";
   show_legend?: boolean;
+  /** Fired with the clicked data point's index (bar/point) when the chart is clicked. */
+  onClick?: (index: number, datasetIndex: number, event: any) => void;
 }) {
   const data = {
     labels,
@@ -69,6 +72,9 @@ export function MyChart({
     maintainAspectRatio: false,
     height,
     width,
+    onClick: (event: any, elements: any[], chart: any) => {
+      if (elements?.length) onClick?.(elements[0].index, elements[0].datasetIndex, event);
+    },
     plugins: {
       // original MyChart.vue hardcodes legend.display=false
       legend: { display: false, position: "right" },

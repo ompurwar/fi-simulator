@@ -417,13 +417,23 @@ function PlanPageInner() {
   // chart colors read from CSS vars at runtime, matching original balance_chart_data
   const cssVar = (name: string) =>
     typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue(name) : "";
-  const balance_chart_months = Math.min(20, plan_duration);
-  const balance_chart_labels = Array.from({ length: balance_chart_months }, (_, i) => GetMonthAndYear(plan, i + 1));
+  // sliding window chart — port of original balance_chart_data (plan.page.vue):
+  // the chart shows a WINDOW_SIZE-month window of the full timeline; the window
+  // slides as the hovered month crosses each boundary and the annotation resets
+  // to the first item of the window.
+  const WINDOW_SIZE = 20;
+  const window_number = parseInt(String(current_month / WINDOW_SIZE));
+  const window_start_point = window_number > 0 ? WINDOW_SIZE * window_number - 1 : 0;
+  const balance_chart_months = Math.min(WINDOW_SIZE, plan_duration);
+  const balance_chart_labels = Array.from({ length: plan_duration }, (_, i) => GetMonthAndYear(plan, i + 1)).slice(
+    window_start_point,
+    window_start_point + balance_chart_months
+  );
   const balance_chart_datasets = ["e", "s", "i"].map((cat, idx) => ({
     label: cat === "e" ? "EMERGENCY" : cat === "s" ? "SAVINGS" : "INVESTMENT",
-    data: Array.from({ length: balance_chart_months }, (_, i) =>
+    data: Array.from({ length: plan_duration }, (_, i) =>
       account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === cat)?.balance || 0
-    ),
+    ).slice(window_start_point, window_start_point + balance_chart_months),
     backgroundColor:
       idx === 0
         ? cssVar("--color-dark-300")
@@ -617,7 +627,17 @@ function PlanPageInner() {
           </div>
           {/* aspectRatio 400/350 reproduces the original canvas attr ratio (width 400, height 350) */}
           <div className="w-full mt-auto" style={{ aspectRatio: "400 / 350" }}>
-            <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={350} width={400} annotation={annotation} formatter={ToDisplayableMoney} />
+            <MyChart
+              labels={balance_chart_labels}
+              dataset={balance_chart_datasets}
+              stacked
+              chart_type="bar"
+              height={350}
+              width={400}
+              annotation={annotation}
+              formatter={ToDisplayableMoney}
+              onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
+            />
           </div>
         </div>
 
@@ -672,7 +692,17 @@ function PlanPageInner() {
             </div>
             {/* matches original: chart_height=500, chart sits directly below the header */}
             <div className="h-[500px] w-[28rem]">
-              <MyChart labels={balance_chart_labels} dataset={balance_chart_datasets} stacked chart_type="bar" height={500} width={400} annotation={annotation} formatter={ToDisplayableMoney} />
+              <MyChart
+                labels={balance_chart_labels}
+                dataset={balance_chart_datasets}
+                stacked
+                chart_type="bar"
+                height={500}
+                width={400}
+                annotation={annotation}
+                formatter={ToDisplayableMoney}
+                onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
+              />
             </div>
           </div>
           <BalanceAndTxn
