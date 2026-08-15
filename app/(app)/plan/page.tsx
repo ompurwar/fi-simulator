@@ -28,7 +28,7 @@ import {
   faScaleBalanced,
   faFloppyDisk,
   faGauge,
-  faEllipsisVertical,
+  faXmark,
   faUpLong,
   faDownLong,
   faArrowRightArrowLeft,
@@ -260,7 +260,7 @@ function BalanceAndTxn({
             return (
               <div
                 key={b.account_id || idx}
-                className="flex relative flex-col gap-1 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
+                className="flex relative md:flex-col gap-1 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
               >
                 <div className="flex self-center gap-2 md:mb-2 md:w-full">
                   <div className="relative grid h-[2.5rem] w-[2.5rem] place-content-center self-center rounded-md bg-dark-100 text-dark-400 sm:h-[3rem] sm:w-[3rem]">
@@ -309,7 +309,7 @@ function BalanceAndTxn({
                   </button>
                 </div>
                 <hr className="hidden mb-1 md:block" />
-                <div className="flex flex-col self-center h-16 gap-1 pl-2 border-l-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
+                <div className="flex flex-col self-center h-16 gap-1 pl-2 overflow-y-scroll border-l-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
                   {(account.txn || [])
                     .filter((t: any) => t.amount > 0)
                     .map((txn: any, tidx: number) => (
@@ -555,7 +555,7 @@ function PlanPageInner() {
                   <div className="flex gap-2">
                     <div className="font-bold">Cockpit</div>
                     <Popover.Button className="ml-auto grid h-[25px] w-[25px] place-content-center rounded-md bg-dark-100 text-dark-500">
-                      <FontAwesomeIcon icon={faEllipsisVertical} />
+                      <FontAwesomeIcon icon={faXmark} />
                     </Popover.Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -567,6 +567,18 @@ function PlanPageInner() {
                         <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
                       </div>
                     ))}
+                    <div key="loan" className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("loan", "")}>
+                      <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-dark-100 p-2 text-dark-300 sm:h-[3rem]">
+                        <FontAwesomeIcon icon={faLandmarkFlag} className="text-xl sm:text-2xl" />
+                      </div>
+                      <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Loan Manager</div>
+                    </div>
+                    <div key="fdp" className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => HandleEdit("fdp", "")}>
+                      <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-warning-100 p-2 text-warning-300 sm:h-[3rem]">
+                        <FontAwesomeIcon icon={faSackDollar} className="text-xl sm:text-2xl" />
+                      </div>
+                      <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Money Manager</div>
+                    </div>
                   </div>
                 </div>
               </div>

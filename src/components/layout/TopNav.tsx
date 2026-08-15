@@ -17,6 +17,7 @@ import {
   faCodeBranch,
   faCircleCheck,
   faWallet,
+  faHouse,
 } from "@fortawesome/free-solid-svg-icons";
 
 /** Port of the App.vue top navigation bar (fixed, bg-dark-50, px-2 py-3). */
@@ -200,6 +201,17 @@ export function TopNav() {
                   </div>
                 )}
 
+                <div className="flex p-2 px-3 bg-dark-50 md:hidden">
+                  <button
+                    onClick={() => router.push("/")}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                  >
+                    <div className="flex gap-2">
+                      <FontAwesomeIcon icon={faHouse} className="self-center" />
+                      Home
+                    </div>
+                  </button>
+                </div>
                 <div className="flex p-2 px-3 bg-dark-50 md:hidden">
                   <button
                     onClick={() => router.push("/networth")}

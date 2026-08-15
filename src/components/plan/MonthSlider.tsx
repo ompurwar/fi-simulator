@@ -55,7 +55,7 @@ export function MonthSlider({
           </button>
         </div>
 
-        <div className="mr-auto flex md:ml-0">
+        <div className="flex md:ml-0 md:mr-auto">
           <button
             className={`${baseBtn} ${iconBtn}`}
             disabled={value === 1}
@@ -74,7 +74,7 @@ export function MonthSlider({
           className="mt-auto hidden w-full self-center border py-2 accent-primary-300 md:flex"
         />
 
-        <div className="self-enter relative top-5 flex w-[10ch] justify-center gap-1 text-xs font-bold text-primary-400 sm:text-lg md:hidden md:w-[5ch]">
+        <div className="flex w-[10ch] justify-center gap-1 self-center text-xs font-bold text-primary-400 sm:text-lg md:hidden md:w-[5ch]">
           {month}-{year}
         </div>
 
