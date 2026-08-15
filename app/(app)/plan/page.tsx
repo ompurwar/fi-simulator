@@ -568,12 +568,6 @@ function PlanPageInner() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex cursor-pointer gap-1.5 rounded-lg border bg-dark-50 p-2 sm:gap-3" onClick={() => router.push("/networth")}>
-                    <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-primary-100 p-2 text-primary-600 sm:h-[3rem]">
-                      <FontAwesomeIcon icon={faWallet} className="text-xl sm:text-2xl" />
-                    </div>
-                    <div className="self-center text-[10px] font-medium text-dark-300 sm:text-sm">Net Worth</div>
-                  </div>
                 </div>
               </div>
             </Popover.Panel>
