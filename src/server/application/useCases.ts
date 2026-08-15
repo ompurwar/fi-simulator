@@ -36,6 +36,7 @@ import {
   UserNotFoundByEmailError,
 } from "../domain/errors";
 import { ComputePlanSnapshot } from "../engine/planSnapshot";
+import type { NetWorthService } from "../networth";
 
 export interface UseCaseDeps {
   user_list: UserRepository;
@@ -46,6 +47,7 @@ export interface UseCaseDeps {
   share_object_list: ShareObjectRepository;
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
+  networth_service: NetWorthService;
   GenerateHash: (pass: string, salt: string) => string;
   CreateCredentials: (password: string) => { salt: string; hash: string };
   defaultPlanDuration: number;
@@ -112,6 +114,11 @@ export interface ApplicationLayer {
   DeleteShareObject(input: { id: string; user_id: string }): Promise<any>;
   GetCommonCollection(): Promise<any>;
   PlanSnapshot(input: { plan: any; duration?: number }): Promise<any>;
+  GetNetWorthStatus(input: { user_id: string }): Promise<any>;
+  ConnectNetWorth(input: { user_id: string; redirect_url: string }): Promise<any>;
+  HandleNetWorthCallback(input: { state: string; code: string }): Promise<any>;
+  SyncNetWorth(input: { user_id: string }): Promise<any>;
+  DisconnectNetWorth(input: { user_id: string }): Promise<any>;
 }
 
 export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
@@ -124,6 +131,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    networth_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
@@ -1077,5 +1085,12 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     DeleteShareObject,
     GetCommonCollection,
     PlanSnapshot,
+    GetNetWorthStatus: (input: { user_id: string }) => networth_service.GetStatus(input),
+    ConnectNetWorth: (input: { user_id: string; redirect_url: string }) =>
+      networth_service.Connect(input),
+    HandleNetWorthCallback: (input: { state: string; code: string }) =>
+      networth_service.HandleCallback(input),
+    SyncNetWorth: (input: { user_id: string }) => networth_service.Sync(input),
+    DisconnectNetWorth: (input: { user_id: string }) => networth_service.Disconnect(input),
   };
 }

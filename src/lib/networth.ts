@@ -1,13 +1,16 @@
 /**
- * Net worth data layer.
+ * Client-side net worth data layer.
  *
- * Types mirror the shapes returned by the official IndMoney MCP server tools
- * (networth_snapshot / networth_allocation_breakdown / networth_holdings).
- * The getters below return MOCK data so the page can be built end-to-end.
- * TODO(mcp): replace with a server-side sync that calls the IndMoney MCP
- * streamable-HTTP endpoint (https://mcp.indmoney.com/mcp) via OAuth 2.1 PKCE
- * and stores daily snapshots in MongoDB.
+ * Types mirror the canonical shapes produced by the backend net worth provider
+ * module (src/server/networth). All data now flows through the backend, which
+ * talks to the official IndMoney MCP server (https://mcp.indmoney.com/mcp)
+ * over streamable HTTP with OAuth 2.1 + PKCE.
+ *
+ * `sampleNetWorthStatus()` returns static preview data used only for the
+ * not-yet-connected state of the Net Worth page.
  */
+
+import { api, API_BASE_URL } from "./api";
 
 export interface NetWorthAllocation {
   asset_class: string;
@@ -28,6 +31,7 @@ export interface NetWorthSnapshot {
 }
 
 export interface NetWorthHolding {
+  code: string | null;
   name: string;
   asset_class: string;
   units: number | null;
@@ -44,7 +48,55 @@ export interface NetWorthHistoryPoint {
   value: number;
 }
 
-const MOCK_SNAPSHOT: NetWorthSnapshot = {
+export interface NetWorthAnalysisItem {
+  symbol: string;
+  name: string | null;
+  price: number | null;
+  day_low: number | null;
+  day_high: number | null;
+  market_cap: number | null;
+  analyst_consensus: string | null;
+  target_price: number | null;
+  upside_pct: number | null;
+  sentiment: string | null;
+  headline: string | null;
+}
+
+export interface NetWorthStatus {
+  connected: boolean;
+  provider: string | null;
+  last_sync_at: number | null;
+  snapshot: NetWorthSnapshot | null;
+  holdings: NetWorthHolding[];
+  analysis: NetWorthAnalysisItem[];
+  history: NetWorthHistoryPoint[];
+}
+
+export function GetNetWorthStatus(): Promise<NetWorthStatus> {
+  return api.GetNetWorthStatus();
+}
+
+export function ConnectNetWorth(): Promise<{ state: string; url: string }> {
+  // the OAuth redirect must land on the BACKEND's callback, not the page origin —
+  // NEXT_PUBLIC_API_BASE_URL is authoritative (falls back to same-origin /api)
+  const base = API_BASE_URL || `${window.location.origin}/api`;
+  return api.ConnectNetWorth(`${base}/networth/oauth/callback`);
+}
+
+export function SyncNetWorth(): Promise<{
+  snapshot: NetWorthSnapshot;
+  holdings: NetWorthHolding[];
+}> {
+  return api.SyncNetWorth();
+}
+
+export function DisconnectNetWorth(): Promise<{ disconnected: boolean }> {
+  return api.DisconnectNetWorth();
+}
+
+/* ------------------------- sample preview data ------------------------- */
+
+const SAMPLE_SNAPSHOT: NetWorthSnapshot = {
   total_net_worth: 3487800,
   total_assets: 4179800,
   total_liabilities: 692000,
@@ -63,7 +115,7 @@ const MOCK_SNAPSHOT: NetWorthSnapshot = {
   ],
 };
 
-const MOCK_HOLDINGS: NetWorthHolding[] = [
+const SAMPLE_HOLDINGS: Omit<NetWorthHolding, "code">[] = [
   { name: "Reliance Industries", asset_class: "Indian Stocks", units: 28, invested: 284200, current_value: 358400, pnl: 74200, pnl_pct: 26.1, xirr: 22.4, broker: "INDmoney" },
   { name: "HDFC Bank", asset_class: "Indian Stocks", units: 95, invested: 264100, current_value: 285950, pnl: 21850, pnl_pct: 8.27, xirr: 12.8, broker: "INDmoney" },
   { name: "Tata Motors", asset_class: "Indian Stocks", units: 210, invested: 223700, current_value: 240450, pnl: 16750, pnl_pct: 7.49, xirr: 15.1, broker: "INDmoney" },
@@ -87,7 +139,7 @@ const MOCK_HOLDINGS: NetWorthHolding[] = [
   { name: "Credit Card - Outstanding", asset_class: "Credit Card", units: null, invested: -42000, current_value: -42000, pnl: 0, pnl_pct: 0, xirr: 42, broker: "ICICI Bank" },
 ];
 
-const MOCK_HISTORY: NetWorthHistoryPoint[] = [
+const SAMPLE_HISTORY: NetWorthHistoryPoint[] = [
   { month: "Sep", value: 2921400 },
   { month: "Oct", value: 2983200 },
   { month: "Nov", value: 2956700 },
@@ -102,20 +154,14 @@ const MOCK_HISTORY: NetWorthHistoryPoint[] = [
   { month: "Aug", value: 3487800 },
 ];
 
-const MOCK_DELAY_MS = 450;
-
-function simulate<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), MOCK_DELAY_MS));
-}
-
-export function GetNetWorthSnapshot(): Promise<NetWorthSnapshot> {
-  return simulate(MOCK_SNAPSHOT);
-}
-
-export function GetNetWorthHoldings(): Promise<NetWorthHolding[]> {
-  return simulate(MOCK_HOLDINGS);
-}
-
-export function GetNetWorthHistory(): Promise<NetWorthHistoryPoint[]> {
-  return simulate(MOCK_HISTORY);
+export function sampleNetWorthStatus(): NetWorthStatus {
+  return {
+    connected: false,
+    provider: "indmoney",
+    last_sync_at: null,
+    snapshot: SAMPLE_SNAPSHOT,
+    holdings: SAMPLE_HOLDINGS.map((h) => ({ code: null, ...h })),
+    analysis: [],
+    history: SAMPLE_HISTORY,
+  };
 }

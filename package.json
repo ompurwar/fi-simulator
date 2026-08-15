@@ -21,6 +21,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@headlessui/react": "^2.1.8",
     "@hookform/resolvers": "^5.7.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@popperjs/core": "^2.11.8",
     "@sentry/nextjs": "^8.34.0",
     "chart.js": "^4.4.3",

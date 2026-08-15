@@ -136,6 +136,10 @@ function FindRoute(path: string): { controller: ControllerName } | null {
     "/share_object/delete": "DeleteShareObject",
     "/get/common_collection": "GetCommonCollection",
     "/engine/plan_snapshot": "PlanSnapshot",
+    "/networth/status": "GetNetWorthStatus",
+    "/networth/connect": "ConnectNetWorth",
+    "/networth/sync": "SyncNetWorth",
+    "/networth/disconnect": "DisconnectNetWorth",
   };
   const controller = map[normalized] as ControllerName | undefined;
   return controller ? { controller } : null;

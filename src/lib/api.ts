@@ -32,11 +32,20 @@ const ENDPOINTS = {
   OPTIN_SHARE_OBJECT: "/share_object/optin",
   DELETE_SHARE_OBJECT: "/share_object/delete",
   PLAN_SNAPSHOT: "/engine/plan_snapshot",
+  NETWORTH_STATUS: "/networth/status",
+  NETWORTH_CONNECT: "/networth/connect",
+  NETWORTH_SYNC: "/networth/sync",
+  NETWORTH_DISCONNECT: "/networth/disconnect",
 };
 
 export { ENDPOINTS };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+
+/** Absolute base URL of the backend (public origin + path), for building callback URLs. */
+export const API_BASE_URL = API_BASE.startsWith("http")
+  ? API_BASE.replace(/\/+$/, "")
+  : null;
 
 async function Post<T = any>(url: string, data: any): Promise<T> {
   let response: Response;
@@ -99,6 +108,13 @@ export const api = {
   /* ------- engine ------- */
   PlanSnapshot: (plan: any, duration?: number) =>
     Post(ENDPOINTS.PLAN_SNAPSHOT, { data: { plan, duration } }),
+
+  /* ------- net worth ------- */
+  GetNetWorthStatus: () => Post(ENDPOINTS.NETWORTH_STATUS, { data: {} }),
+  ConnectNetWorth: (redirect_url: string) =>
+    Post(ENDPOINTS.NETWORTH_CONNECT, { data: { redirect_url } }),
+  SyncNetWorth: () => Post(ENDPOINTS.NETWORTH_SYNC, { data: {} }),
+  DisconnectNetWorth: () => Post(ENDPOINTS.NETWORTH_DISCONNECT, { data: {} }),
 };
 
 export default api;

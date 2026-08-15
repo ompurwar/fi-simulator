@@ -33,6 +33,14 @@ import {
 } from "../infrastructure/repositories";
 import { SendTemplateMail, type MailConfig } from "../infrastructure/mail";
 import { buildGoogleOAuth, type GoogleOAuth } from "../infrastructure/oauth";
+import {
+  makeNetWorthRepository,
+  makeNetWorthService,
+  makeIndMoneyNetWorthProvider,
+  type NetWorthProvider,
+  type NetWorthRepository,
+  type NetWorthService,
+} from "../networth";
 
 export interface Container {
   env: Env;
@@ -46,6 +54,9 @@ export interface Container {
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
   app: ApplicationLayer;
+  networth_repo: NetWorthRepository;
+  networth_provider: NetWorthProvider;
+  networth_service: NetWorthService;
   googleOAuth: GoogleOAuth;
   mailConfig: MailConfig;
   cookieSecret: string;
@@ -63,7 +74,8 @@ export interface Container {
 
 /** Composition root — wires the entire embedded server. */
 export async function buildContainer(
-  envSource: Record<string, string | undefined> = process.env
+  envSource: Record<string, string | undefined> = process.env,
+  overrides: { networthProvider?: NetWorthProvider } = {}
 ): Promise<Container> {
   const env = loadEnv(envSource);
   const db = await makeDatabase(env.DB_URL, env.DB_NAME);
@@ -87,6 +99,15 @@ export async function buildContainer(
   });
   const common_collection_list = makeCommonCollectionRepository(db);
 
+  const networth_repo = makeNetWorthRepository(db);
+  const networth_provider =
+    overrides.networthProvider ??
+    makeIndMoneyNetWorthProvider({ repo: networth_repo, mcpUrl: env.INDMONEY_MCP_URL });
+  const networth_service = makeNetWorthService({
+    repo: networth_repo,
+    provider: networth_provider,
+  });
+
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,
     apiKeyPrivate: env.MJ_APIKEY_PRIVATE,
@@ -104,6 +125,7 @@ export async function buildContainer(
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    networth_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
@@ -128,6 +150,9 @@ export async function buildContainer(
     password_reset_session_list,
     common_collection_list,
     app,
+    networth_repo,
+    networth_provider,
+    networth_service,
     googleOAuth,
     mailConfig,
     cookieSecret,

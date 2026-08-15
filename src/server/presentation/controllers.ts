@@ -628,6 +628,52 @@ export function MakeControllers(app: ApplicationLayer) {
     };
   };
 
+  /* ------------------------- Net worth ------------------------- */
+
+  const GetNetWorthStatus = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    const { user_id } = http_request.session!;
+    const result = await app.GetNetWorthStatus({ user_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const ConnectNetWorth = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const { redirect_url } = http_request.body.data;
+    const result = await app.ConnectNetWorth({ user_id, redirect_url });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const SyncNetWorth = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const result = await app.SyncNetWorth({ user_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const DisconnectNetWorth = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const result = await app.DisconnectNetWorth({ user_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
   return {
     Login,
     IsLoggedIn,
@@ -663,6 +709,10 @@ export function MakeControllers(app: ApplicationLayer) {
     DeleteShareObject,
     GetCommonCollection,
     PlanSnapshot,
+    GetNetWorthStatus,
+    ConnectNetWorth,
+    SyncNetWorth,
+    DisconnectNetWorth,
   };
 }
 

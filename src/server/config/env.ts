@@ -21,6 +21,7 @@ const envSchema = z.object({
   MJ_APIKEY_PRIVATE: z.string().optional(),
   SUPPORT_MAIL: z.string().optional(),
   MAILER_NAME: z.string().optional(),
+  INDMONEY_MCP_URL: z.string().default("https://mcp.indmoney.com/mcp"),
 });
 
 export type Env = z.infer<typeof envSchema>;

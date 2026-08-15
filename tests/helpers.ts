@@ -1,6 +1,7 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { buildContainer, type Container } from "@/server/di/container";
 import { buildApp } from "@/server/http/app";
+import type { NetWorthProvider } from "@/server/networth";
 
 /** A running test instance: in-memory Mongo + wired container + fetch handler. */
 export interface TestApp {
@@ -32,10 +33,12 @@ async function getMongo(): Promise<MongoMemoryServer> {
 }
 
 /** Boot one sociable test instance against a fresh in-memory Mongo. */
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  overrides: { networthProvider?: NetWorthProvider } = {}
+): Promise<TestApp> {
   const mongo = await getMongo();
   const dbUrl = mongo.getUri();
-  const container = await buildContainer({ ...TEST_ENV, DB_URL: dbUrl });
+  const container = await buildContainer({ ...TEST_ENV, DB_URL: dbUrl }, overrides);
   const app = buildApp(container);
   return {
     container,
