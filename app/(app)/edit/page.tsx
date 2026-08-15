@@ -466,7 +466,7 @@ function CashflowChangeCard({ plan, cashflow_change, children }: { plan: any; ca
   );
 }
 
-/** Port of cashflow_change/CashflowChangeCommand.vue (compact) */
+/** Port of cashflow_change/CashflowChangeCommand.vue */
 function CashflowChangeCommand({
   plan,
   cashflow_change,
@@ -483,64 +483,144 @@ function CashflowChangeCommand({
   onDone: (result: { action: string }) => void;
 }) {
   const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
+  const storeCurrency = useFiPlanStore((s) => s.currency);
+  const common_collection = useFiPlanStore((s) => s.common_collection);
+  const currency_symbol = GetCurrencySymbol(storeCurrency || "INR");
+  const cashflow_change_type_options = (common_collection as any)?.cashflow_change_type || [];
+  const cashflow_change_frequency_options = (common_collection as any)?.cashflow_change_frequency || [];
+
+  const cashflow = (plan?.cashflow_list || []).find((c: any) => c._id === cashflow_id);
+  const cashflow_frequency = cashflow?.frequency;
+
+  // Step Up / Step Down direction (local list, matches original change_type ref)
+  const change_type = [
+    { text: "Step Up", value: 1 },
+    { text: "Step Down", value: -1 },
+  ];
+  const [selected_change_type, setSelectedChangeType] = useState(1);
   const [state, setState] = useState<any>({
-    type: "p",
-    change_type: "p",
-    frequency: "m",
-    value: 0,
-    title: category === "e" ? "inflation" : "hike",
+    title: "",
+    desc: "salary",
+    cashflow_id,
+    category: "i",
+    frequency: "y",
+    value: 10,
     start_month: 1,
-    end_month: 60,
+    end_month: 2,
+    change_type: "p",
+    active: true,
     loading: false,
+    deleting: false,
   });
-  const [start_month, setStartMonth] = useState(1);
-  const [end_month, setEndMonth] = useState(60);
+
+  const frequency_month_map: Record<string, number> = { m: 0, q: 3, h: 6, y: 12 };
+  const validMonths = (start: number, end_month: number, frequency: string | null) => {
+    const months: number[] = [];
+    let counter = 0;
+    for (let m = start; m <= end_month; m++) {
+      counter++;
+      const freq = frequency_month_map[frequency as string] ?? 0;
+      if (freq === 0) {
+        months.push(m);
+        continue;
+      }
+      if (counter % freq === 1) months.push(m);
+    }
+    return months;
+  };
 
   useEffect(() => {
     if (cashflow_change) {
-      setState({
-        type: cashflow_change.type,
-        change_type: cashflow_change.change_type,
-        frequency: cashflow_change.frequency,
-        value: cashflow_change.value,
+      setState((s: any) => ({
+        ...s,
         title: cashflow_change.title,
+        desc: cashflow_change.desc,
+        cashflow_id: cashflow_change.cashflow_id,
+        category: cashflow_change.category,
+        frequency: cashflow_change.frequency,
+        value: Math.abs(cashflow_change.value),
         start_month: cashflow_change.start_month,
         end_month: cashflow_change.end_month,
+        change_type: cashflow_change.change_type,
+        active: cashflow_change.active,
         loading: false,
-      });
-      setStartMonth(cashflow_change.start_month);
-      setEndMonth(cashflow_change.end_month);
+        deleting: false,
+      }));
+      setSelectedChangeType(cashflow_change.value < 0 ? -1 : 1);
+      if (cashflow_change.frequency === "m" && cashflow_change.start_month === cashflow_change.end_month) {
+        setState((s: any) => ({ ...s, frequency: "o" }));
+      }
     } else {
-      setState((s: any) => ({ ...s, type: "p", change_type: "p", frequency: "m", value: 0, title: category === "e" ? "inflation" : "hike", start_month: 1, end_month: 60, loading: false }));
-      setStartMonth(1);
-      setEndMonth(60);
+      setState((s: any) => ({
+        ...s,
+        title: "",
+        desc: "salary",
+        cashflow_id,
+        category: cashflow?.category || category,
+        frequency: cashflow_frequency === "m" ? "y" : cashflow_frequency,
+        value: 10,
+        change_type: "p",
+        active: true,
+        loading: false,
+        deleting: false,
+        start_month: cashflow?.start_month || 1,
+        end_month: (cashflow?.start_month || 1) + 1,
+      }));
+      setSelectedChangeType(1);
     }
-  }, [cashflow_change, category]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashflow_change, cashflow_id]);
 
-  const monthToValue = (m: number) => {
-    const start = new Date(plan.timestamp);
-    const d = new Date(start.getFullYear(), start.getMonth() + (m - 1), 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  };
-  const valueToMonth = (v: string) => {
-    const [y, m] = v.split("-").map(Number);
-    const start = new Date(plan.timestamp);
-    return (y - start.getFullYear()) * 12 + (m - 1 - start.getMonth()) + 1;
-  };
+  const start_from_options = cashflow
+    ? validMonths(cashflow.start_month, cashflow.end_month, cashflow_frequency).map((month) => ({
+        text: `${GetMMYYYYNameFromMM(month, plan.timestamp)} `,
+        value: month,
+      }))
+    : [];
+  const end_from_options = start_from_options.filter((o) => o.value >= state.start_month);
+  const end_month_value =
+    end_from_options.length && state.end_month < end_from_options[0].value ? end_from_options[0].value : state.end_month;
+
+  const interval = state.end_month - state.start_month;
+  const MonthsToYear = (m: number) => parseFloat((m / 12).toFixed(2));
+  const change_in_words = `${change_type.find((_) => _.value === selected_change_type)?.text} of ${state.value}  ${state.change_type === "f" ? currency_symbol : "%"} ${
+    cashflow_change_frequency_options.find((o: any) => o.value === state.frequency)?.text || ""
+  } for  ${interval > 11 ? MonthsToYear(interval) : interval} ${interval > 11 ? "Yrs" : "Months"}`;
+
+  const MAX_LENGTH = 40;
+  const title_length = (state.title || "").length;
 
   async function SaveChanges() {
     const change_obj: any = {
       _id: mode === "add" ? GetRandomString(6) : cashflow_change?._id,
-      type: state.type,
-      change_type: state.change_type,
+      title: state.title,
+      desc: state.desc,
+      cashflow_id: state.cashflow_id || cashflow_id,
+      category: state.category,
       frequency: state.frequency,
       value: state.value,
-      title: state.title,
       start_month: state.start_month,
       end_month: state.end_month,
-      category,
-      cashflow_id,
+      change_type: state.change_type,
+      active: state.active,
     };
+    if (change_obj.frequency === "o") {
+      change_obj.frequency = "m";
+      change_obj.end_month = change_obj.start_month;
+    }
+    change_obj.value = selected_change_type * change_obj.value;
+
+    const error_messages: string[] = [];
+    if (!change_obj.title) error_messages.push("title is required");
+    if (!change_obj.category) error_messages.push("category is required");
+    if (!change_obj.frequency) error_messages.push("frequency is required");
+    if (!change_obj.change_type) error_messages.push("type is required");
+    if (!change_obj.start_month) error_messages.push("start month is required");
+    if (error_messages.length) {
+      alert(error_messages.join("\n"));
+      return;
+    }
+
     setState((s: any) => ({ ...s, loading: true }));
     const change_list = [...(plan.cashflow_change_list || [])];
     if (mode === "add") change_list.push(change_obj);
@@ -556,94 +636,185 @@ function CashflowChangeCommand({
   async function DeleteChange() {
     const result = confirm(`Are you sure you want to delete "${state.title}" ?`);
     if (result !== true) return;
+    setState((s: any) => ({ ...s, deleting: true }));
     const change_list = (plan.cashflow_change_list || []).filter((c: any) => c._id !== cashflow_change?._id);
     update_plan_local({ ...plan, cashflow_change_list: change_list });
+    setState((s: any) => ({ ...s, deleting: false }));
     onDone({ action: "deleted" });
   }
 
-  const inputClass =
-    "relative border-[1.6px] rounded-[.5rem] px-3 py-2 w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
+  const selectClass =
+    "px-3 py-[.35rem] border-[1.6px] rounded-[.5rem] shadow-sm w-full placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
 
   return (
-    <div className="flex w-full flex-col gap-3 md:p-3">
+    <div className="flex w-full flex-col gap-3 md:px-3">
       <div className="flex gap-3 font-medium text-dark-600">
         <div className="flex gap-3 self-center">
-          <FontAwesomeIcon icon={faShuffle} className={`self-center text-2xl ${category === "i" ? "text-primary-500" : "text-danger-500"}`} />
-          <span className="self-center"> Configure change parameters </span>
+          <FontAwesomeIcon
+            icon={faShuffle}
+            className={`self-center text-2xl ${state.category === "i" ? "text-primary-500" : "text-danger-500"}`}
+          />
+          <span className="self-center"> Simulate changes </span>
         </div>
         {mode === "edit" && (
           <div className="ml-auto flex px-2 py-1 text-danger-500" onClick={DeleteChange}>
-            <FontAwesomeIcon icon={faTrashCan} className="self-center" />
+            {state.deleting ? (
+              <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-dark-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <FontAwesomeIcon icon={faTrashCan} className="self-center" />
+            )}
           </div>
         )}
       </div>
       <div className="flex">
         <div className="w-full">
           <div className="mb-2 flex justify-between text-dark-300">
-            <span className="text-sm">Title</span>
+            <span className="text-sm text-dark-300">Title</span>
+            <div className="flex justify-end text-sm">
+              <div className="self-center">
+                {title_length}/{MAX_LENGTH}
+              </div>
+            </div>
           </div>
-          <input value={state.title} onChange={(e) => setState((s: any) => ({ ...s, title: e.target.value }))} type="text" className={inputClass} />
+          <input
+            type="text"
+            value={state.title}
+            onChange={(e) => setState((s: any) => ({ ...s, title: e.target.value }))}
+            maxLength={MAX_LENGTH}
+            required
+            placeholder=""
+            style={{ fontSize: "1.25rem" }}
+            className="w-full rounded-[.5rem] border-[1.6px] bg-dark-50 px-3 py-[.25rem] text-left text-dark-400 shadow-sm transition-all duration-200 placeholder-dark-500 focus:border-primary-300 focus:shadow-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 appearance-none"
+          />
         </div>
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-sm text-dark-300">Change Type</span>
         <div className="flex">
-          {[
-            { text: "percentage", value: "p" },
-            { text: "fixed", value: "f" },
-          ].map((option) => (
+          {change_type.map((option) => (
             <button
               key={option.value}
-              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md ${
-                state.change_type === option.value ? "bg-dark-300 text-dark-50" : ""
+              disabled={mode === "edit"}
+              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
+                selected_change_type === option.value ? "bg-dark-200 text-dark-50" : ""
               }`}
-              onClick={() => setState((s: any) => ({ ...s, change_type: option.value }))}
+              onClick={() => setSelectedChangeType(option.value)}
             >
               {option.text}
+              {option.value === 1 && <FontAwesomeIcon icon={faArrowTrendUp} className="self-center text-[10px]" />}
+              {option.value === -1 && <FontAwesomeIcon icon={faArrowTrendDown} className="self-center text-[10px]" />}
             </button>
           ))}
         </div>
       </div>
-      <div>
-        <span className="text-sm text-dark-300">Value {state.change_type === "p" ? "(%)" : ""}</span>
-        <input
-          type="number"
-          value={state.value}
-          onChange={(e) => setState((s: any) => ({ ...s, value: Number(e.target.value) }))}
-          className={`${inputClass} py-[.25rem]`}
-        />
-      </div>
-      <div className="mt-3 flex gap-4">
-        <div className="flex grow flex-col gap-1">
-          <span className="text-sm text-dark-300">Start Month</span>
-          <input
-            type="month"
-            className={`${inputClass} py-[.25rem]`}
-            value={monthToValue(start_month)}
-            onChange={(e) => {
-              const m = valueToMonth(e.target.value);
-              setStartMonth(m);
-              setState((s: any) => ({ ...s, start_month: m }));
-            }}
-          />
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-1 text-sm text-dark-300">
+          {selected_change_type === 1 && <FontAwesomeIcon icon={faArrowTrendUp} className="self-center" />}
+          {selected_change_type === -1 && <FontAwesomeIcon icon={faArrowTrendDown} className="self-center" />}
+          <span> Type of</span>
+          {selected_change_type === 1 ? <span>Step-Up</span> : <span>Step-Down</span>}
         </div>
-        <div className="flex grow flex-col gap-1">
-          <span className="text-sm text-dark-300">End Month</span>
-          <input
-            type="month"
-            className={`${inputClass} py-[.25rem]`}
-            value={monthToValue(end_month)}
-            onChange={(e) => {
-              const m = valueToMonth(e.target.value);
-              setEndMonth(m);
-              setState((s: any) => ({ ...s, end_month: m }));
-            }}
-          />
+        <div className="flex">
+          {(cashflow_change_type_options as any[]).map((option, index) => (
+            <button
+              key={index}
+              disabled={mode === "edit"}
+              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
+                state.change_type === option.value ? "bg-dark-200 text-dark-50" : ""
+              }`}
+              onClick={() => setState((s: any) => ({ ...s, change_type: option.value }))}
+            >
+              {option.value === "f" ? option.text + " " + currency_symbol : option.text + " %"}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="mt-3 flex justify-between gap-4">
+      <div className="flex w-full flex-row gap-3">
+        <div className="w-full">
+          <span className="text-sm text-dark-300">{state.change_type === "f" ? `Amount in ${currency_symbol}` : "% Value"}</span>
+          <input
+            type="number"
+            value={state.value}
+            onChange={(e) => setState((s: any) => ({ ...s, value: Number(e.target.value) }))}
+            min={1}
+            required
+            style={{ fontSize: "1.25rem" }}
+            className="w-full rounded-[.5rem] border-[1.6px] bg-dark-50 px-3 py-[.25rem] text-left text-dark-400 shadow-sm transition-all duration-200 placeholder-dark-500 focus:border-primary-300 focus:shadow-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 appearance-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-between">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-dark-300">Frequency</span>
+          <div className="flex">
+            {(cashflow_change_frequency_options as any[]).map((option, index) => (
+              <button
+                key={index}
+                disabled={cashflow_frequency !== "m" || mode === "edit"}
+                className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 disabled:opacity-50 ${
+                  state.frequency === option.value ? "bg-dark-200 text-dark-50" : ""
+                }`}
+                onClick={() => setState((s: any) => ({ ...s, frequency: option.value }))}
+              >
+                {option.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <div className="flex grow flex-col">
+          <span className="text-sm text-dark-300">Start month</span>
+          <select
+            style={{ fontSize: "1.1rem" }}
+            className={selectClass}
+            value={state.start_month}
+            onChange={(e) => setState((s: any) => ({ ...s, start_month: Number(e.target.value) }))}
+          >
+            {start_from_options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.text}
+              </option>
+            ))}
+          </select>
+        </div>
+        {state.frequency !== "o" && (
+          <div className="flex grow flex-col">
+            <span className="text-sm text-dark-300">End month</span>
+            <select
+              style={{ fontSize: "1.1rem" }}
+              className={selectClass}
+              value={end_month_value}
+              onChange={(e) => setState((s: any) => ({ ...s, end_month: Number(e.target.value) }))}
+            >
+              {end_from_options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.text}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="flex text-sm text-dark-300">
+        <div>{change_in_words}</div>
+      </div>
+
+      <div className="mt-3 flex gap-3">
         <Button variant="primary" sub_variant="solid" className="flex grow py-2 capitalize" onClick={SaveChanges}>
-          <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
+          {state.loading ? (
+            <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
+          )}
           <div className="self-center">{mode === "add" ? "Add" : "Update"}</div>
         </Button>
       </div>
