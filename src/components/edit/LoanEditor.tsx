@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
+import { MonthPicker } from "@/components/edit/MonthPicker";
 import { GetRandomString } from "@/lib/utils";
 import { FireNotification } from "@/store/notifications";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -303,10 +304,15 @@ function LoanAccountCommand({
       <div className="flex grow flex-col gap-1 transition-all duration-200">
         <span className="text-sm text-dark-300">Starting from</span>
         <div className="relative">
-          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+          <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
             <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
           </div>
-          <input type="text" readOnly className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]" value={GetMMYYYY(state.start_month, plan.timestamp)} />
+          <MonthPicker
+            plan_timestamp={plan.timestamp}
+            duration={plan?.duration || 600}
+            month={state.start_month}
+            onChange={updateStartMonth}
+          />
         </div>
       </div>
       <div className="flex gap-3">

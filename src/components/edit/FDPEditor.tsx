@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
+import { MonthPicker } from "@/components/edit/MonthPicker";
 import { api } from "@/lib/api";
 import { GetRandomString } from "@/lib/utils";
 import { FireNotification } from "@/store/notifications";
@@ -179,19 +180,30 @@ function FDPCommand({
         <div className="w-[50%]">
           <span className="text-sm text-dark-300">Start Month</span>
           <div className="relative mt-1">
-            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
               <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
             </div>
-            <input type="text" readOnly className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]" value={GetMMYYYY(state.start_month, plan.timestamp)} />
+            <MonthPicker
+              plan_timestamp={plan.timestamp}
+              duration={plan?.duration || 600}
+              month={state.start_month}
+              onChange={(m) => setState((s: any) => ({ ...s, start_month: m }))}
+            />
           </div>
         </div>
         <div className="w-[50%]">
           <span className="text-sm text-dark-300">End Month</span>
           <div className="relative mt-1">
-            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
               <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
             </div>
-            <input type="text" readOnly className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]" value={GetMMYYYY(state.end_month, plan.timestamp)} />
+            <MonthPicker
+              plan_timestamp={plan.timestamp}
+              duration={plan?.duration || 600}
+              month={state.end_month}
+              min_month={state.start_month}
+              onChange={(m) => setState((s: any) => ({ ...s, end_month: m }))}
+            />
           </div>
         </div>
       </div>

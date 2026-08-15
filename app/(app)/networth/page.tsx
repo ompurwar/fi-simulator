@@ -642,9 +642,9 @@ function NetWorthDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {rows.map((h) => (
+                          {rows.map((h, idx) => (
                             <tr
-                              key={h.code || `${h.asset_class}-${h.name}`}
+                              key={h.code ? `${h.code}-${idx}` : `${h.asset_class}-${h.name}-${idx}`}
                               className="border-t border-dark-100/70 transition-colors hover:bg-dark-50"
                             >
                               <td className="px-4 py-3">
@@ -723,9 +723,9 @@ function NetWorthDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {liabilities.map((l) => (
+                          {liabilities.map((l, idx) => (
                             <tr
-                              key={l.code || `${l.asset_class}-${l.name}`}
+                              key={l.code ? `${l.code}-${idx}` : `${l.asset_class}-${l.name}-${idx}`}
                               className="border-t border-dark-100/70 hover:bg-danger-50/50"
                             >
                               <td className="px-4 py-3">

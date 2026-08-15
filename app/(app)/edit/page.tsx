@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
+import { MonthPicker } from "@/components/edit/MonthPicker";
 import { MyChart } from "@/components/ui/MyChart";
 import { Tab } from "@headlessui/react";
 import { api } from "@/lib/api";
@@ -375,14 +376,17 @@ function CashflowCommand({
           <span className="text-sm text-dark-300">{start_month_label}</span>
           {/* month picker styled like the original @vuepic/vue-datepicker (monthPicker) */}
           <div className="relative">
-            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
               <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
             </div>
-            <input
-              type="text"
-              readOnly
-              className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]"
-              value={GetMMYYYYNameFromMM(start_month, plan.timestamp)}
+            <MonthPicker
+              plan_timestamp={plan.timestamp}
+              duration={plan?.duration || 600}
+              month={state.start_month}
+              onChange={(m) => {
+                setState((s: any) => ({ ...s, start_month: m }));
+                setStartMonth(m);
+              }}
             />
           </div>
         </div>
@@ -390,14 +394,18 @@ function CashflowCommand({
           <div className="flex min-w-0 grow flex-col gap-1 transition-all duration-200">
             <span className="text-sm text-dark-300">End Month</span>
             <div className="relative">
-              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+              <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
                 <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
               </div>
-              <input
-                type="text"
-                readOnly
-                className="w-full rounded border border-[#dddddd] bg-white py-1.5 pl-[35px] pr-3 text-base text-[#212121]"
-                value={GetMMYYYYNameFromMM(end_month, plan.timestamp)}
+              <MonthPicker
+                plan_timestamp={plan.timestamp}
+                duration={plan?.duration || 600}
+                month={state.end_month}
+                min_month={state.start_month}
+                onChange={(m) => {
+                  setState((s: any) => ({ ...s, end_month: m }));
+                  setEndMonth(m);
+                }}
               />
             </div>
           </div>
@@ -1160,7 +1168,23 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
         {/* cashflow list */}
         {show_cashflow_list && (
           <div className="flex w-full snap-y flex-col md:h-[580px] md:w-1/3 md:shrink-0">
-            <div className="overflow-x-hidden overflow-y-scroll px-0 md:pl-2">
+            {/* list header — title + add button (top right, only when the list is long) */}
+            {cashflow_list.length > 3 && (
+              <div className="flex items-center justify-between gap-2 px-1 pb-1 md:pl-2">
+                <span className="text-sm font-bold capitalize text-dark-500 md:text-base">{cashflow_category}</span>
+                <Button
+                  variant="neutral"
+                  sub_variant="outline"
+                  size="sm"
+                  className="px-3 py-1 text-success-400 hover:border-success-400"
+                  onClick={() => SetState(stage, "add")}
+                >
+                  <FontAwesomeIcon className="self-center" icon={faPlus} />
+                  Add {cashflow_category}
+                </Button>
+              </div>
+            )}
+            <div className="max-h-[45vh] overflow-x-hidden overflow-y-scroll px-0 md:max-h-none md:pl-2">
               {cashflow_list.map((entity: any) => (
                 <div key={entity._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
                   <CashflowCard plan={plan} cashflow={entity} dimmed={stage !== "cashflow_list"}>
@@ -1173,7 +1197,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
                   </CashflowCard>
                 </div>
               ))}
-              {cashflow_list.length <= 5 && (
+              {cashflow_list.length <= 3 && (
                 <div className="mt-auto flex justify-center rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
                   <Button variant="neutral" sub_variant="outline" size="lg" className="w-full px-3 py-1 text-success-400 hover:border-success-400" onClick={() => SetState(stage, "add")}>
                     <FontAwesomeIcon className="self-center" icon={faPlus} />
@@ -1182,7 +1206,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
                 </div>
               )}
               <hr className="md:max-w-[450px] md:min-w-[440px]" />
-              {cashflow_list.length <= 5 && !is_plan_synced && (
+              {!is_plan_synced && (
                 <div className="mt-auto flex flex-col justify-between gap-3 rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
                   <div className="flex justify-between">
                     <span className="flex rounded-md bg-dark-100 p-2 text-dark-500">
@@ -1335,7 +1359,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
             show_cashflow_command || show_cashflow_change_command ? "md:w-1/3" : "md:w-2/3"
           }`}
         >
-          <div className="flex flex-col justify-end rounded-xl border-2 bg-dark-800 pb-3 md:h-[420px]">
+          <div className="flex h-[38vh] flex-col justify-end rounded-xl border-2 bg-dark-800 pb-3 md:h-[420px]">
             <div className="h-full w-full px-1 opacity-70 md:h-[400px]">
               <MyChart
                 labels={balance_chart_data.labels}
