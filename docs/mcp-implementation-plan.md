@@ -67,6 +67,24 @@ Critical facts that shape this design:
 4. **`@modelcontextprotocol/sdk@1.30.0` is already a dependency** — with `McpServer`, `StdioServerTransport`, `StreamableHTTPServerTransport` (incl. stateless mode), and `InMemoryTransport` (for tests).
 5. **`app/api/[[...path]]/route.ts`** builds the container once and forwards every HTTP method to the backend — the MCP HTTP endpoint can reuse the exact same `getApp()`/container pattern.
 
+### 2.1 SDK Surface — Verified (installed `@modelcontextprotocol/sdk@1.30.0` + official spec 2025-03-26)
+
+Verified against the installed `.d.ts` files and the live spec at `modelcontextprotocol.io/specification/2025-03-26/basic/transports`:
+
+| Claim | Evidence |
+|---|---|
+| `McpServer` + `server.connect(transport)` | `dist/esm/server/mcp.d.ts` |
+| `registerTool(name, { title, description, inputSchema, outputSchema }, cb)` — zod raw shapes accepted (`ZodRawShapeCompat`) | `mcp.d.ts:150` |
+| `ToolCallback(args, extra)` receives `extra: RequestHandlerExtra` containing **`authInfo?: AuthInfo`** | `shared/protocol.d.ts:173-185` |
+| `AuthInfo = { token, clientId, scopes, expiresAt?, resource?, extra?: Record<string, unknown> }` — `extra` is our carrier for `{ user_id }` | `server/auth/types.d.ts` |
+| **`WebStandardStreamableHTTPServerTransport`** — Web `Request`/`Response` transport, runs on any runtime (works in Next.js route handlers) | `server/webStandardStreamableHttp.d.ts` |
+| Stateless mode: `sessionIdGenerator: undefined` → no session validation, no `Mcp-Session-Id` | same file, options docs |
+| `enableJsonResponse: true` → server returns plain JSON per POST instead of SSE streams — exactly what a stateless Next.js endpoint needs | same file |
+| `handleRequest(req, { authInfo })` — auth info from middleware is passed through to message/tool handlers | `HandleRequestOptions` |
+| `InMemoryTransport.createLinkedPair()` + `send(msg, { authInfo })` — "useful for testing authentication scenarios" | `inMemory.d.ts` |
+| Streamable HTTP spec: stateless is valid (session ID optional); client MUST support single JSON response per POST; servers MUST validate `Origin` (DNS rebinding) | spec §Streamable HTTP |
+| stdio transport: newline-delimited JSON-RPC; logs to stderr only | spec §stdio |
+
 ---
 
 ## 3. Design Principles (Non-Negotiable)
@@ -160,7 +178,7 @@ erDiagram
 - **Token format**: `fp_` + 32 random chars (`GenerateRandomString`), shown **once** at creation.
 - **Storage**: hashed with the existing `GenerateHash(token, COOKIE_SECRET)` — same crypto as passwords/sessions. Raw token un-recoverable.
 - **Auth header**: `Authorization: Bearer fp_<token>` on the HTTP transport; `FIPLAN_API_TOKEN` env var for the stdio transport (single-user local mode).
-- **Resolution**: hash → `FindByTokenHash` → must be `active` → yields `user_id`. Every tool then runs with that `user_id`, and ownership checks inside the existing use cases do the rest.
+- **Resolution → tool context**: the route resolves the token to `user_id` *before* handing the request to the transport, and passes it through the SDK's first-class auth channel: `transport.handleRequest(req, { authInfo: { token, clientId, scopes: ["fiplan"], extra: { user_id } } })`. Every tool handler then reads `extra.authInfo.extra.user_id` — no globals, no thread-locals, and `user_id` is **never** a tool argument. On stdio, the same `AuthInfo` is synthesized from `FIPLAN_API_TOKEN` at startup.
 - **Management (web)**: profile page section + `POST /api_token/create|list|revoke` endpoints + use cases `CreateApiToken / ListApiTokens / RevokeApiToken`.
 
 ```mermaid
@@ -197,21 +215,21 @@ flowchart TB
 
   subgraph T1["Transport 1 — Stateless HTTP (primary)"]
     R["app/api/mcp/route.ts<br/>POST handler (Next.js route)"]
-    R --> S1["StreamableHTTPServerTransport<br/>stateless mode (no sessionId)"]
-    S1 --> AUTH1["resolve Bearer token → user_id"]
+    R --> S1["WebStandardStreamableHTTPServerTransport<br/>sessionIdGenerator: undefined (stateless)<br/>enableJsonResponse: true"]
+    S1 --> AUTH1["resolve Bearer token → AuthInfo{ extra: { user_id } }"]
   end
 
   subgraph T2["Transport 2 — stdio (local dev / Claude Code)"]
     E["standalone/mcp-stdio.ts<br/>npm run mcp:stdio"]
     E --> S2["StdioServerTransport"]
-    S2 --> AUTH2["FIPLAN_API_TOKEN env → user_id"]
+    S2 --> AUTH2["FIPLAN_API_TOKEN env → AuthInfo"]
   end
 
   AGENT["AI Agent"] -->|"POST /api/mcp<br/>Authorization: Bearer fp_..."| R
   AGENT -->|spawns process| E
 ```
 
-- **HTTP (stateless)**: each MCP message is a single POST — no SSE session, no long-lived connections. Ideal inside Next.js route handlers (the SDK supports stateless mode by omitting a session ID generator). Shares `getApp()`/container pattern with `app/api/[[...path]]/route.ts`.
+- **HTTP (stateless)**: each MCP message is a single POST answered with a single JSON response — no SSE sessions, no session state, no `Mcp-Session-Id`. The spec explicitly supports this mode (session ID is optional), and `enableJsonResponse: true` is the SDK switch for it. Built on `WebStandardStreamableHTTPServerTransport`, which consumes Web `Request`/`Response` — a native fit for Next.js route handlers. Shares `getApp()`/container pattern with `app/api/[[...path]]/route.ts`. GET requests (spec-mandated endpoint) are answered by the transport itself (SSE stream or 405), so the route only needs to expose `GET` + `POST`.
 - **stdio (local)**: for `claude code -p` / Claude Desktop via `mcp add`, runs the container in a child process. Needs `DB_URL` + `FIPLAN_API_TOKEN` in env.
 
 ---
@@ -287,6 +305,9 @@ constants (`CASHFLOW_CONSTANTS`, `ACCOUNT_CONSTANTS`) and applies it. Output: th
 the app uses — `account_balances_and_transactions`, `income_expense_and_net_cashflow`, `runway`, etc. — so the
 agent can compute **runway, net-worth milestones, corpus-at-retirement** and compare scenarios.
 
+*Note:* SDK 1.30 `registerTool` also accepts `outputSchema` (zod) with structured `output` results — a v1.1
+refinement on top of the JSON-string envelopes if agents start needing strictly typed outputs.
+
 ### 7.5 Net worth
 
 | Tool | Inputs | Use case |
@@ -326,12 +347,12 @@ sequenceDiagram
   participant D as MongoDB
 
   A->>R: POST /api/mcp (JSON-RPC tools/call) + Authorization: Bearer fp_xxx
-  R->>S: forward (stateless StreamableHTTP transport)
-  S->>AU: resolve_token("fp_xxx")
+  R->>AU: resolve_token("fp_xxx")
   AU->>AU: hash + FindByTokenHash (active?)
-  AU-->>S: { user_id }
-  S->>T: handler(args, { user_id })
-  T->>T: zod-validate args
+  AU-->>R: { user_id }
+  R->>S: transport.handleRequest(req, { authInfo: { token, clientId, scopes, extra: { user_id } } })
+  S->>T: handler(args, extra)
+  T->>T: user_id = extra.authInfo.extra.user_id; zod-validate args
   T->>APP: app.GetIncome({ plan_id, user_id })
   APP->>D: repository (ownership enforced)
   D-->>T: rows
@@ -375,7 +396,7 @@ All tool failures return `{ isError: true }` with a structured envelope — neve
 |---|---|
 | `src/server/mcp/index.ts` | module barrel |
 | `src/server/mcp/types.ts` | `MCPContext { user_id }`, envelope types, tool result types |
-| `src/server/mcp/auth.ts` | `resolveToken(token)` → `{ user_id }` via ApiTokenRepository |
+| `src/server/mcp/auth.ts` | `resolveToken(token)` → `AuthInfo{ token, clientId, scopes, extra: { user_id } }` via ApiTokenRepository (passed to `handleRequest`) |
 | `src/server/mcp/simulate.ts` | `ApplyScenarioToPlan(plan, patches)` — pure, validated |
 | `src/server/mcp/server.ts` | `makeMcpServer(container)` — registers all tools, returns `McpServer` |
 | `src/server/mcp/tools/plans.ts` | plan + identity tool handlers |
@@ -446,9 +467,11 @@ flowchart TB
 
 ## 11. Testing Strategy (sociable, per repo conventions)
 
-Use the SDK's **`InMemoryTransport`** (`createLinkedPair`) — boot a real container against
+Use the SDK's **`InMemoryTransport`** (`createLinkedPair()`) — boot a real container against
 `mongodb-memory-server` (as existing tests do), connect an in-process MCP *client*, and drive tools
-end-to-end through the protocol. Mock **nothing** except the IndMoney provider (already an injected boundary).
+end-to-end through the protocol. `InMemoryTransport.send(msg, { authInfo })` exists precisely for auth
+scenarios, so tests inject `AuthInfo{ extra: { user_id } }` the same way the route will. Mock **nothing**
+except the IndMoney provider (already an injected boundary).
 
 | Test file | Covers |
 |---|---|
@@ -463,10 +486,11 @@ end-to-end through the protocol. Mock **nothing** except the IndMoney provider (
 ## 12. Security Considerations
 
 1. Raw tokens shown once; only HMAC hashes stored (reuses `GenerateHash` + `COOKIE_SECRET`).
-2. Every tool resolves `user_id` from the token — tools **cannot** accept `user_id` as an argument.
+2. Every tool resolves `user_id` from `extra.authInfo.extra.user_id` (injected by the route) — tools **cannot** accept `user_id` as an argument.
 3. `simulate_plan` never writes; `plan_snapshot` reads only the caller's own plan.
 4. Token revocation: delete → `status: deleted` → all future calls 401.
-5. v1.1+: per-token scopes (read-only vs write), per-token rate limits, token TTL.
+5. **Origin/host validation on the MCP endpoint** — the spec *requires* it (DNS-rebinding protection). Enforced by the Next.js route middleware, not the transport (`allowedOrigins` transport options are deprecated in 1.30).
+6. v1.1+: per-token scopes (read-only vs write), per-token rate limits, token TTL.
 
 ---
 
@@ -507,7 +531,7 @@ highest-value tools (plans + simulation), then transports, then the long tail.
 
 | Risk / decision | Mitigation / default |
 |---|---|
-| Stateless HTTP mode quirks in SDK 1.30 inside Next.js route handlers | Spike first (Phase p6); fallback: standalone Node HTTP server (like `standalone/server.ts`) on a dedicated port |
+| Next.js route handler + `WebStandardStreamableHTTPServerTransport` integration (body streaming, GET handling) | API verified in SDK 1.30 (Web Request/Response native, stateless + JSON mode); keep the spike in Phase p6 to pin the exact route shape |
 | `simulate_plan` accepts arbitrary plan JSON → engine robustness | Engine already validates via `RequiredParam`; wrap in try/catch → structured error envelope |
 | Where should `ApplyScenarioToPlan` live? | Default `src/server/mcp/simulate.ts`; promote to `engine/` if other layers need it |
 | Token expiry? | None in v1 (revocation only); TTL in v1.1 |
