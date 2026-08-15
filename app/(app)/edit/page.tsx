@@ -897,7 +897,7 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
   const selected_cashflow_change = cashflow_change_list.find((c: any) => c._id === selected_cashflow_change_id);
 
   const is_plan_synced = plan_synced_map[plan_id] !== false;
-  const show_cashflow_list = ["cashflow_list", "add_cashflow"].includes(stage);
+  const show_cashflow_list = stage === "cashflow_list";
   const show_cashflow_meta_dark =
     ["view_cashflow_and_cashflow_change_list", "edit_cashflow", "edit_cashflow_change", "add_cashflow_change"].includes(stage) && !!selected_cashflow;
   const show_cashflow_command = ["add_cashflow", "edit_cashflow"].includes(stage);
