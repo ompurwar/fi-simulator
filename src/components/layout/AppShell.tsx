@@ -36,10 +36,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       const isPublic = PUBLIC_PATHS.includes(pathname);
       try {
         await api.IsLoggedIn();
-        if (isPublic) {
-          setLoading(false);
-          return;
-        }
+        // original loads profile + plans whenever a session exists, even on public pages
+        // (top nav renders on /link_page and /forgot_password when logged in)
         const [userProfile, plans] = await Promise.all([api.GetUser(), api.GetMyPLANS()]);
         await set_common_collection();
         setProfile(userProfile);
