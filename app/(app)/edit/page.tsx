@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { FireNotification } from "@/store/notifications";
 import { GetRandomString } from "@/lib/utils";
 import { GetCurrencySymbol } from "@/lib/country";
+import { FDPEditor } from "@/components/edit/FDPEditor";
+import { LoanEditor } from "@/components/edit/LoanEditor";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -1470,8 +1472,32 @@ export default function EditPage() {
     (e) => entity_type === e.entity_type && sub_entity_type === e.sub_entity_type
   );
 
-  if (!is_cashflow_related || entity_type === "loan") {
-    // non-cashflow editors (fdp/account) — keep the simple fallback for now
+  // Money Manager (fdp) and Loan Manager editors
+  if (entity_type === "fdp") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex flex-col justify-between gap-5 md:flex-row">
+            <FDPEditor plan_id={plan._id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (entity_type === "loan") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex justify-between gap-5">
+            <LoanEditor plan_id={plan._id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!is_cashflow_related) {
+    // non-cashflow editors (account) — keep the simple fallback for now
     return (
       <div className="flex h-screen items-center justify-center">
         <Button onClick={() => router.push("/plan")}>Back to plan</Button>

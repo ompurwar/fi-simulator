@@ -30,10 +30,17 @@ const doc = {
     option("investment", "i"),
   ],
   account_type: [option("asset", "a")],
-  loan_account_category: [option("personal loan", "pl"), option("home loan", "hl")],
+  loan_account_category: [option("personal loan", 3), option("home loan", 1)],
   loan_account_frequency: [option("monthly", "m"), option("yearly", "y")],
   loan_account_type: [option("emi", "emi"), option("lumpsum", "ls")],
-  loan_type: [option("fixed rate", "fr"), option("floating rate", "fl")],
+  // LOAN_CONSTANTS.TYPE: home=1, car=2, personal=3, credit=4, other=5
+  loan_type: [
+    option("home loan", 1),
+    option("car loan", 2),
+    option("personal loan", 3),
+    option("credit card", 4),
+    option("other", 5),
+  ],
 };
 
 (async () => {
@@ -43,7 +50,9 @@ const doc = {
   const col = db.collection("Common_Collection");
   const existing = await col.countDocuments();
   if (existing > 0) {
-    console.log("Common_Collection already has", existing, "doc(s) — not inserting. Remove/merge manually if needed.");
+    // update the existing doc's fields in place (no deletes)
+    await col.updateOne({}, { $set: doc });
+    console.log("updated existing Common_Collection doc");
     await client.close();
     return;
   }
