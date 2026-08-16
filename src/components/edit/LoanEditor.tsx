@@ -99,6 +99,7 @@ function LoanAccountCommand({
   onDone: (result: { action: string; loan_id?: string }) => void;
 }) {
   const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
+  const sync_plan = useFiPlanStore((s) => s.sync_plan);
   const common_collection = useFiPlanStore((s) => s.common_collection);
   const loan_type_options = (common_collection as any)?.loan_type || [];
 
@@ -188,6 +189,13 @@ function LoanAccountCommand({
       if (idx >= 0) loan_accounts[idx] = loan_obj;
     }
     update_plan_local({ ...plan, loan_accounts });
+    // Persist immediately — the plan page's snapshot and any refresh read the
+    // server copy, so a local-only edit would vanish on refresh.
+    try {
+      await sync_plan(plan._id);
+    } catch (e: any) {
+      alert(`Saved locally but could not sync to the server: ${e?.message || e}`);
+    }
     setState((s: any) => ({ ...s, loading: false }));
     onDone({ action: "added", loan_id: loan_obj._id });
   }
@@ -196,6 +204,11 @@ function LoanAccountCommand({
     setState((s: any) => ({ ...s, deleting: true }));
     const loan_accounts = (plan.loan_accounts || []).filter((l: any) => l._id !== loan?._id);
     update_plan_local({ ...plan, loan_accounts });
+    try {
+      await sync_plan(plan._id);
+    } catch (e: any) {
+      alert(`Deleted locally but could not sync to the server: ${e?.message || e}`);
+    }
     setState((s: any) => ({ ...s, deleting: false }));
     onDone({ action: "deleted" });
   }
