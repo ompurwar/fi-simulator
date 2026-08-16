@@ -665,12 +665,19 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
               onDone={(r) => {
                 if (r.action === "deleted") SetState(stage, "deleted");
                 if (r.action === "added") {
-                  SetState(stage, "back");
-                  setTimeout(() => {
-                    setStage("view_loan");
+                  if (mode === "add") {
+                    // new loan: return to the list, then open the new loan's view
+                    SetState(stage, "back");
+                    setTimeout(() => {
+                      setStage("view_loan");
+                      setSelectedLoanId(r.loan_id || "");
+                      setStack((s) => [...s, "view_loan"]);
+                    }, 1000);
+                  } else {
+                    // edit: we are already back on view_loan — refreshing the
+                    // selected id is enough (no duplicate breadcrumb entry)
                     setSelectedLoanId(r.loan_id || "");
-                    setStack((s) => [...s, "view_loan"]);
-                  }, 1000);
+                  }
                 }
               }}
             />
