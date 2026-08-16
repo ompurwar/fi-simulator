@@ -268,20 +268,30 @@ existing session, with zero token setup.
   never holds API keys. The loop runs in the backend, calls the registry handlers in-process, and streams
   results back over SSE.
 - **LLM via plain `fetch`** — no heavy SDK dependency. Provider abstraction (`src/server/ai/provider.ts`):
-  v1 ships the **Anthropic Messages API** implementation (`ANTHROPIC_API_KEY` env) since it has first-class
-  tool-use; an OpenAI-compatible implementation behind the same interface is a drop-in for later.
+  ships the **Anthropic Messages API** implementation since it has first-class tool-use; the endpoint is
+  configurable via `AI_BASE_URL` + `AI_MODEL` env, so **DeepSeek works as-is**
+  (`AI_BASE_URL=https://api.deepseek.com/anthropic`); an OpenAI-compatible implementation behind the same
+  interface is a drop-in for later. Thinking blocks (DeepSeek reasoning) are captured from the stream and
+  echoed back verbatim — required by DeepSeek, spec-correct for Anthropic.
 - **Tool schemas for the LLM**: registry tools are defined with zod shapes; the agent loop converts them to
   JSON Schema for the LLM request using the SDK's **`toJsonSchemaCompat`** (verified in
   `dist/esm/server/zod-json-schema-compat.d.ts:8`) — one definition, two consumers.
 - **Loop**: system prompt ("You are the Fi-Plan assistant… answer from tool data, never invent numbers") +
   conversation + tool schemas → if `stop_reason: tool_use`, execute via registry with `ctx = { user_id }`,
-  append `tool_result`, repeat (cap ~8 iterations) → stream final answer.
-- **Streaming**: `/api/assistant/chat` streams SSE events: `text delta`, `tool_call` (name + args),
-  `tool_result`, `error`, `done`. The loop wraps the LLM stream and the UI renders incrementally.
-- **Session persistence**: v1 keeps history client-side per session; v2 can persist conversations in Mongo.
+  append `tool_result` + echo thinking blocks, repeat (cap 8 iterations) → stream final answer.
+- **Streaming**: `/api/assistant/chat` streams SSE events: `session` (id, first), `text`, `thinking`,
+  `tool_call` (name + args), `tool_result` (ok/error), `error` (with optional `code`, e.g. `OFF_TOPIC`),
+  `done`, then `[DONE]`. Assistant replies render as **GitHub-flavored markdown** (react-markdown + GFM,
+  dark-themed); plain text while a message is still streaming.
+- **Guardrails** (see §7.5): deterministic pre-LLM topic gate + system-prompt scope rules — no coding,
+  no other domains, no standalone math.
+- **Session persistence**: conversations persist to `Chat_Session_Store` (Mongo) — history feeds the model
+  context on resume; see §7.4.
 - **UI** (`src/components/assistant/ChatPanel.tsx`): floating panel in the app shell (cockpit aesthetic),
-  message bubbles, live streaming, tool-call badges ("add_income"), reconnect/retry, and one-click
-  "stop". Uses the same fetch/auth helpers as the rest of the app (session cookie).
+  **full-screen on mobile with the launcher moved into the TopNav** (desktop keeps the floating FAB),
+  message bubbles, live streaming, tool-call badges, entity reference chips, session list drawer,
+  markdown rendering, suggestion chips on the empty state, one-click "stop". Uses the same fetch/auth
+  helpers as the rest of the app (session cookie).
 
 ### 7.2 Flow
 
@@ -378,6 +388,27 @@ sequenceDiagram
   P->>P: render references from plan_id (chip → /plan?p_id=)
   R->>C: append user msg + assistant text, bump updated_at
 ```
+
+### 7.5 Guardrails
+
+Two layers keep the assistant in scope (FiPlan topics + brief natural small talk only — no coding, no
+other domains, no standalone math):
+
+1. **Deterministic pre-LLM gate** (`src/server/ai/guardrails.ts`, `classifyTopic`) — runs before any LLM
+   cost in the chat route:
+   - **Blocks**: coding/software requests; other domains (cooking, sports, movies, history, geography,
+     translations, poems, news…); **standalone arithmetic** (`345*12`) — but plan-adjacent math
+     ("if my rent rises 10% and my salary is ₹80,000") passes because it references plan context.
+   - **Allows**: plan-related questions + small talk (greetings, thanks, "what can you do").
+   - Blocked requests get a friendly decline + steer-back as an `OFF_TOPIC` error SSE event — no LLM
+     call, no session created, nothing persisted.
+2. **System-prompt scope rules** — the final judge for borderline cases: explicit ALLOWED list (plans,
+   runway, cashflows, hikes/inflation, loans, FDP, net worth, retirement, savings + brief small talk)
+   and FORBIDDEN list (code, other domains, general knowledge, translations, ungrounded math), with a
+   one-sentence polite decline + steer-back behavior.
+
+Also encoded in the prompt: exact cashflow-change frequency semantics (one-time = `end_month =
+start_month`; yearly = `frequency "y"`; monthly is compounding) so hike/inflation modeling is precise.
 
 ---
 
