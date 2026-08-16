@@ -106,4 +106,70 @@ describe("loan tools", () => {
     expect(missing.ok).toBe(false);
     expect((missing as any).error.message).toContain("loan not found");
   });
+
+  it("disburses the loan one month BEFORE the first EMI when deposit_to_bank is true", async () => {
+    const plan = await t.container.plan_list.FindById(plan_id);
+    const add = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_loan", {
+      plan_id,
+      title: "Disbursement test loan",
+      principal_amount: 500000,
+      interest_rate: 9,
+      start_month: 24, // first EMI due here
+      end_month: 36,
+      deposit_to_bank: true,
+    });
+    expect(add.ok).toBe(true);
+
+    const snapshot = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+      duration: 40,
+    });
+    const txns = (snapshot as any).data.account_balances_and_transactions.transaction_list;
+    const disbursements = txns.filter((t: any) =>
+      String(t.tran_desc).includes("'Loan' Disbursement test loan")
+    );
+
+    // The deposit lands at month 23 (start_month - 1), NOT at month 24 where the
+    // first EMI falls due.
+    expect(disbursements).toHaveLength(1);
+    expect(disbursements[0]).toMatchObject({ month: 23, tran_type: "cr", amount: 500000 });
+
+    // Clean up so later tests aren't affected
+    await callRegistryTool(makeToolRegistry(t.container), ctx, "delete_loan", {
+      plan_id,
+      loan_id: ((await callRegistryTool(makeToolRegistry(t.container), ctx, "list_loans", { plan_id })) as any)
+        .data.find((l: any) => l.title === "Disbursement test loan")._id,
+    });
+  });
+
+  it("disburses at month 1 when the loan starts in the first month (no prior month)", async () => {
+    const add = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_loan", {
+      plan_id,
+      title: "First month loan",
+      principal_amount: 250000,
+      interest_rate: 8,
+      start_month: 1,
+      end_month: 12,
+      deposit_to_bank: true,
+    });
+    expect(add.ok).toBe(true);
+
+    const snapshot = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+      duration: 12,
+    });
+    const txns = (snapshot as any).data.account_balances_and_transactions.transaction_list;
+    const disbursements = txns.filter((t: any) =>
+      String(t.tran_desc).includes("'Loan' First month loan")
+    );
+    // No month 0 exists — the disbursement stays in month 1 (previous behavior).
+    expect(disbursements).toHaveLength(1);
+    expect(disbursements[0]).toMatchObject({ month: 1, tran_type: "cr", amount: 250000 });
+
+    await callRegistryTool(makeToolRegistry(t.container), ctx, "delete_loan", {
+      plan_id,
+      loan_id: ((await callRegistryTool(makeToolRegistry(t.container), ctx, "list_loans", { plan_id })) as any)
+        .data.find((l: any) => l.title === "First month loan")._id,
+    });
+  });
 });

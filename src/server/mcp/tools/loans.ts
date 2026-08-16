@@ -45,7 +45,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
       name: "add_loan",
       title: "Add a loan to a plan",
       description:
-        "Persists a new loan on the plan: principal_amount, interest_rate (annual %), start_month, end_month (= start_month + tenure months) and optional title, type (1 home, 2 car, 3 personal, 4 credit card, 5 other) and deposit_to_bank. deposit_to_bank true credits the principal into the bank account at start_month (disbursement); set it false when the money is already accounted for. Persists immediately.",
+        "Persists a new loan on the plan: principal_amount, interest_rate (annual %), start_month (when the FIRST EMI falls due), end_month (= start_month + tenure months - 1) and optional title, type (1 home, 2 car, 3 personal, 4 credit card, 5 other) and deposit_to_bank. deposit_to_bank true credits the principal into the bank account one month BEFORE the first EMI (disbursement); set it false when the money is already accounted for. Persists immediately.",
       inputSchema: {
         plan_id: z.string(),
         title: z.string().optional(),

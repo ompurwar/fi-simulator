@@ -318,7 +318,10 @@ function LoanAccountCommand({
       </div>
 
       <div className="flex grow flex-col gap-1 transition-all duration-200">
-        <span className="text-sm text-dark-300">Starting from</span>
+        <span className="text-sm text-dark-300">EMI starts from</span>
+        <span className="-mt-1 text-[10px] text-dark-500">
+          When checked, "Direct deposit" credits the loan amount here — the month before the first EMI.
+        </span>
         <div className="relative">
           <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
             <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />

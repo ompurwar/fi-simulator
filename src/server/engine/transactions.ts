@@ -64,7 +64,14 @@ function InitiateAccountBalance(month: number, account_id: string, balance: numb
   return { month, account_id, balance, category };
 }
 function GetLoanStartingOnMonth(month: number, loan_accounts: LoanLike[] = []): LoanLike[] {
-  return loan_accounts.filter((_) => _.start_month === month && _.deposit_to_bank === true);
+  // Disbursement happens the month BEFORE the first EMI (start_month): the money
+  // arrives first, the first EMI falls due at start_month. Plans with no prior
+  // month (start_month 1) fall back to disbursing at month 1.
+  return loan_accounts.filter((_) => {
+    if (_.deposit_to_bank !== true) return false;
+    const disburse_month = _.start_month > 1 ? _.start_month - 1 : 1;
+    return disburse_month === month;
+  });
 }
 function GetAccountByCategory(category: string, account_list: AccountLike[] = []): AccountLike {
   return account_list.find((_) => _.category === category && _.type === "a")!;

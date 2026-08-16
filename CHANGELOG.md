@@ -24,3 +24,6 @@
 
 ### Fixed
 - SSE tool-use args were corrupted when `content_block_start` carried an empty `input: {}` placeholder — args now accumulate from `input_json_delta` fragments only (tool calls were silently dropped).
+- Loan disbursement now credits the bank account **one month before the first EMI** (`start_month - 1`; month 1 for loans starting in the first month) — the money arrives before the first EMI falls due; Loan Manager labels the field "EMI starts from".
+- Loan add/edit/delete in the Loan Manager auto-sync to the server — local-only saves were silently reverted by a refresh (the plan snapshot reads the server copy).
+- `deposit_to_bank` is normalized to a real boolean in the Loan Manager so the checkbox and the engine (strict `=== true`) can never disagree.
