@@ -14,6 +14,8 @@ import {
   faListUl,
   faPlus,
   faTrash,
+  faBrain,
+  faChevronDown,
   faFolderOpen,
   faLandmark,
   faShareNodes,
@@ -187,6 +189,12 @@ export function ChatPanel() {
   const [sessions_loading, setSessionsLoading] = useState(false);
   const [session_deleting, setSessionDeleting] = useState(false);
 
+  // Claude Code-style reasoning indicator: captured thinking text, whether the
+  // answer has started (auto-collapses the reasoning), and expand/collapse state.
+  const [thinking_text, setThinkingText] = useState("");
+  const [answer_started, setAnswerStarted] = useState(false);
+  const [thinking_collapsed, setThinkingCollapsed] = useState(true);
+
   const abort_ref = useRef<AbortController | null>(null);
   const id_ref = useRef(0);
   const items_ref = useRef<ChatItem[]>([]);
@@ -213,6 +221,9 @@ export function ChatPanel() {
       setError("");
       setSessionsOpen(false);
       setSessions([]);
+      setThinkingText("");
+      setAnswerStarted(false);
+      setThinkingCollapsed(true);
     }
   }, [profile]);
 
@@ -243,6 +254,9 @@ export function ChatPanel() {
     setSessionId(null);
     setError("");
     setSessionsOpen(false);
+    setThinkingText("");
+    setAnswerStarted(false);
+    setThinkingCollapsed(true);
   }
 
   function FlushRefs(assistant_id: number | null) {
@@ -262,6 +276,9 @@ export function ChatPanel() {
     const content = text.trim();
     if (!content || streaming) return;
     setError("");
+    setThinkingText("");
+    setAnswerStarted(false);
+    setThinkingCollapsed(true);
 
     // The server prepends stored history for session_id — the client sends only the new user message.
     const history = [{ role: "user" as const, content }];
@@ -332,7 +349,12 @@ export function ChatPanel() {
           }
           if (evt.type === "session" && evt.id) {
             setSessionId(String(evt.id));
+          } else if (evt.type === "thinking" && typeof evt.text === "string") {
+            setThinkingText((t) => t + evt.text);
+            setThinkingCollapsed(false);
           } else if (evt.type === "text" && typeof evt.text === "string") {
+            setAnswerStarted(true);
+            setThinkingCollapsed(true); // answer begins → fold the reasoning
             if (assistant_id === null) {
               assistant_id = NextId();
               const refs = pending_refs_ref.current;
@@ -578,6 +600,45 @@ export function ChatPanel() {
 
             {/* messages */}
             <div ref={list_ref} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+              {thinking_text && (
+                answer_started || !streaming ? (
+                  /* folded reasoning block (Claude Code-style toggle) */
+                  <div className="self-start">
+                    <button
+                      type="button"
+                      onClick={() => setThinkingCollapsed((c) => !c)}
+                      className="flex items-center gap-1.5 rounded-full border border-dark-600 bg-dark-800 px-2.5 py-1 text-[11px] text-dark-300 transition-colors hover:border-primary-400 hover:text-dark-100"
+                    >
+                      <FontAwesomeIcon icon={faBrain} className="h-3 w-3 text-primary-400/80" />
+                      <span>Reasoning</span>
+                      <FontAwesomeIcon
+                        icon={faChevronDown}
+                        className={`h-2.5 w-2.5 transition-transform duration-200 ${thinking_collapsed ? "" : "rotate-180"}`}
+                      />
+                    </button>
+                    {!thinking_collapsed && (
+                      <div className="mt-1.5 max-w-[85%] whitespace-pre-wrap rounded-xl rounded-bl-sm border border-dark-700 bg-dark-800/70 px-3 py-2 text-[11px] italic leading-relaxed text-dark-400">
+                        {thinking_text}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* live reasoning indicator while the model thinks */
+                  <div className="flex items-center gap-2 self-start rounded-xl rounded-bl-sm bg-dark-700 px-3 py-2">
+                    <FontAwesomeIcon icon={faBrain} className="h-3.5 w-3.5 animate-pulse text-primary-400" />
+                    <span className="text-xs text-dark-200">Thinking</span>
+                    <span className="flex gap-1">
+                      {[0, 1, 2].map((d) => (
+                        <span
+                          key={d}
+                          className="h-1 w-1 animate-pulse rounded-full bg-primary-400"
+                          style={{ animationDelay: `${d * 220}ms` }}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                )
+              )}
               {items.length === 0 && !streaming && (
                 <div className="m-auto flex w-full max-w-[24rem] flex-col gap-3 text-center">
                   <div className="flex flex-col items-center gap-1.5">
@@ -631,7 +692,10 @@ export function ChatPanel() {
                       {is_user ? (
                         <div className="whitespace-pre-wrap">{item.content}</div>
                       ) : is_streaming_item ? (
-                        <div className="whitespace-pre-wrap">{item.content}</div>
+                        <div className="whitespace-pre-wrap">
+                          {item.content}
+                          <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse rounded-full bg-primary-400 align-middle" />
+                        </div>
                       ) : (
                         <MarkdownText text={item.content} />
                       )}
