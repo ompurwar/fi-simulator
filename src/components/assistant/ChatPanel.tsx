@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faRobot,
@@ -105,8 +107,62 @@ function Spinner({ className = "" }: { className?: string }) {
   );
 }
 
-/** Module-level open trigger — registered by the panel, called by external launchers. */
-let openAssistant: (() => void) | null = null;
+const md_components: Record<string, any> = {
+  p: ({ children }: any) => <p className="my-1 first:mt-0 last:mb-0">{children}</p>,
+  strong: ({ children }: any) => <strong className="font-semibold text-dark-50">{children}</strong>,
+  em: ({ children }: any) => <em className="italic">{children}</em>,
+  ul: ({ children }: any) => <ul className="my-1 list-disc pl-4">{children}</ul>,
+  ol: ({ children }: any) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
+  li: ({ children }: any) => <li className="my-0.5 leading-relaxed">{children}</li>,
+  h1: ({ children }: any) => <h1 className="my-2 text-base font-semibold text-dark-50">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="my-2 text-base font-semibold text-dark-50">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="my-2 text-sm font-semibold text-dark-50">{children}</h3>,
+  h4: ({ children }: any) => <h4 className="my-2 text-sm font-semibold text-dark-50">{children}</h4>,
+  hr: () => <hr className="my-2 border-dark-600" />,
+  blockquote: ({ children }: any) => (
+    <blockquote className="my-1 border-l-2 border-primary-400 pl-2 italic text-dark-300">{children}</blockquote>
+  ),
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-400 underline hover:text-primary-300">
+      {children}
+    </a>
+  ),
+  code: ({ className, children }: any) =>
+    className?.includes("language-") ? (
+      <code className={className}>{children}</code>
+    ) : (
+      <code className="rounded bg-dark-800 px-1 py-0.5 text-[0.85em] text-accent-300">{children}</code>
+    ),
+  pre: ({ children }: any) => (
+    <pre className="my-2 overflow-x-auto rounded-lg border border-dark-600 bg-dark-800 p-2.5 text-xs leading-relaxed text-dark-100">
+      {children}
+    </pre>
+  ),
+  table: ({ children }: any) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse text-xs">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: any) => <thead className="bg-dark-800">{children}</thead>,
+  th: ({ children }: any) => (
+    <th className="border border-dark-600 px-2 py-1 text-left font-semibold text-dark-50">{children}</th>
+  ),
+  td: ({ children }: any) => <td className="border border-dark-600 px-2 py-1 text-dark-100">{children}</td>,
+  tr: ({ children }: any) => <tr>{children}</tr>,
+};
+
+/** Render assistant markdown (GFM: tables, lists, code). Plain text passes through. */
+function MarkdownText({ text }: { text: string }) {
+  return (
+    <div className="break-words text-[0.85rem] leading-relaxed [&_pre]:whitespace-pre-wrap [&_pre_code]:whitespace-pre">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={md_components}>
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+/** Module-level open trigger — registered by the panel, called by external launchers. */let openAssistant: (() => void) | null = null;
 
 /** Open the assistant from anywhere (e.g. the mobile TopNav button). */
 export function OpenAssistant() {
@@ -547,16 +603,24 @@ export function ChatPanel() {
               {items.map((item) => {
                 if (item.kind === "message") {
                   const is_user = item.role === "user";
+                  const is_streaming_item =
+                    streaming && !is_user && item.id === items[items.length - 1]?.id;
                   return (
                     <div
                       key={item.id}
-                      className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                      className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
                         is_user
                           ? "self-end rounded-br-sm bg-primary-500 text-primary-50"
                           : "self-start rounded-bl-sm bg-dark-700 text-dark-100"
                       }`}
                     >
-                      {item.content}
+                      {is_user ? (
+                        <div className="whitespace-pre-wrap">{item.content}</div>
+                      ) : is_streaming_item ? (
+                        <div className="whitespace-pre-wrap">{item.content}</div>
+                      ) : (
+                        <MarkdownText text={item.content} />
+                      )}
                       {!is_user && item.references && item.references.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {item.references.map((ref) => (
