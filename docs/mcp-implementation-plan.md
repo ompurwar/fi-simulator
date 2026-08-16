@@ -798,6 +798,46 @@ the schema, capping thinking (DeepSeek ignores `budget_tokens`).
 
 **Execution order**: A → D2+D3+D4 → D1 → B → C → D5+D6.
 
+### 17.4 Loan Manager v1.3 — amortization table, prepayments, refinancing
+
+Grounded in the existing engine: `ComputeLoanAmortizationSchedule` (engine/loan.ts) already returns
+per-month EMI/interest/principal/closing + running totals; `planSnapshot.ts:76-96` turns schedules into
+`emi_expense_cashflow` (one-time expense rows) merged into `expense_list` → statements/balances/charts.
+Everything below plugs into that seam — no new statement plumbing.
+
+**Data model (additive)** — `LoanAccount.prepayments?: PrepaymentPlan[]`
+(`MakeLoanAccount` passes unknown fields through via `...other_info`; add shape validation):
+
+```
+PrepaymentPlan = { _id, start_month, amount, frequency: "m"|"q"|"y"|null, step_pct?: number|null, desc? }
+// null frequency = one-time lump; step_pct = % growth per frequency period
+```
+
+**Engine (pure, additive)**
+- `ComputePrepaymentAmounts(prepayments, from, to)` — expands schedules to per-month amounts with step-up
+- `ComputeLoanAmortizationScheduleWithPrepayments(amount, rate, tenure, prepayments)` — EMI constant,
+  prepayment reduces principal after each EMI (shorten mode), closes early at balance ≤ 0; rows carry
+  `prepayment`; returns `{ schedule, payoff_month, interest_saved }`
+- `ComputeRefinanceAnalysis({ amount, rate, tenure, refinance_month, new_rate, new_tenure, charge? })` —
+  outstanding at M, new EMI/totals, interest saved, breakeven
+- `planSnapshot.ts`: when `loan.prepayments` present, use the new fn; prepayment rows appended to
+  `emi_expense_cashflow` as `desc: "Prepayment #N - '<loan title>'"` → expense statement, net cashflow,
+  runway, balances, charts all update with zero extra plumbing
+
+**Loan Manager UI** — view_loan stage: paginated amortization table (EMI#, month, EMI, interest,
+principal, prepayment, closing balance; totals + payoff month). edit_loan: "Prepayments" section
+(add/remove schedules; m/q/y/one-time + step %). Refinance panel: rate/tenure/month/charges → comparison
+(preview) → Apply = old loan `end_month = M` + new loan (principal = outstanding, `deposit_to_bank: false`).
+
+**MCP** — `loan_amortization` gains `prepayments`; `add_loan`/`update_loan` persist `prepayments`;
+`simulate_plan` `add_loan` patch supports `loan.prepayments`; new `loan_refinance` tool (read-only
+analysis); system-prompt guidance ("extra principal beyond EMI, shortens the loan, appears as
+'Prepayment #N - <title>' expense").
+
+**Phases**: P1 engine fns + entity validation + tests → P2 snapshot wiring + tests → P3 MCP tools +
+prompt + tests → P4 UI (table, prepay editor, refinance panel) → P5 ops migration (`prepayments: []`),
+docs, full suite. Live test: Home loan ₹65L — ₹25k/mo prepay from m40 ⇒ payoff ~m200, ~₹20L interest saved.
+
 ---
 
 ## 16. Out of Scope (v1)
