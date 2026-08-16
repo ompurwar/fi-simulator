@@ -133,7 +133,8 @@ export async function POST(req: NextRequest) {
   const registry = makeToolRegistry(container);
   const encoder = new TextEncoder();
 
-  let collectedText = "";
+  let collectedSegments: string[] = [];
+  let currentSegment = "";
   let hadToolActivity = false;
   let streamErrored = false;
 
@@ -149,9 +150,16 @@ export async function POST(req: NextRequest) {
           registry,
           provider: container.ai_provider,
           onEvent: (event) => {
-            if (event.type === "text") collectedText += event.text;
-            if (event.type === "tool_call" || event.type === "tool_result")
+            if (event.type === "text") {
+              currentSegment += event.text;
+            }
+            if (event.type === "tool_call" || event.type === "tool_result") {
+              if (currentSegment) {
+                collectedSegments.push(currentSegment);
+                currentSegment = "";
+              }
               hadToolActivity = true;
+            }
             if (event.type === "error") {
               streamErrored = true;
               // Agent-loop failures never throw — surface them to server logs
@@ -191,7 +199,11 @@ export async function POST(req: NextRequest) {
   const userMessages = messages.filter((m) => m.role === "user");
 
   async function persistChat(): Promise<boolean> {
-    const assistantText = collectedText.trim();
+    if (currentSegment) {
+      collectedSegments.push(currentSegment);
+      currentSegment = "";
+    }
+    const assistantText = collectedSegments.join("\n\n").trim();
     if (streamErrored || (!assistantText && !hadToolActivity)) return false;
     for (const message of userMessages) {
       await appendMessage(message.role, message.content);

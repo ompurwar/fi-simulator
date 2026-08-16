@@ -92,7 +92,9 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<void> {
         system: SYSTEM_PROMPT,
         messages: anthropicMessages,
         tools,
-        max_tokens: 4096,
+        // Generous budget: thinking-mode models (DeepSeek) count reasoning
+        // tokens against max_tokens, so 4096 truncated visible replies.
+        max_tokens: 16384,
         signal,
       })) {
         if (event.type === "text_delta") {
