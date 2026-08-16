@@ -20,6 +20,7 @@ export interface NetWorthStatus {
   snapshot: Record<string, any> | null;
   holdings: any[];
   analysis: any[];
+  sips: any[];
   history: NetWorthHistoryPoint[];
   /** Portfolio-level approximate annualized return since the first sync.
    *  null when there isn't enough history (or no invested base). */
@@ -57,6 +58,7 @@ export function makeNetWorthService(deps: {
           snapshot: null,
           holdings: [],
           analysis: [],
+          sips: [],
           history: [],
           approx_annualized_return: null,
         };
@@ -107,6 +109,7 @@ export function makeNetWorthService(deps: {
         snapshot: latest?.snapshot ?? null,
         holdings: latest?.holdings ?? [],
         analysis: latest?.analysis ?? [],
+        sips: latest?.sips ?? [],
         history,
         approx_annualized_return,
         // raw provider payload — kept for schema debugging until the MCP
@@ -160,6 +163,7 @@ export function makeNetWorthService(deps: {
         snapshot: payload.snapshot,
         holdings: payload.holdings,
         analysis: payload.analysis ?? [],
+        sips: payload.sips ?? [],
         raw: payload.raw ?? null,
       });
       await repo.UpdateLink(user_id, { last_sync_at: Date.now() });

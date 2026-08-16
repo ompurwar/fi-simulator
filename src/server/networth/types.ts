@@ -52,12 +52,26 @@ export interface NetWorthAnalysisItem {
   headline: string | null;
 }
 
+/** Recurring investment commitment (MF/stock SIPs) — what gets deposited monthly. */
+export interface NetWorthSip {
+  name: string;
+  category: string | null;
+  amount: number;
+  frequency: string | null;
+  next_date: string | null;
+  status: string | null;
+  current_value: number | null;
+  gain_pct: number | null;
+}
+
 /** What the provider returns from a sync — already normalized into canonical shapes. */
 export interface ProviderSnapshotPayload {
   snapshot: NetWorthSnapshot;
   holdings: NetWorthHolding[];
   /** Optional per-instrument analysis (e.g. US stocks analyst/price data). */
   analysis?: NetWorthAnalysisItem[];
+  /** Recurring investment commitments (MF/stock SIPs) — best-effort. */
+  sips?: NetWorthSip[];
   /** Raw provider payload, persisted for schema-debugging. */
   raw?: string | null;
 }

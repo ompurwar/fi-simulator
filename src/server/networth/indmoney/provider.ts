@@ -19,7 +19,13 @@ import type { NetWorthProvider, ProviderAuthorization } from "../provider";
 import type { NetWorthAnalysisItem, NetWorthHolding, ProviderSnapshotPayload } from "../types";
 import type { NetWorthRepository } from "../repository";
 import { IndMoneyOAuthClientProvider } from "./oauthProvider";
-import { ASSET_TYPE_LABELS, normalizeHoldings, normalizeSnapshot, normalizeUsAnalysis } from "./normalize";
+import {
+  ASSET_TYPE_LABELS,
+  normalizeHoldings,
+  normalizeSips,
+  normalizeSnapshot,
+  normalizeUsAnalysis,
+} from "./normalize";
 
 const MCP_TOOL_SNAPSHOT = "networth_snapshot";
 const MCP_TOOL_HOLDINGS = "networth_holdings";
@@ -245,15 +251,40 @@ export function makeIndMoneyNetWorthProvider(deps: {
           }
         }
 
+        // Recurring investment commitments — what gets deposited each month
+        // (best-effort; missing tools/rows are fine).
+        let sips: any[] = [];
+        const sips_raw: Record<string, any> = {};
+        try {
+          const [mf, stock] = await Promise.allSettled([
+            client.callTool({ name: "mf_sips", arguments: {} }),
+            client.callTool({ name: "indian_stocks_sips", arguments: {} }),
+          ]);
+          if (mf.status === "fulfilled") {
+            const raw = parseToolJson(mf.value);
+            sips_raw.mf = raw;
+            sips.push(...normalizeSips(raw, "Mutual Fund"));
+          }
+          if (stock.status === "fulfilled") {
+            const raw = parseToolJson(stock.value);
+            sips_raw.stocks = raw;
+            sips.push(...normalizeSips(raw, "Indian Stocks"));
+          }
+        } catch {
+          /* sips are best-effort — never fail the sync */
+        }
+
         const snapshot = normalizeSnapshot(raw_snapshot);
 
         return {
           snapshot,
           holdings,
           analysis,
+          sips,
           raw: JSON.stringify({
             raw_snapshot,
             raw_holdings: holdings_raw,
+            raw_sips: sips_raw,
             analysis_raw,
             raw_snapshot_text,
             tool_manifest,

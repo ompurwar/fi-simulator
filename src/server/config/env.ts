@@ -22,6 +22,8 @@ const envSchema = z.object({
   SUPPORT_MAIL: z.string().optional(),
   MAILER_NAME: z.string().optional(),
   INDMONEY_MCP_URL: z.string().default("https://mcp.indmoney.com/mcp"),
+  /** INDstocks trading API token (read-only use) — from indstocks.com/app/api-trading/access-tokens */
+  INDSTOCKS_API_TOKEN: z.string().optional(),
   MCP_ENABLED: z.enum(["true", "false"]).default("true"),
   AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),

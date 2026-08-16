@@ -34,6 +34,7 @@ export interface NetWorthSnapshotDoc {
   snapshot: Record<string, any>;
   holdings: any[];
   analysis: any[];
+  sips?: any[];
   raw: string | null;
   timestamp: number;
 }
@@ -132,6 +133,7 @@ export function makeNetWorthRepository(database: Database): NetWorthRepository {
       snapshot: info.snapshot ?? {},
       holdings: info.holdings ?? [],
       analysis: info.analysis ?? [],
+      sips: info.sips ?? [],
       raw: info.raw ?? null,
       timestamp: Now(),
     };
