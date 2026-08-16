@@ -90,21 +90,31 @@ export function MyChart({
             }
           : undefined,
       },
-      // matching MyChart.vue: dashed line annotation with dark-300 border + label
+      // matching MyChart.vue: dashed line annotation with dark-300 border + label;
+      // per-annotation overrides (borderColor/borderDash/borderWidth/labelColor)
+      // allow distinct markers like one-time purchases.
       annotation: annotation.length
         ? {
             annotations: annotation.map((a: any, index: number) => ({
-              type: "line",
-              scaleID: "x",
-              borderWidth: 1,
-              borderColor: typeof document !== "undefined"
-                ? getComputedStyle(document.body).getPropertyValue("--color-dark-300")
-                : "#8d9fb6",
-              borderDash: [10, 5],
+              type: a.type ?? "line",
+              scaleID: a.scaleID ?? "x",
+              borderWidth: a.borderWidth ?? 1,
+              borderColor:
+                a.borderColor ??
+                (typeof document !== "undefined"
+                  ? getComputedStyle(document.body).getPropertyValue("--color-dark-300")
+                  : "#8d9fb6"),
+              borderDash: a.borderDash ?? [10, 5],
               value: a.value,
               endValue: a.value,
               display: (ctx: any) => ctx.chart.isDatasetVisible(0),
-              label: { display: true, content: a.content, position: "start" },
+              label: {
+                display: true,
+                content: a.content,
+                position: a.labelPosition ?? "start",
+                ...(a.labelColor ? { color: a.labelColor } : {}),
+                ...(a.font ? { font: a.font } : {}),
+              },
             })),
           }
         : undefined,

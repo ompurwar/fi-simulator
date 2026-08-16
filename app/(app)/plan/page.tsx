@@ -478,6 +478,31 @@ function PlanPageInner() {
         },
       ];
 
+  // One-time purchases (type "o" expenses, e.g. down payment / wedding) render
+  // as distinct markers on the chart: a dashed warning line with a tag — clearly
+  // different from the sliding window bars and from the net-worth annotation.
+  // Markers slide in/out with the window like the bars.
+  const warning_color = cssVar("--color-warning-600") || "#d97706";
+  const one_time_purchases = (plan.cashflow_list || []).filter(
+    (c: any) => c.category === "e" && c.type === "o"
+  );
+  const purchase_annotations = one_time_purchases
+    .filter(
+      (p: any) =>
+        p.start_month > window_start_point && p.start_month <= window_start_point + WINDOW_SIZE
+    )
+    .map((p: any) => ({
+      value: GetMonthAndYear(plan, p.start_month),
+      content: [String(p.desc || "Purchase"), `${ToDisplayableMoney(Number(p.amount))}`],
+      borderColor: warning_color,
+      borderDash: [4, 4] as [number, number],
+      borderWidth: 2,
+      labelColor: warning_color,
+      labelPosition: "end" as const,
+      font: { size: 9, weight: 600 } as any,
+    }));
+  const chart_annotations = [...purchase_annotations, ...annotation];
+
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-10">
       {/* Left manager sidebar (desktop) */}
@@ -634,7 +659,7 @@ function PlanPageInner() {
               chart_type="bar"
               height={350}
               width={400}
-              annotation={annotation}
+              annotation={chart_annotations}
               formatter={ToDisplayableMoney}
               onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
             />
@@ -699,7 +724,7 @@ function PlanPageInner() {
                 chart_type="bar"
                 height={500}
                 width={400}
-                annotation={annotation}
+                annotation={chart_annotations}
                 formatter={ToDisplayableMoney}
                 onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
               />
