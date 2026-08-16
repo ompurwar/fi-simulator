@@ -129,6 +129,7 @@ function ApplyAddLoan(plan: any, patch: any): void {
     type: loan.type ?? LOAN_CONSTANTS.TYPE.OTHER,
     ref_id: loan.parent_id ?? null,
     deposit_to_bank: loan.deposit_to_bank ?? false,
+    prepayments: loan.prepayments ?? [],
   });
 
   plan.loan_accounts = plan.loan_accounts || [];
@@ -237,7 +238,7 @@ function normalizePatch(patch: any, index: number): any {
   }
   if (op === "add_loan" && !patch.loan) {
     out.loan = {};
-    for (const k of ["amount", "principal_amount", "interest_rate", "tenure", "start_month", "end_month", "title", "loan_name", "deposit_to_bank", "type", "parent_id"]) {
+    for (const k of ["amount", "principal_amount", "interest_rate", "tenure", "start_month", "end_month", "title", "loan_name", "deposit_to_bank", "type", "parent_id", "prepayments"]) {
       if (patch[k] !== undefined) out.loan[k] = patch[k];
     }
   }

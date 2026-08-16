@@ -6,6 +6,7 @@ import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { MonthPicker } from "@/components/edit/MonthPicker";
+import { LoanAmortizationTable } from "@/components/edit/LoanAmortizationTable";
 import { GetRandomString } from "@/lib/utils";
 import { FireNotification } from "@/store/notifications";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -24,6 +25,8 @@ import {
   faCreditCard,
   faUserTie,
   faHouse,
+  faArrowsRotate,
+  faHandHoldingDollar,
 } from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb, faFileLines } from "@fortawesome/free-regular-svg-icons";
 
@@ -42,6 +45,38 @@ function ComputeLoanEMI(principal: number, interest_rate: number, tenure_months:
   if (r === 0) return principal / n;
   const factor = Math.pow(1 + r, n);
   return (principal * r * factor) / (factor - 1);
+}
+
+/** Port of LoanEngine.ComputeRefinanceAnalysis — what-if the loan closes at refinance_month. */
+function ComputeRefinanceAnalysis(loan: any, opts: { new_rate: number; new_tenure: number; refinance_month: number; foreclosure_charge: number }) {
+  const tenure = Math.max(1, loan.end_month - loan.start_month + 1);
+  const r = loan.interest_rate / 1200;
+  const emi = ComputeLoanEMI(loan.principal_amount, loan.interest_rate, tenure);
+  const schedule: any[] = [];
+  let balance = loan.principal_amount;
+  for (let i = 0; i < tenure; i++) {
+    const interest_amount = balance * r;
+    balance -= emi - interest_amount;
+    schedule.push({ emi, interest_amount, closing_balance: balance });
+  }
+  const idx = Math.max(0, Math.min(Math.floor(opts.refinance_month) - 1, schedule.length));
+  const outstanding = idx === 0 ? loan.principal_amount : schedule[idx - 1].closing_balance;
+  const old_emi = idx === 0 ? emi : schedule[idx - 1].emi;
+  const old_remaining_interest = schedule.slice(idx).reduce((sum: number, x: any) => sum + x.interest_amount, 0);
+  const new_emi = ComputeLoanEMI(outstanding, opts.new_rate, opts.new_tenure);
+  const new_total_interest = new_emi * opts.new_tenure - outstanding;
+  const emi_diff = old_emi - new_emi;
+  return {
+    refinance_month: idx + 1,
+    outstanding_balance: outstanding,
+    old_emi,
+    old_remaining_interest,
+    new_emi,
+    new_total_interest,
+    interest_saved: old_remaining_interest - new_total_interest,
+    net_savings: old_remaining_interest - new_total_interest - opts.foreclosure_charge,
+    breakeven_months: emi_diff > 0 ? Math.ceil(opts.foreclosure_charge / emi_diff) : null,
+  };
 }
 
 /** Port of loan_account/LoanCard.vue */
@@ -82,6 +117,9 @@ function LoanCard({ plan, loan, children }: { plan: any; loan: any; children?: R
   );
 }
 
+const inputClass =
+  "relative border-[1.6px] rounded-[.5rem] px-3 py-[.25rem] w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
+
 /** Port of loan_account/LoanAccountCommand.vue */
 function LoanAccountCommand({
   plan,
@@ -114,6 +152,8 @@ function LoanAccountCommand({
     loading: false,
     deleting: false,
     deposit_to_bank: true,
+    prepayments: [],
+    prepay_draft: { start_month: 13, amount: 0, frequency: "y", step_pct: null, step_frequency: null },
   });
   const [duration_in_month, setDurationInMonth] = useState(1);
 
@@ -130,6 +170,8 @@ function LoanAccountCommand({
         // Normalize: the engine credits only on strict `deposit_to_bank === true`,
         // so a truthy non-boolean (e.g. the string "true") must not tick the box.
         deposit_to_bank: loan.deposit_to_bank === true,
+        prepayments: [...(loan.prepayments || [])],
+        prepay_draft: { start_month: (loan.start_month || 1) + 12, amount: 0, frequency: "y", step_pct: null, step_frequency: null },
         loading: false,
         deleting: false,
       }));
@@ -144,6 +186,8 @@ function LoanAccountCommand({
         interest_rate: 0,
         type: default_loan_type ?? 4,
         deposit_to_bank: true,
+        prepayments: [],
+        prepay_draft: { start_month: 13, amount: 0, frequency: "y", step_pct: null, step_frequency: null },
         loading: false,
         deleting: false,
       }));
@@ -180,6 +224,7 @@ function LoanAccountCommand({
       ref_id: state.ref_id,
       // always persist a real boolean so the engine and the checkbox agree
       deposit_to_bank: state.deposit_to_bank === true,
+      prepayments: state.prepayments || [],
     };
     setState((s: any) => ({ ...s, loading: true }));
     const loan_accounts = [...(plan.loan_accounts || [])];
@@ -349,6 +394,148 @@ function LoanAccountCommand({
         </div>
       </div>
 
+      {mode === "edit" && (
+        <div className="flex flex-col gap-2 rounded-md border border-dashed border-primary-300/50 bg-primary-300/5 p-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <FontAwesomeIcon icon={faHandHoldingDollar} className="self-center text-lg text-primary-500" />
+            <span className="self-center text-sm font-medium text-dark-400">Prepayments</span>
+            <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">
+              extra principal beyond the EMI — shortens the loan
+            </span>
+          </div>
+
+          {state.prepayments.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {state.prepayments.map((p: any, i: number) => (
+                <div key={p._id || i} className="flex items-center gap-2 rounded-md border border-dark-300/50 bg-dark-50 px-2 py-1 text-xs text-dark-300">
+                  <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">From</span>
+                  <span className="self-center font-semibold text-dark-200">{GetMMYYYY(p.start_month, plan.timestamp)}</span>
+                  <DisplayAmount className="self-center font-semibold text-success-400" amount={p.amount} />
+                  <span className="self-center capitalize text-dark-500">
+                    {p.frequency === "q" ? "quarterly" : p.frequency === "y" ? "yearly" : p.frequency === "m" ? "monthly" : "one-time"}
+                    {p.step_pct
+                      ? ` · +${p.step_pct}% ${p.step_frequency === "m" ? "every mo" : p.step_frequency === "q" ? "every qtr" : p.step_frequency === "y" ? "every yr" : "each"}`
+                      : ""}
+                  </span>
+                  <FontAwesomeIcon
+                    icon={faTrashCan}
+                    className="ml-auto self-center cursor-pointer text-dark-400 transition-colors duration-200 hover:text-danger-300"
+                    onClick={() =>
+                      setState((s: any) => ({
+                        ...s,
+                        prepayments: s.prepayments.filter((x: any) => (p._id ? x._id !== p._id : true)),
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-end gap-2">
+              <div className="flex w-full flex-col gap-1">
+                <span className="text-sm text-dark-300">Starts from</span>
+                <MonthPicker
+                  plan_timestamp={plan.timestamp}
+                  duration={plan?.duration || 600}
+                  month={state.prepay_draft.start_month}
+                  onChange={(m: number) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, start_month: m } }))}
+                />
+              </div>
+              <div className="flex w-full flex-col gap-1">
+                <span className="text-sm text-dark-300">Amount (per occurrence)</span>
+                <input
+                  type="number"
+                  min={1}
+                  className={`${inputClass} !text-base`}
+                  value={state.prepay_draft.amount || ""}
+                  placeholder="0"
+                  onChange={(e) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, amount: Number(e.target.value) } }))}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex">
+                {[
+                  { label: "One-time", value: null },
+                  { label: "Monthly", value: "m" },
+                  { label: "Quarterly", value: "q" },
+                  { label: "Yearly", value: "y" },
+                ].map((option) => (
+                  <button
+                    key={String(option.value)}
+                    className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 ${
+                      state.prepay_draft.frequency === option.value ? "bg-dark-200 text-dark-50" : ""
+                    }`}
+                    onClick={() => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, frequency: option.value } }))}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {state.prepay_draft.frequency && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Step-up %</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-20 rounded-md border-[1.6px] border-dark-300 bg-dark-50 px-2 py-1 text-right text-sm text-dark-400 focus:border-primary-300 focus:outline-none"
+                    value={state.prepay_draft.step_pct ?? ""}
+                    placeholder="0"
+                    onChange={(e) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, step_pct: e.target.value === "" ? null : Number(e.target.value) } }))}
+                  />
+                  {(state.prepay_draft.step_pct ?? 0) > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">every</span>
+                      <div className="flex">
+                        {[
+                          { label: "Same", value: null },
+                          { label: "Mo", value: "m" },
+                          { label: "Qtr", value: "q" },
+                          { label: "Yr", value: "y" },
+                        ].map((option) => (
+                          <button
+                            key={String(option.value)}
+                            className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 px-1.5 py-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 ${
+                              (state.prepay_draft.step_frequency ?? null) === option.value ? "bg-dark-200 text-dark-50" : ""
+                            }`}
+                            onClick={() => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, step_frequency: option.value } }))}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Button
+                variant="neutral"
+                sub_variant="outline"
+                size="sm"
+                className="ml-auto w-fit self-center px-3 py-1 text-success-400 hover:border-success-400"
+                onClick={() => {
+                  const draft = state.prepay_draft;
+                  if (!draft.amount || draft.amount <= 0) {
+                    alert("prepayment amount is required");
+                    return;
+                  }
+                  setState((s: any) => ({
+                    ...s,
+                    prepayments: [...(s.prepayments || []), { _id: GetRandomString(6), ...draft }],
+                    prepay_draft: { ...draft, amount: 0, step_pct: null },
+                  }));
+                }}
+              >
+                <FontAwesomeIcon className="self-center" icon={faPlus} />
+                Add
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 flex gap-3">
         <Button variant="primary" sub_variant="solid" className="flex grow py-2 capitalize" onClick={SaveChanges}>
           {state.loading ? (
@@ -372,6 +559,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   const plans = useFiPlanStore((s) => s.plans);
   const plan_synced_map = useFiPlanStore((s) => s.plan_synced_map);
   const sync_plan = useFiPlanStore((s) => s.sync_plan);
+  const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
 
   const plan = plans.find((p) => p._id === plan_id);
 
@@ -382,6 +570,20 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   const [default_loan_title, setDefaultLoanTitle] = useState("loan");
   const [default_loan_type, setDefaultLoanType] = useState(4);
   const [plan_sync_inprogress, setPlanSyncInprogress] = useState(false);
+  const [show_refinance, setShowRefinance] = useState(false);
+  const [refi, setRefi] = useState<any>({ new_rate: 8, new_tenure: 240, refinance_month: 13, foreclosure_charge: 0 });
+
+  useEffect(() => {
+    if (selected_loan) {
+      setRefi({
+        new_rate: selected_loan.interest_rate,
+        new_tenure: Math.min(240, Math.max(12, selected_loan.end_month - selected_loan.start_month)),
+        refinance_month: Math.max(selected_loan.start_month, Math.min(selected_loan.start_month + 12, selected_loan.end_month)),
+        foreclosure_charge: 0,
+      });
+      setShowRefinance(false);
+    }
+  }, [selected_loan_id]);
 
   const loan_list = useMemo(() => {
     if (!plan) return [];
@@ -640,9 +842,19 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         {show_loan_meta_card && selected_loan && (
           <div className="mb-12 flex flex-col gap-2 rounded-md border-dashed px-2 md:mb-0 md:w-[470px]">
             <LoanCard plan={plan} loan={selected_loan}>
-              <div className="ml-auto self-center px-3 text-dark-300" onClick={() => SetState(stage, "edit", selected_loan_id)}>
-                <FontAwesomeIcon icon={faPenToSquare} className="self-center" />
-              </div>
+              {stage === "view_loan" && (
+                <div className="ml-auto flex gap-3 self-center px-3 text-dark-300">
+                  <div className="self-center" onClick={() => setShowRefinance((v) => !v)}>
+                    <FontAwesomeIcon
+                      icon={faArrowsRotate}
+                      className={`self-center transition-colors duration-200 hover:text-primary-400 ${show_refinance ? "text-primary-400" : ""}`}
+                    />
+                  </div>
+                  <div className="self-center" onClick={() => SetState(stage, "edit", selected_loan_id)}>
+                    <FontAwesomeIcon icon={faPenToSquare} className="self-center transition-colors duration-200 hover:text-primary-400" />
+                  </div>
+                </div>
+              )}
               {stage === "edit_loan" && (
                 <div className="self-center px-3 text-dark-300" onClick={() => SetState(stage, "back")}>
                   <FontAwesomeIcon className="self-center" icon={faChevronLeft} />
@@ -650,6 +862,140 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
                 </div>
               )}
             </LoanCard>
+
+            {show_refinance && stage === "view_loan" && (() => {
+              const analysis = ComputeRefinanceAnalysis(selected_loan, refi);
+              const is_worth_it = analysis.net_savings > 0;
+              return (
+                <div className="flex flex-col gap-2 rounded-md border border-dashed border-primary-300/50 bg-primary-300/5 p-2">
+                  <div className="flex items-center gap-2">
+                    <FontAwesomeIcon icon={faArrowsRotate} className="self-center text-lg text-primary-500" />
+                    <span className="self-center text-sm font-medium text-dark-400">Refinance</span>
+                    <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">
+                      close now · restart at a new rate
+                    </span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex w-full flex-col gap-1">
+                      <span className="text-sm text-dark-300">New rate %</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className={`${inputClass} !text-base`}
+                        value={refi.new_rate}
+                        onChange={(e) => setRefi((r: any) => ({ ...r, new_rate: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="flex w-full flex-col gap-1">
+                      <span className="text-sm text-dark-300">New tenure (months)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className={`${inputClass} !text-base`}
+                        value={refi.new_tenure}
+                        onChange={(e) => setRefi((r: any) => ({ ...r, new_tenure: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex w-full flex-col gap-1">
+                      <span className="text-sm text-dark-300">Refinance month</span>
+                      <MonthPicker
+                        plan_timestamp={plan.timestamp}
+                        duration={plan?.duration || 600}
+                        month={refi.refinance_month}
+                        onChange={(m: number) => setRefi((r: any) => ({ ...r, refinance_month: m }))}
+                      />
+                    </div>
+                    <div className="flex w-full flex-col gap-1">
+                      <span className="text-sm text-dark-300">Foreclosure charge ₹</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className={`${inputClass} !text-base`}
+                        value={refi.foreclosure_charge}
+                        onChange={(e) => setRefi((r: any) => ({ ...r, foreclosure_charge: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1 rounded-md border border-dark-300/50 bg-dark-50 px-2 py-1 text-xs text-dark-300">
+                    <div className="flex justify-between">
+                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Outstanding at close</span>
+                      <DisplayAmount className="self-center font-semibold text-dark-200" amount={analysis.outstanding_balance} />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">EMI before → after</span>
+                      <span className="self-center">
+                        <DisplayAmount amount={analysis.old_emi} /> <span className="text-dark-500">→</span>{" "}
+                        <DisplayAmount className="font-semibold text-primary-300" amount={analysis.new_emi} />
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Remaining interest → new</span>
+                      <span className="self-center">
+                        <DisplayAmount amount={analysis.old_remaining_interest} /> <span className="text-dark-500">→</span>{" "}
+                        <DisplayAmount className="font-semibold text-primary-300" amount={analysis.new_total_interest} />
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Net savings</span>
+                      <span className={`self-center font-bold ${is_worth_it ? "text-success-400" : "text-danger-300"}`}>
+                        {is_worth_it ? "" : "−"}
+                        <DisplayAmount amount={Math.abs(analysis.net_savings)} />
+                        {analysis.breakeven_months !== null && (
+                          <span className="ml-1 font-normal normal-case text-dark-500">· breakeven ≈ {analysis.breakeven_months} mo</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="primary"
+                      sub_variant="solid"
+                      className="flex grow justify-center gap-2 py-1 capitalize"
+                      onClick={async () => {
+                        if (analysis.refinance_month > selected_loan.end_month) {
+                          alert("refinance month should be within the loan tenure");
+                          return;
+                        }
+                        const new_loan_id = GetRandomString(6);
+                        const loan_accounts = (plan.loan_accounts || []).map((l: any) =>
+                          l._id === selected_loan._id ? { ...l, end_month: analysis.refinance_month } : l
+                        );
+                        loan_accounts.push({
+                          _id: new_loan_id,
+                          title: `${selected_loan.title} (Refinanced)`,
+                          principal_amount: Math.round(analysis.outstanding_balance),
+                          interest_rate: refi.new_rate,
+                          start_month: analysis.refinance_month + 1,
+                          end_month: analysis.refinance_month + refi.new_tenure,
+                          type: selected_loan.type,
+                          ref_id: null,
+                          deposit_to_bank: false,
+                          prepayments: [],
+                        });
+                        update_plan_local({ ...plan, loan_accounts });
+                        try {
+                          await sync_plan(plan._id);
+                        } catch (e: any) {
+                          alert(`Saved locally but could not sync to the server: ${e?.message || e}`);
+                        }
+                        setShowRefinance(false);
+                        setSelectedLoanId(new_loan_id);
+                      }}
+                    >
+                      <FontAwesomeIcon className="self-center" icon={faArrowsRotate} />
+                      Apply refinance
+                    </Button>
+                    <Button variant="neutral" sub_variant="outline" className="py-1 capitalize" onClick={() => setShowRefinance(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -690,6 +1036,11 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
           {stage === "loan_list" && (
             <div className="flex grow">
               <img src="/loan_graphics_bg_removed.png" alt="" className="ml-auto aspect-auto w-auto" />
+            </div>
+          )}
+          {stage === "view_loan" && selected_loan && (
+            <div className="flex w-full flex-col gap-3 px-1 md:px-3">
+              <LoanAmortizationTable plan={plan} loan={selected_loan} />
             </div>
           )}
           {["add_loan", "edit_loan"].includes(stage) && (

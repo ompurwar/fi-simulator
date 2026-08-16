@@ -349,6 +349,26 @@ export function MakeLoanAccount(input: Record<string, any>): LoanAccount {
       "invalid: start_month should be less than end_month"
     );
 
+  const prepayments = input.prepayments;
+  if (prepayments !== undefined && prepayments !== null) {
+    if (!Array.isArray(prepayments))
+      throw new InvalidPropertyError("invalid: prepayments should be an array");
+    for (const p of prepayments) {
+      if (!p || typeof p !== "object")
+        throw new InvalidPropertyError("invalid: each prepayment should be an object");
+      if (typeof p.start_month !== "number" || !Number.isFinite(p.start_month) || p.start_month < 1)
+        throw new InvalidPropertyError("invalid: prepayment start_month should be a month number >= 1");
+      if (typeof p.amount !== "number" || !Number.isFinite(p.amount) || p.amount <= 0)
+        throw new InvalidPropertyError("invalid: prepayment amount should be a positive number");
+      if (p.frequency !== undefined && p.frequency !== null && !["m", "q", "y"].includes(p.frequency))
+        throw new InvalidPropertyError("invalid: prepayment frequency should be one of m, q, y or null (one-time)");
+      if (p.step_frequency !== undefined && p.step_frequency !== null && !["m", "q", "y"].includes(p.step_frequency))
+        throw new InvalidPropertyError("invalid: prepayment step_frequency should be one of m, q, y or null");
+      if (p.step_pct !== undefined && p.step_pct !== null && (typeof p.step_pct !== "number" || p.step_pct < 0))
+        throw new InvalidPropertyError("invalid: prepayment step_pct should be a non-negative number");
+    }
+  }
+
   return {
     _id,
     title,

@@ -838,6 +838,14 @@ analysis); system-prompt guidance ("extra principal beyond EMI, shortens the loa
 prompt + tests → P4 UI (table, prepay editor, refinance panel) → P5 ops migration (`prepayments: []`),
 docs, full suite. Live test: Home loan ₹65L — ₹25k/mo prepay from m40 ⇒ payoff ~m200, ~₹20L interest saved.
 
+**Status: IMPLEMENTED — 2026-08-17** (Tasks 2.24–2.28)
+
+- Engine — `ComputePrepaymentAmounts`, `ComputeLoanAmortizationScheduleWithPrepayments` (shorten mode, early payoff, step-up compounding) and `ComputeRefinanceAnalysis` in `src/server/engine/loan.ts`, with `MakePrepaymentScheduleByMonthToCashFlow`; prepayments shape validated in `MakeLoanAccount` (`src/server/domain/entities.ts`).
+- Month semantics — stored prepayment months are plan-absolute; the engine works loan-relative (snapshot + UI shift by `loan.start_month`); the `loan_amortization` MCP tool documents loan-relative months.
+- Snapshot — `planSnapshot.ts` appends `Prepayment #N - <title>` one-time expense rows to `emi_expense_cashflow` → statements/balances/charts.
+- MCP — `loan_amortization` accepts prepayments (returns `{ schedule, payoff_month, interest_saved, ... }`), new read-only `loan_refinance` tool, `add_loan`/`update_loan` persist prepayments, `simulate_plan` `add_loan` patch supports prepayments, system-prompt guidance added (`src/server/ai/prompts.ts`).
+- UI + tests — new `src/components/edit/LoanAmortizationTable.tsx` (paginated table, totals, payoff chip, prepay column) rendered in view_loan; prepayments editor in edit_loan (frequency m/q/y/one-time + step %); refinance panel with before/after + net savings + breakeven + Apply (closes old loan at month M, adds "… (Refinanced)" loan); `tests/loan-prepayments.test.ts` (22 tests) covers engine pure fns and MCP integration incl. persistence + snapshot wiring.
+
 ---
 
 ## 16. Out of Scope (v1)
