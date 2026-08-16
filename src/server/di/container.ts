@@ -116,7 +116,11 @@ export async function buildContainer(
   });
 
   const ai_provider =
-    overrides.aiProvider ?? makeAnthropicProvider(env.ANTHROPIC_API_KEY || "");
+    overrides.aiProvider ??
+    makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
+      model: env.AI_MODEL,
+      baseURL: env.AI_BASE_URL,
+    });
 
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,

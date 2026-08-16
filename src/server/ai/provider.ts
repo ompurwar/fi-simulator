@@ -2,7 +2,7 @@
 
 import type { AiProvider } from "./types";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 interface ContentBlockStartEvent {
@@ -27,17 +27,25 @@ interface ToolUseBlock {
   id: string;
   name: string;
   argsJson: string;
+  /** input sent inline at content_block_start (fallback when no deltas arrive) */
+  initialInput?: Record<string, any>;
 }
 
 /**
  * Build an AiProvider that talks to the Anthropic Messages API. Pass an empty
  * apiKey for a provider that throws when used (used when the server has no key).
+ *
+ * The endpoint is fully compatible with Anthropic-format gateways: point
+ * baseURL at any Anthropic-compatible service (e.g. DeepSeek's
+ * `https://api.deepseek.com/anthropic`) and set the model name accordingly.
  */
 export function makeAnthropicProvider(
   apiKey: string,
-  opts: { model?: string } = {}
+  opts: { model?: string; baseURL?: string } = {}
 ): AiProvider {
   const model = opts.model ?? "claude-3-5-sonnet-latest";
+  const baseURL = (opts.baseURL ?? ANTHROPIC_BASE_URL).replace(/\/$/, "");
+  const url = `${baseURL}/v1/messages`;
 
   return {
     async *stream(params) {
@@ -45,7 +53,7 @@ export function makeAnthropicProvider(
         throw new Error("AI not configured: ANTHROPIC_API_KEY is missing");
       }
 
-      const res = await fetch(ANTHROPIC_URL, {
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -109,7 +117,10 @@ export function makeAnthropicProvider(
                     index: ev.index,
                     id: ev.content_block.id,
                     name: ev.content_block.name,
-                    argsJson: JSON.stringify(ev.content_block.input || {}),
+                    // start carries an empty `input` placeholder; real args come
+                    // via input_json_delta — start from "" so fragments join cleanly
+                    argsJson: "",
+                    initialInput: ev.content_block.input || undefined,
                   });
                 }
                 break;
@@ -130,10 +141,14 @@ export function makeAnthropicProvider(
                 if (!block) break;
                 toolBlocks.delete(ev.index);
                 try {
+                  const args =
+                    block.argsJson !== ""
+                      ? JSON.parse(block.argsJson)
+                      : block.initialInput ?? {};
                   yield {
                     type: "tool_use",
                     name: block.name,
-                    args: JSON.parse(block.argsJson),
+                    args,
                   };
                 } catch {
                   // malformed JSON args — drop the tool use rather than crash the stream
