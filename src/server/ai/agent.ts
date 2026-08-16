@@ -27,27 +27,19 @@ interface PendingToolCall {
 /** Build Anthropic messages: conversation, then assistant tool_use + user tool_result blocks. */
 function buildAnthropicMessages(
   messages: AiMessage[],
-  toolCalls: PendingToolCall[],
-  toolResults: { tool_use_id: string; content: string }[],
-  pendingAssistantText: string
+  iterations: { assistant: any[]; results: { tool_use_id: string; content: string }[] }[]
 ): { role: "user" | "assistant"; content: any[] }[] {
   const out: { role: "user" | "assistant"; content: any[] }[] = messages.map(
     (m) => ({ role: m.role, content: [{ type: "text", text: m.content }] })
   );
 
-  if (toolCalls.length > 0) {
-    const assistantContent: any[] = [];
-    if (pendingAssistantText) {
-      assistantContent.push({ type: "text", text: pendingAssistantText });
-    }
-    for (const call of toolCalls) {
-      assistantContent.push({ type: "tool_use", id: call.id, name: call.name, input: call.args });
-    }
-    out.push({ role: "assistant", content: assistantContent });
-
+  // Echo each tool-using turn in order — assistant blocks (thinking/text/tool_use)
+  // MUST be passed back verbatim (required by DeepSeek thinking mode; harmless for Anthropic).
+  for (const it of iterations) {
+    out.push({ role: "assistant", content: it.assistant });
     out.push({
       role: "user",
-      content: toolResults.map((r) => ({
+      content: it.results.map((r) => ({
         type: "tool_result",
         tool_use_id: r.tool_use_id,
         content: r.content,
@@ -84,21 +76,17 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<void> {
   const emit = (e: AiStreamEvent) => onEvent?.(e);
 
   const tools = buildAnthropicTools(registry);
-  const toolCalls: PendingToolCall[] = [];
-  const toolResults: { tool_use_id: string; content: string }[] = [];
-  let pendingAssistantText = "";
+  const iterations: { assistant: any[]; results: { tool_use_id: string; content: string }[] }[] = [];
   let iteration = 0;
 
   while (iteration < MAX_ITERATIONS) {
-    const anthropicMessages = buildAnthropicMessages(
-      messages,
-      toolCalls,
-      toolResults,
-      pendingAssistantText
-    );
+    const anthropicMessages = buildAnthropicMessages(messages, iterations);
 
-    let currentText = "";
-    const collected: PendingToolCall[] = [];
+    // Rebuild this turn's assistant content blocks in arrival order: thinking
+    // segments first (reasoning), then text, then tool_use blocks.
+    const assistantBlocks: any[] = [];
+    let collected: PendingToolCall[] = [];
+    const collectedResults: { tool_use_id: string; content: string }[] = [];
     try {
       for await (const event of provider.stream({
         system: SYSTEM_PROMPT,
@@ -108,14 +96,27 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<void> {
         signal,
       })) {
         if (event.type === "text_delta") {
-          currentText += event.text;
+          const last = assistantBlocks[assistantBlocks.length - 1];
+          if (last?.type === "text") {
+            last.text += event.text;
+          } else {
+            assistantBlocks.push({ type: "text", text: event.text });
+          }
           emit({ type: "text", text: event.text });
+        } else if (event.type === "thinking") {
+          assistantBlocks.push({
+            type: "thinking",
+            thinking: event.text,
+            ...(event.signature ? { signature: event.signature } : {}),
+          });
         } else {
-          collected.push({
+          const call: PendingToolCall = {
             id: `toolu_${iteration}_${collected.length}`,
             name: event.name,
             args: event.args,
-          });
+          };
+          collected.push(call);
+          assistantBlocks.push({ type: "tool_use", id: call.id, name: call.name, input: call.args });
           emit({ type: "tool_call", name: event.name, args: event.args });
         }
       }
@@ -132,21 +133,21 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<void> {
     // execute every requested tool in order, then continue the loop
     for (const call of collected) {
       const result = await callRegistryTool(registry, ctx, call.name, call.args);
-      toolCalls.push(call);
       emit({
         type: "tool_result",
         name: call.name,
         ok: result.ok,
         error: result.ok ? undefined : result.error.message,
       });
-      toolResults.push({
+      collectedResults.push({
         tool_use_id: call.id,
         content: result.ok
           ? JSON.stringify({ ok: true, data: result.data })
           : JSON.stringify({ ok: false, error: result.error }),
       });
     }
-    pendingAssistantText = currentText;
+    iterations.push({ assistant: assistantBlocks, results: collectedResults });
+    collected = [];
     iteration++;
   }
 

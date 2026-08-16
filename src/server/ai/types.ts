@@ -17,6 +17,7 @@ export interface AiToolDef {
 /** Events streamed to the chat UI over SSE. */
 export type AiStreamEvent =
   | { type: "text"; text: string }
+  | { type: "thinking"; text: string }
   | { type: "tool_call"; name: string; args: Record<string, any> }
   | { type: "tool_result"; name: string; ok: boolean; error?: string }
   | { type: "done" }
@@ -30,5 +31,9 @@ export interface AiProvider {
     tools: AiToolDef[];
     max_tokens: number;
     signal?: AbortSignal;
-  }): AsyncGenerator<{ type: "text_delta"; text: string } | { type: "tool_use"; name: string; args: Record<string, any> }>;
+  }): AsyncGenerator<
+    | { type: "text_delta"; text: string }
+    | { type: "tool_use"; name: string; args: Record<string, any> }
+    | { type: "thinking"; text: string; signature?: string }
+  >;
 }

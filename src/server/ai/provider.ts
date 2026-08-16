@@ -8,13 +8,19 @@ const ANTHROPIC_VERSION = "2023-06-01";
 interface ContentBlockStartEvent {
   type: "content_block_start";
   index: number;
-  content_block: { type: "tool_use"; id: string; name: string; input: Record<string, any> };
+  content_block:
+    | { type: "tool_use"; id: string; name: string; input: Record<string, any> }
+    | { type: "thinking"; thinking: string; signature?: string }
+    | { type: string; [k: string]: any };
 }
 
 interface ContentBlockDeltaEvent {
   type: "content_block_delta";
   index: number;
-  delta: { type: "text_delta"; text: string } | { type: "input_json_delta"; partial_json: string };
+  delta:
+    | { type: "text_delta"; text: string }
+    | { type: "input_json_delta"; partial_json: string }
+    | { type: "thinking_delta"; thinking: string };
 }
 
 interface ContentBlockStopEvent {
@@ -29,6 +35,12 @@ interface ToolUseBlock {
   argsJson: string;
   /** input sent inline at content_block_start (fallback when no deltas arrive) */
   initialInput?: Record<string, any>;
+}
+
+interface ThinkingBlock {
+  index: number;
+  text: string;
+  signature?: string;
 }
 
 /**
@@ -86,6 +98,7 @@ export function makeAnthropicProvider(
       const decoder = new TextDecoder();
       let buffer = "";
       const toolBlocks = new Map<number, ToolUseBlock>();
+      const thinkingBlocks = new Map<number, ThinkingBlock>();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -122,6 +135,12 @@ export function makeAnthropicProvider(
                     argsJson: "",
                     initialInput: ev.content_block.input || undefined,
                   });
+                } else if (ev.content_block?.type === "thinking") {
+                  thinkingBlocks.set(ev.index, {
+                    index: ev.index,
+                    text: ev.content_block.thinking || "",
+                    signature: ev.content_block.signature,
+                  });
                 }
                 break;
               }
@@ -132,26 +151,40 @@ export function makeAnthropicProvider(
                 } else if (ev.delta?.type === "input_json_delta") {
                   const block = toolBlocks.get(ev.index);
                   if (block) block.argsJson += ev.delta.partial_json;
+                } else if (ev.delta?.type === "thinking_delta") {
+                  const block = thinkingBlocks.get(ev.index);
+                  if (block) block.text += ev.delta.thinking;
                 }
                 break;
               }
               case "content_block_stop": {
                 const ev = event as ContentBlockStopEvent;
                 const block = toolBlocks.get(ev.index);
-                if (!block) break;
-                toolBlocks.delete(ev.index);
-                try {
-                  const args =
-                    block.argsJson !== ""
-                      ? JSON.parse(block.argsJson)
-                      : block.initialInput ?? {};
+                if (block) {
+                  toolBlocks.delete(ev.index);
+                  try {
+                    const args =
+                      block.argsJson !== ""
+                        ? JSON.parse(block.argsJson)
+                        : block.initialInput ?? {};
+                    yield {
+                      type: "tool_use",
+                      name: block.name,
+                      args,
+                    };
+                  } catch {
+                    // malformed JSON args — drop the tool use rather than crash the stream
+                  }
+                  break;
+                }
+                const thinking = thinkingBlocks.get(ev.index);
+                if (thinking) {
+                  thinkingBlocks.delete(ev.index);
                   yield {
-                    type: "tool_use",
-                    name: block.name,
-                    args,
+                    type: "thinking",
+                    text: thinking.text,
+                    signature: thinking.signature,
                   };
-                } catch {
-                  // malformed JSON args — drop the tool use rather than crash the stream
                 }
                 break;
               }

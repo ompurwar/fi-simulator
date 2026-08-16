@@ -148,4 +148,49 @@ describe("runAgentLoop", () => {
     expect((result as any).error).toBeTruthy();
     expect(events[events.length - 1]).toEqual({ type: "done" });
   });
+
+  it("echoes thinking blocks back to the provider verbatim (DeepSeek thinking mode)", async () => {
+    const { session_id } = await signupUser(t.app);
+    const session = await t.container.session_list.FindByActiveSessionId(session_id);
+    const user_id = session!.user_id;
+
+    let secondTurnMessages: any[] | null = null;
+    let calls = 0;
+    const provider: AiProvider = {
+      stream: async function* (params) {
+        calls++;
+        secondTurnMessages = params.messages;
+        if (calls === 1) {
+          yield { type: "thinking", text: "I should create the plan", signature: "sig_123" };
+          yield {
+            type: "tool_use",
+            name: "create_plan",
+            args: { title: "AI Plan", monthly_income: 100000, monthly_expense: 40000 },
+          };
+        } else {
+          yield { type: "text_delta", text: "done" };
+        }
+      },
+    };
+
+    const events: AiStreamEvent[] = [];
+    await runAgentLoop({
+      ctx: { user_id },
+      messages: [{ role: "user", content: "Create a plan" }],
+      registry: makeToolRegistry(t.container),
+      provider,
+      onEvent: (e) => events.push(e),
+    });
+
+    // The second request must echo the assistant turn: thinking (verbatim, with
+    // signature) then tool_use, followed by the tool_result user block.
+    const assistantTurn = secondTurnMessages!.find((m) => m.role === "assistant");
+    expect(assistantTurn.content).toEqual([
+      { type: "thinking", thinking: "I should create the plan", signature: "sig_123" },
+      { type: "tool_use", id: expect.any(String), name: "create_plan", input: { title: "AI Plan", monthly_income: 100000, monthly_expense: 40000 } },
+    ]);
+    const resultTurn = secondTurnMessages!.find((m) => m.role === "user" && m.content[0]?.type === "tool_result");
+    expect(resultTurn.content[0]).toMatchObject({ type: "tool_result", tool_use_id: expect.any(String) });
+    expect(events[events.length - 1]).toEqual({ type: "done" });
+  });
 });
