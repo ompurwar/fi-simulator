@@ -63,6 +63,19 @@ export function buildApp(container: Container): (req: Request) => Promise<Respon
       cookies,
     };
 
+    // route + method gate — rejects wrong-method requests (e.g. Next.js
+    // prefetch GETs hitting POST-only /api/engine/*) before auth runs, so they
+    // never dispatch into controllers that crash on a missing body.
+    const normalized = path.replace(/\/+$/, "");
+    const route = FindRoute(path);
+    if (!route) return new Response("not found", { status: 404 });
+    if (method !== "POST" && !GET_ROUTES.has(normalized)) {
+      return new Response(
+        JSON.stringify({ error: { msg: "method not allowed" }, status: "error", data: null }),
+        { status: 405, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // Authenticate (whitelisted paths return empty session)
     try {
       const session = await Authenticate(
@@ -76,10 +89,8 @@ export function buildApp(container: Container): (req: Request) => Promise<Respon
       return RespondError(new FiPlanError("invalid auth token", 401));
     }
 
-    // route
+    // route dispatch
     try {
-      const route = FindRoute(path);
-      if (!route) return new Response("not found", { status: 404 });
       const controller = controllers[route.controller] as (
         r: HttpRequest
       ) => Promise<HttpResponse>;
@@ -97,6 +108,9 @@ export function buildApp(container: Container): (req: Request) => Promise<Respon
 }
 
 type ControllerName = keyof Controllers;
+
+// Routes that legitimately answer GETs (health + public share lookups).
+const GET_ROUTES = new Set(["/alive", "/", "/get/share_object", "/get/share_object_details"]);
 
 function FindRoute(path: string): { controller: ControllerName } | null {
   const normalized = path.replace(/\/+$/, "");
