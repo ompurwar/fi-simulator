@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "gmail": {
+      "type": "local",
+      "command": ["npx", "gmail-mcp-server@latest"],
+      "enabled": false,
+      "environment": {
+        "GMAIL_CLIENT_ID": "{env:GMAIL_CLIENT_ID}",
+        "GMAIL_CLIENT_SECRET": "{env:GMAIL_CLIENT_SECRET}"
+      }
+    }
+  }
+}

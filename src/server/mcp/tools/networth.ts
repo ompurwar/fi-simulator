@@ -13,10 +13,54 @@ export function makeNetWorthTools(container: Container): ToolDefinition[] {
       name: "networth_status",
       title: "Get net worth status",
       description:
-        "Returns the current user's net worth connection status: whether the provider is linked, the latest snapshot, holdings, analysis and a daily history chart. Read-only.",
+        "Returns the current user's net worth connection status: latest snapshot, holdings, analysis, SIP commitments and a daily history chart — plus a summary of total_invested (deposited), total_value, net_worth, unrealized_pnl (+pct) and sip_committed_monthly. Realized gains are not exposed by the provider. Read-only.",
       inputSchema: {},
       async handler(ctx) {
-        return callUseCase(() => app.GetNetWorthStatus({ user_id: ctx.user_id }));
+        return callUseCase(async () => {
+          const status: any = await app.GetNetWorthStatus({ user_id: ctx.user_id });
+          const holdings: any[] = status.holdings ?? [];
+          const snapshot: any = status.snapshot ?? null;
+          const sips: any[] = status.sips ?? [];
+
+          const total_invested = holdings.reduce((s, h) => s + (h.invested || 0), 0);
+          const total_value = holdings.reduce((s, h) => s + (h.current_value || 0), 0);
+          const unrealized_pnl = holdings.reduce((s, h) => s + (h.pnl || 0), 0);
+          const unrealized_pct = total_invested > 0 ? (unrealized_pnl / total_invested) * 100 : 0;
+          const sip_committed_monthly = sips
+            .filter((s) => !s.frequency || /month/i.test(String(s.frequency)))
+            .reduce((sum, s) => sum + (s.amount || 0), 0);
+          const savings_balance = holdings
+            .filter((h) => /saving/i.test(String(h.asset_class)))
+            .reduce((s, h) => s + (h.current_value || 0), 0);
+
+          const per_asset: Record<string, { value: number; invested: number; pnl: number; pnl_pct: number }> = {};
+          for (const h of holdings) {
+            const key = String(h.asset_class || "Other");
+            per_asset[key] = per_asset[key] || { value: 0, invested: 0, pnl: 0, pnl_pct: 0 };
+            per_asset[key].value += h.current_value || 0;
+            per_asset[key].invested += h.invested || 0;
+            per_asset[key].pnl += h.pnl || 0;
+          }
+          for (const key of Object.keys(per_asset)) {
+            per_asset[key].pnl_pct =
+              per_asset[key].invested > 0 ? (per_asset[key].pnl / per_asset[key].invested) * 100 : 0;
+          }
+
+          return {
+            ...status,
+            summary: {
+              total_invested,
+              total_value,
+              net_worth: Number(snapshot?.total_net_worth ?? total_value),
+              unrealized_pnl,
+              unrealized_pct,
+              realized_pnl: null, // not exposed by the provider
+              sip_committed_monthly,
+              savings_balance,
+              per_asset,
+            },
+          };
+        });
       },
     },
     {

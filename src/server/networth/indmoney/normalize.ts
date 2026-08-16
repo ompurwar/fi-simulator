@@ -12,6 +12,7 @@ import type {
   NetWorthAllocation,
   NetWorthAnalysisItem,
   NetWorthHolding,
+  NetWorthSip,
   NetWorthSnapshot,
 } from "../types";
 
@@ -119,8 +120,51 @@ function normalizeAllocation(raw: any): NetWorthAllocation[] {
   return [];
 }
 
-export function normalizeSnapshot(raw: any): NetWorthSnapshot {
-  const root = raw && typeof raw === "object" ? raw : {};
+/** Normalizes mf_sips / indian_stocks_sips payloads (tolerantly probed). */
+export function normalizeSips(raw: any, default_category: string | null = null): NetWorthSip[] {
+  const arr = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.sips)
+      ? raw.sips
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.items)
+          ? raw.items
+          : [];
+  return arr
+    .map((s: any) => {
+      const amount = toNum(first(s, ["sip_amount", "sipAmount", "amount", "monthly_amount", "installment_amount"]));
+      const current_value = first(s, ["current_value", "currentValue", "current", "value"]) !== undefined
+        ? toNum(first(s, ["current_value", "currentValue", "current", "value"]))
+        : null;
+      const gain_pct = first(s, ["gain_percentage", "gainPercentage", "gain_pct", "returns_pct"]) !== undefined
+        ? toNum(first(s, ["gain_percentage", "gainPercentage", "gain_pct", "returns_pct"]))
+        : null;
+      return {
+        name: String(
+          first(s, ["fund_name", "fundName", "name", "scheme_name", "schemeName", "instrument", "symbol"]) ?? "Unknown"
+        ),
+        category: first(s, ["category", "fund_category", "asset_type", "assetType"]) !== undefined
+          ? String(first(s, ["category", "fund_category", "asset_type", "assetType"]))
+          : default_category,
+        amount,
+        frequency: first(s, ["frequency", "sip_frequency", "sipFrequency"]) !== undefined
+          ? String(first(s, ["frequency", "sip_frequency", "sipFrequency"]))
+          : null,
+        next_date: first(s, ["next_execution_date", "nextExecutionDate", "next_date", "nextDate", "next_installment"]) !== undefined
+          ? String(first(s, ["next_execution_date", "nextExecutionDate", "next_date", "nextDate", "next_installment"]))
+          : null,
+        status: first(s, ["status", "sip_status", "sipStatus"]) !== undefined
+          ? String(first(s, ["status", "sip_status", "sipStatus"]))
+          : null,
+        current_value,
+        gain_pct,
+      };
+    })
+    .filter((s: any) => s.name !== "Unknown");
+}
+
+export function normalizeSnapshot(raw: any): NetWorthSnapshot {  const root = raw && typeof raw === "object" ? raw : {};
   const total_net_worth = toNum(
     first(root, ["total_net_worth", "totalNetWorth", "net_worth", "netWorth", "total_networth", "networth"])
   );
@@ -222,6 +266,13 @@ export function normalizeHoldings(raw: any): NetWorthHolding[] {  const arr = Ar
       const raw_class = String(
         first(h, ["asset_class", "assetClass", "asset_type", "assetType", "category", "instrument_type"]) ?? "Other"
       );
+      // IndMoney sends xirr: 0 as a PLACEHOLDER for holdings it doesn't compute
+      // XIRR for. 0 is ambiguous ("no return" vs "not provided"), so when the
+      // holding demonstrably has P&L but xirr is 0, surface null — agents must
+      // not report a fake 0% XIRR. A genuine 0 (or zero-invested holding) keeps 0.
+      const raw_xirr = first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]);
+      const xirr_value = raw_xirr !== undefined ? toNum(raw_xirr) : null;
+      const xirr = xirr_value !== null && xirr_value === 0 && pnl !== 0 ? null : xirr_value;
       return {
         code: first(h, ["investment_code", "investmentCode", "code", "holding_id"]) !== undefined
           ? String(first(h, ["investment_code", "investmentCode", "code", "holding_id"]))
@@ -233,9 +284,7 @@ export function normalizeHoldings(raw: any): NetWorthHolding[] {  const arr = Ar
         current_value,
         pnl: pnl || (invested ? current_value - invested : 0),
         pnl_pct: pnl_pct || (invested > 0 ? ((current_value - invested) / invested) * 100 : 0),
-        xirr: first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]) !== undefined
-          ? toNum(first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]))
-          : null,
+        xirr,
         broker: first(h, ["broker", "broker_name", "holding_source"]) !== undefined
           ? String(first(h, ["broker", "broker_name", "holding_source"]))
           : null,

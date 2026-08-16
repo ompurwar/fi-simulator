@@ -69,7 +69,20 @@ export interface NetWorthStatus {
   snapshot: NetWorthSnapshot | null;
   holdings: NetWorthHolding[];
   analysis: NetWorthAnalysisItem[];
+  sips: NetWorthSip[];
   history: NetWorthHistoryPoint[];
+  approx_annualized_return: number | null;
+}
+
+export interface NetWorthSip {
+  name: string;
+  category: string | null;
+  amount: number;
+  frequency: string | null;
+  next_date: string | null;
+  status: string | null;
+  current_value: number | null;
+  gain_pct: number | null;
 }
 
 export function GetNetWorthStatus(): Promise<NetWorthStatus> {
@@ -162,6 +175,8 @@ export function sampleNetWorthStatus(): NetWorthStatus {
     snapshot: SAMPLE_SNAPSHOT,
     holdings: SAMPLE_HOLDINGS.map((h) => ({ code: null, ...h })),
     analysis: [],
+    sips: [],
     history: SAMPLE_HISTORY,
+    approx_annualized_return: 8.4,
   };
 }

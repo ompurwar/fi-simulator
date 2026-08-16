@@ -280,6 +280,33 @@ describe("in-app assistant chat route", () => {
       expect(stored.messages[0]).toMatchObject({ role: "user", content: "will fail" });
     });
 
+    it("retry re-runs over stored history without duplicating the user message", async () => {
+      const created = await container.app.CreateChatSession({ user_id, title: "retry test" });
+      const sid = created.session_id;
+      await container.app.AppendChatMessage({ user_id, session_id: sid, role: "user", content: "what is my runway" });
+
+      vi.spyOn(global, "fetch").mockResolvedValue(
+        new Response(sseBody(TEXT_ONLY_SSE), { status: 200 })
+      );
+
+      const res = await chatKeyed({ session_id: sid, retry: true, messages: [] });
+      expect(res.status).toBe(200);
+      const events = parseSse(res.text);
+      expect(events[0]).toEqual({ type: "session", id: sid });
+      expect(events.some((e) => e.type === "text")).toBe(true);
+
+      // exactly ONE user message + ONE assistant reply — no duplicate prompt
+      const stored = await container.app.GetChatSession({ user_id, session_id: sid });
+      expect(stored.messages).toHaveLength(2);
+      expect(stored.messages[0]).toMatchObject({ role: "user", content: "what is my runway" });
+      expect(stored.messages[1]).toMatchObject({ role: "assistant", content: "Hello world" });
+    });
+
+    it("rejects retry without a session_id (400)", async () => {
+      const res = await chatKeyed({ retry: true, messages: [] });
+      expect(res.status).toBe(400);
+    });
+
     it("emits a mutation event when the assistant calls a mutating tool", async () => {
       vi.spyOn(global, "fetch").mockResolvedValue(
         new Response(sseBody(CREATE_PLAN_SSE), { status: 200 })

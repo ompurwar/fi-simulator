@@ -351,7 +351,13 @@ function PlanPageInner() {
   const sync_plan = useFiPlanStore((s) => s.sync_plan);
   const plan_synced_map = useFiPlanStore((s) => s.plan_synced_map);
 
-  const [current_month, setCurrentMonth] = useState(1);
+  // month lives in the URL (?month=N) so views are shareable and back/forward works
+  const month_param = searchParams.get("month");
+  const initial_month = Math.max(
+    1,
+    Math.min(plan_duration, parseInt(month_param || "", 10) || 1)
+  );
+  const [current_month, setCurrentMonth] = useState(initial_month);
   const [simulation_open, setSimulationOpen] = useState(false);
 
   const plan = useMemo(
@@ -373,6 +379,27 @@ function PlanPageInner() {
   useEffect(() => {
     if (plan_id && plan_id !== selected_plan_id) setSelectedPlanId(plan_id);
   }, [plan_id, selected_plan_id, setSelectedPlanId]);
+
+  // keep the URL in sync with the current month (drop the param for month 1)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (current_month <= 1) params.delete("month");
+    else params.set("month", String(current_month));
+    const qs = params.toString();
+    const next = `/plan${qs ? `?${qs}` : ""}`;
+    if (window.location.pathname + window.location.search !== next) {
+      router.replace(next, { scroll: false });
+    }
+  }, [current_month, router, searchParams]);
+
+  // honor browser back/forward on the month param
+  useEffect(() => {
+    const from_url = parseInt(searchParams.get("month") || "", 10);
+    if (from_url && from_url !== current_month) {
+      setCurrentMonth(Math.max(1, Math.min(plan_duration, from_url)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (plan && !plan.modified_at) {
@@ -477,6 +504,31 @@ function PlanPageInner() {
           content: [GetMonthAndYear(plan, current_month), `Net worth : ${ToDisplayableMoney(aggregated_balance_for_month.toFixed(2))}`],
         },
       ];
+
+  // One-time purchases (type "o" expenses, e.g. down payment / wedding) render
+  // as distinct markers on the chart: a dashed warning line with a tag — clearly
+  // different from the sliding window bars and from the net-worth annotation.
+  // Markers slide in/out with the window like the bars.
+  const warning_color = cssVar("--color-warning-600") || "#d97706";
+  const one_time_purchases = (plan.cashflow_list || []).filter(
+    (c: any) => c.category === "e" && c.type === "o"
+  );
+  const purchase_annotations = one_time_purchases
+    .filter(
+      (p: any) =>
+        p.start_month > window_start_point && p.start_month <= window_start_point + WINDOW_SIZE
+    )
+    .map((p: any) => ({
+      value: GetMonthAndYear(plan, p.start_month),
+      content: [String(p.desc || "Purchase"), `${ToDisplayableMoney(Number(p.amount))}`],
+      borderColor: warning_color,
+      borderDash: [4, 4] as [number, number],
+      borderWidth: 2,
+      labelColor: warning_color,
+      labelPosition: "end" as const,
+      font: { size: 9, weight: 600 } as any,
+    }));
+  const chart_annotations = [...purchase_annotations, ...annotation];
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-10">
@@ -634,7 +686,7 @@ function PlanPageInner() {
               chart_type="bar"
               height={350}
               width={400}
-              annotation={annotation}
+              annotation={chart_annotations}
               formatter={ToDisplayableMoney}
               onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
             />
@@ -699,7 +751,7 @@ function PlanPageInner() {
                 chart_type="bar"
                 height={500}
                 width={400}
-                annotation={annotation}
+                annotation={chart_annotations}
                 formatter={ToDisplayableMoney}
                 onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
               />

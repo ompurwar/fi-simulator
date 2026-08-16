@@ -18,6 +18,8 @@ import {
   faChevronDown,
   faCopy,
   faRotateRight,
+  faExpand,
+  faCompress,
   faFolderOpen,
   faLandmark,
   faShareNodes,
@@ -212,6 +214,7 @@ export function ChatPanel() {
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [items, setItems] = useState<ChatItem[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -310,6 +313,50 @@ export function ChatPanel() {
     );
   }
 
+  /** Retry the last failed turn IN PLACE: drop the partial/failed bubbles, keep
+   *  the user's question, and re-run the loop without re-sending the prompt
+   *  (the server re-runs over stored history — no duplicated tokens/messages). */
+  async function RetryLast() {
+    if (streaming) return;
+    const content = last_user_ref.current;
+    if (!content) return;
+
+    // No session (e.g. the guardrail path) → plain re-send of the message.
+    if (!session_id) {
+      await SendMessage(content);
+      return;
+    }
+
+    abort_ref.current?.abort();
+    setError("");
+    setThinkingText("");
+    setAnswerStarted(false);
+    setThinkingCollapsed(true);
+    pending_refs_ref.current = [];
+
+    // Remove everything after the last user bubble (failed partial + tool badges).
+    setItems((prev) => {
+      const lastUserIdx = [...prev].reverse().findIndex((i) => i.kind === "message" && i.role === "user");
+      if (lastUserIdx === -1) return prev;
+      return prev.slice(0, prev.length - lastUserIdx);
+    });
+
+    const controller = new AbortController();
+    abort_ref.current = controller;
+    setStreaming(true);
+
+    let res: Response;
+    try {
+      res = await api.ChatAssistantRetry(session_id);
+    } catch (e: any) {
+      setStreaming(false);
+      abort_ref.current = null;
+      setError(e?.message || "The stream was interrupted.");
+      return;
+    }
+    await ReadStream(res, null);
+  }
+
   async function SendMessage(text: string) {
     const content = text.trim();
     if (!content || streaming) return;
@@ -363,6 +410,12 @@ export function ChatPanel() {
       return;
     }
 
+    await ReadStream(res, null);
+  }
+
+  /** Consume the SSE stream into chat items (shared by send + retry). */
+  async function ReadStream(res: Response, _assistant_id: number | null) {
+    if (!res.body) return;
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -546,7 +599,13 @@ export function ChatPanel() {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-dark-800 text-dark-50 md:inset-auto md:bottom-6 md:right-6 md:h-[28rem] md:w-[22rem] md:rounded-2xl md:border md:border-dark-700 md:shadow-2xl">
+        <div
+          className={`fixed inset-0 z-50 flex flex-col overflow-hidden bg-dark-800 text-dark-50 md:bottom-6 md:right-6 md:rounded-2xl md:border md:border-dark-700 md:shadow-2xl transition-[width,height,inset] duration-200 ${
+            expanded
+              ? "md:inset-4 md:h-auto md:w-auto"
+              : "md:inset-auto md:h-[28rem] md:w-[22rem]"
+          }`}
+        >
           {/* header */}
           <div className="flex items-center justify-between gap-2 border-b border-dark-700 bg-dark-700 px-4 py-3">
             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -556,6 +615,15 @@ export function ChatPanel() {
                 <div className="text-[10px] text-dark-300">Powered by your plan data</div>
               </div>
             </div>
+            <button
+              type="button"
+              aria-label="Expand or collapse assistant"
+              title={expanded ? "Collapse" : "Expand"}
+              onClick={() => setExpanded((e) => !e)}
+              className="hidden h-7 w-7 shrink-0 place-content-center rounded-md text-dark-300 hover:bg-dark-800 hover:text-dark-50 md:grid"
+            >
+              <FontAwesomeIcon icon={expanded ? faCompress : faExpand} className="h-3.5 w-3.5" />
+            </button>
             <button
               type="button"
               aria-label="Past sessions"
@@ -806,7 +874,7 @@ export function ChatPanel() {
                   <button
                     type="button"
                     aria-label="Retry last message"
-                    onClick={() => SendMessage(last_user_ref.current)}
+                    onClick={() => RetryLast()}
                     className="flex items-center gap-1 rounded-md px-2 py-1 text-danger-200 transition-colors hover:bg-danger-500/20 hover:text-danger-100"
                   >
                     <FontAwesomeIcon icon={faRotateRight} className="h-3 w-3" />
