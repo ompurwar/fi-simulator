@@ -82,6 +82,29 @@ describe("ApplyScenarioToPlan", () => {
     });
   });
 
+  it("add_cashflow_change patches replace existing same-line+month changes (parity with the persist tool)", () => {
+    const plan: any = JSON.parse(JSON.stringify(EMPTY_PLAN));
+    plan.cashflow_list = [{ _id: "cf1", category: "e" }];
+    plan.cashflow_change_list = [
+      {
+        _id: "old",
+        cashflow_id: "cf1",
+        category: "e",
+        change_type: "p",
+        value: 8,
+        start_month: 1,
+        end_month: 60,
+        frequency: "y",
+      },
+    ];
+
+    const scenario = ApplyScenarioToPlan(plan, [
+      { op: "add_cashflow_change", change: { cashflow_id: "cf1", change_category: "e", change_type: "p", value: 6, start_month: 1 } },
+    ]);
+    expect(scenario.cashflow_change_list).toHaveLength(1);
+    expect(scenario.cashflow_change_list[0].value).toBe(6);
+  });
+
   it("throws InvalidPropertyError on a category that contradicts the op", () => {
     expect(() =>
       ApplyScenarioToPlan(EMPTY_PLAN, [

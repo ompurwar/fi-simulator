@@ -81,7 +81,19 @@ function ApplyAddCashflowChange(plan: any, patch: any): void {
     active: true,
   });
 
+  // Same replace semantics as the add_cashflow_change tool: the engine applies
+  // only the FIRST change per (line, start_month, category), so a scenario
+  // change overrides an existing one instead of being silently shadowed.
   plan.cashflow_change_list = plan.cashflow_change_list || [];
+  const sameMonth = plan.cashflow_change_list.filter(
+    (x: any) =>
+      String(x.cashflow_id) === String(cashflow_id) &&
+      x.start_month === start_month &&
+      x.category === (change_category ?? entry.category)
+  );
+  plan.cashflow_change_list = plan.cashflow_change_list.filter(
+    (x: any) => !sameMonth.includes(x)
+  );
   plan.cashflow_change_list.push(entry);
 }
 
