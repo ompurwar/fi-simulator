@@ -203,6 +203,20 @@ export function ChatPanel() {
   }, []);
 
   useEffect(() => {
+    // Logged out → close the window and reset to a fresh conversation, so the
+    // next login opens a brand-new chat (sessions are only created on send).
+    if (!profile) {
+      abort_ref.current?.abort();
+      setOpen(false);
+      setItems([]);
+      setSessionId(null);
+      setError("");
+      setSessionsOpen(false);
+      setSessions([]);
+    }
+  }, [profile]);
+
+  useEffect(() => {
     items_ref.current = items;
   }, [items]);
 

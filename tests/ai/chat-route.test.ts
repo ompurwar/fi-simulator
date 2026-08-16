@@ -247,5 +247,22 @@ describe("in-app assistant chat route", () => {
       const stored = await container.app.GetChatSession({ user_id, session_id: sid });
       expect(stored.messages).toHaveLength(0);
     });
+
+    it("rolls back a session created for a turn that fails (no empty sessions)", async () => {
+      // Non-200 → the provider throws → the loop errors before persisting anything
+      vi.spyOn(global, "fetch").mockResolvedValue(new Response("nope", { status: 429 }));
+
+      const res = await chatKeyed({
+        messages: [{ role: "user", content: "will fail" }],
+      });
+      expect(res.status).toBe(200);
+      const events = parseSse(res.text);
+      const sessionId = events[0].id;
+
+      // The error event arrived, and the just-created session is gone again
+      expect(events.some((e) => e.type === "error")).toBe(true);
+      const sessions = await container.app.ListChatSessions({ user_id });
+      expect(sessions.some((s: any) => s._id === sessionId)).toBe(false);
+    });
   });
 });

@@ -113,6 +113,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Create the session up front so the FIRST SSE event can carry its id.
+  // It is only ever created when a message actually arrives; if the turn fails
+  // before anything is persisted, the empty session is rolled back (finally).
+  let chatSessionCreatedHere = false;
   if (!chatSessionId) {
     const firstUserMessage = messages.find((m) => m.role === "user");
     const created = await container.app.CreateChatSession({
@@ -120,6 +123,7 @@ export async function POST(req: NextRequest) {
       title: firstUserMessage ? firstUserMessage.content.slice(0, 60) : undefined,
     });
     chatSessionId = created.session_id;
+    chatSessionCreatedHere = true;
   }
 
   // Model context = stored history + the incoming messages (the client is not
@@ -158,7 +162,14 @@ export async function POST(req: NextRequest) {
           encoder.encode(`data: ${JSON.stringify({ type: "error", message: String(e?.message || e) })}\n\n`)
         );
       } finally {
-        await persistChat();
+        const persisted = await persistChat();
+        // Roll back a session that was created for this request but never got a
+        // message persisted (LLM/stream failure) — no empty sessions in the list.
+        if (chatSessionCreatedHere && !persisted) {
+          await container.app
+            .DeleteChatSession({ user_id, session_id: chatSessionId! })
+            .catch((e: any) => console.error("[fi-plan] empty-session rollback failed:", e?.message || e));
+        }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       }
@@ -167,13 +178,14 @@ export async function POST(req: NextRequest) {
 
   const userMessages = messages.filter((m) => m.role === "user");
 
-  async function persistChat() {
+  async function persistChat(): Promise<boolean> {
     const assistantText = collectedText.trim();
-    if (streamErrored || (!assistantText && !hadToolActivity)) return;
+    if (streamErrored || (!assistantText && !hadToolActivity)) return false;
     for (const message of userMessages) {
       await appendMessage(message.role, message.content);
     }
     if (assistantText) await appendMessage("assistant", assistantText);
+    return true;
   }
 
   async function appendMessage(role: "user" | "assistant", content: string) {
