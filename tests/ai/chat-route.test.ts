@@ -241,7 +241,7 @@ describe("in-app assistant chat route", () => {
       expect(res.status).toBe(404);
     });
 
-    it("does not persist anything when the stream errors", async () => {
+    it("persists the user's question even when the stream errors (no silent data loss)", async () => {
       const created = await container.app.CreateChatSession({ user_id });
       const sid = created.session_id;
 
@@ -257,11 +257,12 @@ describe("in-app assistant chat route", () => {
       expect(events.some((e) => e.type === "error")).toBe(true);
 
       const stored = await container.app.GetChatSession({ user_id, session_id: sid });
-      expect(stored.messages).toHaveLength(0);
+      expect(stored.messages).toHaveLength(1);
+      expect(stored.messages[0]).toMatchObject({ role: "user", content: "boom" });
     });
 
-    it("rolls back a session created for a turn that fails (no empty sessions)", async () => {
-      // Non-200 → the provider throws → the loop errors before persisting anything
+    it("keeps a session created for a failed turn, with the user's question recorded", async () => {
+      // Non-200 → the provider throws → the loop errors after the question is saved
       vi.spyOn(global, "fetch").mockResolvedValue(new Response("nope", { status: 429 }));
 
       const res = await chatKeyed({
@@ -271,10 +272,12 @@ describe("in-app assistant chat route", () => {
       const events = parseSse(res.text);
       const sessionId = events[0].id;
 
-      // The error event arrived, and the just-created session is gone again
       expect(events.some((e) => e.type === "error")).toBe(true);
       const sessions = await container.app.ListChatSessions({ user_id });
-      expect(sessions.some((s: any) => s._id === sessionId)).toBe(false);
+      expect(sessions.some((s: any) => s._id === sessionId)).toBe(true);
+      const stored = await container.app.GetChatSession({ user_id, session_id: sessionId });
+      expect(stored.messages).toHaveLength(1);
+      expect(stored.messages[0]).toMatchObject({ role: "user", content: "will fail" });
     });
 
     it("emits a mutation event when the assistant calls a mutating tool", async () => {
