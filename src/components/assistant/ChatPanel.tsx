@@ -18,6 +18,8 @@ import {
   faChevronDown,
   faCopy,
   faRotateRight,
+  faExpand,
+  faCompress,
   faFolderOpen,
   faLandmark,
   faShareNodes,
@@ -212,6 +214,7 @@ export function ChatPanel() {
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [items, setItems] = useState<ChatItem[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -596,7 +599,13 @@ export function ChatPanel() {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-dark-800 text-dark-50 md:inset-auto md:bottom-6 md:right-6 md:h-[28rem] md:w-[22rem] md:rounded-2xl md:border md:border-dark-700 md:shadow-2xl">
+        <div
+          className={`fixed inset-0 z-50 flex flex-col overflow-hidden bg-dark-800 text-dark-50 md:bottom-6 md:right-6 md:rounded-2xl md:border md:border-dark-700 md:shadow-2xl transition-[width,height,inset] duration-200 ${
+            expanded
+              ? "md:inset-4 md:h-auto md:w-auto"
+              : "md:inset-auto md:h-[28rem] md:w-[22rem]"
+          }`}
+        >
           {/* header */}
           <div className="flex items-center justify-between gap-2 border-b border-dark-700 bg-dark-700 px-4 py-3">
             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -606,6 +615,15 @@ export function ChatPanel() {
                 <div className="text-[10px] text-dark-300">Powered by your plan data</div>
               </div>
             </div>
+            <button
+              type="button"
+              aria-label="Expand or collapse assistant"
+              title={expanded ? "Collapse" : "Expand"}
+              onClick={() => setExpanded((e) => !e)}
+              className="hidden h-7 w-7 shrink-0 place-content-center rounded-md text-dark-300 hover:bg-dark-800 hover:text-dark-50 md:grid"
+            >
+              <FontAwesomeIcon icon={expanded ? faCompress : faExpand} className="h-3.5 w-3.5" />
+            </button>
             <button
               type="button"
               aria-label="Past sessions"

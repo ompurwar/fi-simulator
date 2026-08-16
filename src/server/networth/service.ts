@@ -21,6 +21,9 @@ export interface NetWorthStatus {
   holdings: any[];
   analysis: any[];
   history: NetWorthHistoryPoint[];
+  /** Portfolio-level approximate annualized return since the first sync.
+   *  null when there isn't enough history (or no invested base). */
+  approx_annualized_return: number | null;
 }
 
 export interface NetWorthService {
@@ -55,10 +58,32 @@ export function makeNetWorthService(deps: {
           holdings: [],
           analysis: [],
           history: [],
+          approx_annualized_return: null,
         };
       }
       const latest = await repo.GetLatestSnapshot(user_id, provider.name);
       const snapshots = await repo.GetSnapshots(user_id, provider.name, 400);
+
+      // Approx annualized return: earliest recorded invested base vs the latest
+      // total net worth, annualized over the elapsed window. It is a blended
+      // figure (invested changes with SIPs) — labeled as such, never a per-holding
+      // XIRR/CAGR.
+      let approx_annualized_return: number | null = null;
+      {
+        const earliest = snapshots[snapshots.length - 1];
+        if (latest && earliest && earliest !== latest) {
+          const start_ts =
+            new Date(earliest.as_of || new Date(earliest.timestamp).toISOString()).getTime();
+          const end_ts =
+            new Date(latest.as_of || new Date(latest.timestamp).toISOString()).getTime();
+          const years = (end_ts - start_ts) / (365.25 * 24 * 3600 * 1000);
+          const base_invested = Number(earliest.snapshot?.invested ?? 0);
+          const end_value = Number(latest.snapshot?.total_net_worth ?? 0);
+          if (years > 0.25 && base_invested > 0 && end_value > 0) {
+            approx_annualized_return = Math.pow(end_value / base_invested, 1 / years) - 1;
+          }
+        }
+      }
       // one point per day (keeps the chart meaningful when syncing multiple
       // times per day), newest first, capped to the last 12 points
       const seen_days = new Set<string>();
@@ -83,6 +108,7 @@ export function makeNetWorthService(deps: {
         holdings: latest?.holdings ?? [],
         analysis: latest?.analysis ?? [],
         history,
+        approx_annualized_return,
         // raw provider payload — kept for schema debugging until the MCP
         // shapes are confirmed stable
         debug_raw: latest?.raw ?? null,

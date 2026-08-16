@@ -70,6 +70,7 @@ export interface NetWorthStatus {
   holdings: NetWorthHolding[];
   analysis: NetWorthAnalysisItem[];
   history: NetWorthHistoryPoint[];
+  approx_annualized_return: number | null;
 }
 
 export function GetNetWorthStatus(): Promise<NetWorthStatus> {
@@ -163,5 +164,6 @@ export function sampleNetWorthStatus(): NetWorthStatus {
     holdings: SAMPLE_HOLDINGS.map((h) => ({ code: null, ...h })),
     analysis: [],
     history: SAMPLE_HISTORY,
+    approx_annualized_return: 8.4,
   };
 }

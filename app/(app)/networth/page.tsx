@@ -326,6 +326,22 @@ function NetWorthDashboard() {
                 <FontAwesomeIcon icon={pnl >= 0 ? faArrowTrendUp : faArrowTrendDown} className="h-3.5 w-3.5" />
                 {pnl >= 0 ? "+" : ""}₹{fmtMoney(pnl)} ({pnl_pct.toFixed(1)}%)
               </span>
+              {status?.approx_annualized_return != null && (
+                <span
+                  className="flex items-center gap-1 text-xs"
+                  title="Blended portfolio estimate since your first sync — IndMoney does not provide per-holding XIRR/CAGR dates"
+                >
+                  ≈
+                  <span
+                    className={`font-semibold ${
+                      status.approx_annualized_return >= 0 ? "text-success-300" : "text-danger-300"
+                    }`}
+                  >
+                    {(status.approx_annualized_return * 100).toFixed(1)}%
+                  </span>
+                  <span className="text-dark-400">ann. since first sync</span>
+                </span>
+              )}
             </div>
           </div>
 
