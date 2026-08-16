@@ -524,8 +524,9 @@ export function ChatPanel() {
                     {[
                       "What's my current runway?",
                       "Add a ₹30,000 side income from month 12",
+                      "Add a 10% hike to my salary from month 24",
+                      "Apply 6% inflation to my rent from month 6",
                       "What if my salary doubles in month 24?",
-                      "List my plans",
                     ].map((s) => (
                       <button
                         key={s}
