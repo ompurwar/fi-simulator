@@ -21,6 +21,35 @@ function getContainer() {
 
 const MAX_MESSAGES = 50;
 
+// Tools that change persisted data — the app must refresh its state after these.
+const MUTATION_TOOLS = new Set([
+  "create_plan",
+  "update_plan",
+  "delete_plan",
+  "fork_plan",
+  "set_default_plan",
+  "add_income",
+  "update_income",
+  "delete_income",
+  "add_expense",
+  "update_expense",
+  "delete_expense",
+  "add_cashflow_change",
+  "update_cashflow_change",
+  "delete_cashflow_change",
+  "add_loan",
+  "update_loan",
+  "delete_loan",
+  "create_share_object",
+  "update_share_object",
+  "delete_share_object",
+]);
+
+function planIdsFromArgs(args: Record<string, any>): string[] {
+  const ids = [args?.plan_id, args?._id].filter((v) => typeof v === "string" && v.length > 0);
+  return [...new Set(ids)];
+}
+
 export async function POST(req: NextRequest) {
   const container = await getContainer();
 
@@ -153,11 +182,25 @@ export async function POST(req: NextRequest) {
             if (event.type === "text") {
               currentSegment += event.text;
             }
-            if (event.type === "tool_call" || event.type === "tool_result") {
+            if (event.type === "tool_call") {
               if (currentSegment) {
                 collectedSegments.push(currentSegment);
                 currentSegment = "";
               }
+              if (MUTATION_TOOLS.has(event.name)) {
+                // Tell the app its local state is stale so it can refresh.
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "mutation",
+                      tools: [event.name],
+                      plan_ids: planIdsFromArgs(event.args),
+                    })}\n\n`
+                  )
+                );
+              }
+            }
+            if (event.type === "tool_result") {
               hadToolActivity = true;
             }
             if (event.type === "error") {

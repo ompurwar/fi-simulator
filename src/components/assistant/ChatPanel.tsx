@@ -208,6 +208,7 @@ export function OpenAssistant() {
 export function ChatPanel() {
   const profile = useFiPlanStore((s) => s.profile);
   const loading = useFiPlanStore((s) => s.loading);
+  const refresh_plan_list = useFiPlanStore((s) => s.refresh_plan_list);
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -234,6 +235,7 @@ export function ChatPanel() {
   const list_ref = useRef<HTMLDivElement | null>(null);
   const pending_refs_ref = useRef<ReferenceChip[]>([]);
   const last_user_ref = useRef<string>("");
+  const mutation_flag = useRef(false);
 
   useEffect(() => {
     // expose an imperative open trigger for launchers outside this component
@@ -443,6 +445,9 @@ export function ChatPanel() {
             );
           } else if (evt.type === "error") {
             setError(String(evt.message || "The assistant ran into an error."));
+          } else if (evt.type === "mutation") {
+            // The assistant changed persisted data — the app's store is stale.
+            mutation_flag.current = true;
           } else if (evt.type === "done") {
             FlushRefs(assistant_id);
             break;
@@ -464,6 +469,12 @@ export function ChatPanel() {
         );
         setStreaming(false);
         abort_ref.current = null;
+        // Refresh the app's plan store once when this turn mutated anything
+        // (debounced naturally: flag is cleared after the fetch starts).
+        if (mutation_flag.current) {
+          mutation_flag.current = false;
+          refresh_plan_list().catch(() => {});
+        }
       }
   }
 

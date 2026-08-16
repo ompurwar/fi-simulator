@@ -21,6 +21,7 @@ export type AiStreamEvent =
   | { type: "thinking"; text: string }
   | { type: "tool_call"; name: string; args: Record<string, any> }
   | { type: "tool_result"; name: string; ok: boolean; error?: string }
+  | { type: "mutation"; tools: string[]; plan_ids?: string[] }
   | { type: "done" }
   | { type: "error"; message: string; code?: string };
 

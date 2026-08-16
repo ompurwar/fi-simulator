@@ -54,6 +54,18 @@ function sseBody(events: any[]): ReadableStream<Uint8Array> {
   });
 }
 
+// Assistant turn that creates a plan (a mutation tool).
+const CREATE_PLAN_SSE = [
+  { type: "message_start", message: { id: "msg_1" } },
+  { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "toolu_1", name: "create_plan", input: {} } },
+  { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"title":"Assistant Made","monthly_income":100000,"monthly_expense":40000}' } },
+  { type: "content_block_stop", index: 0 },
+  { type: "content_block_start", index: 1, content_block: { type: "text", text: "" } },
+  { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Created your plan." } },
+  { type: "content_block_stop", index: 1 },
+  { type: "message_stop" },
+];
+
 describe("in-app assistant chat route", () => {
   let session_id: string;
   let user_id: string;
@@ -263,6 +275,25 @@ describe("in-app assistant chat route", () => {
       expect(events.some((e) => e.type === "error")).toBe(true);
       const sessions = await container.app.ListChatSessions({ user_id });
       expect(sessions.some((s: any) => s._id === sessionId)).toBe(false);
+    });
+
+    it("emits a mutation event when the assistant calls a mutating tool", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValue(
+        new Response(sseBody(CREATE_PLAN_SSE), { status: 200 })
+      );
+
+      const res = await chatKeyed({
+        messages: [{ role: "user", content: "create a plan called Assistant Made" }],
+      });
+      expect(res.status).toBe(200);
+      const events = parseSse(res.text);
+
+      const mutation = events.find((e) => e.type === "mutation");
+      expect(mutation).toMatchObject({ type: "mutation", tools: ["create_plan"] });
+
+      // and the plan really was persisted
+      const plans = await container.app.GetPlan({ user_id });
+      expect(plans.some((p: any) => p.title === "Assistant Made")).toBe(true);
     });
   });
 });
