@@ -638,11 +638,19 @@ function NetWorthDashboard() {
                             <th className="px-4 py-2.5 text-right font-medium">Invested</th>
                             <th className="px-4 py-2.5 text-right font-medium">Current</th>
                             <th className="px-4 py-2.5 text-right font-medium">P&L</th>
-                            <th className="px-4 py-2.5 text-right font-medium">XIRR</th>
+                            <th
+                              className="px-4 py-2.5 text-right font-medium"
+                              title="Simple return % — IndMoney MCP does not populate XIRR"
+                            >
+                              Returns
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {rows.map((h, idx) => (
+                          {rows.map((h, idx) => {
+                            const return_pct =
+                              h.xirr !== null && h.xirr !== 0 ? h.xirr : h.pnl_pct;
+                            return (
                             <tr
                               key={h.code ? `${h.code}-${idx}` : `${h.asset_class}-${h.name}-${idx}`}
                               className="border-t border-dark-100/70 transition-colors hover:bg-dark-50"
@@ -672,16 +680,17 @@ function NetWorthDashboard() {
                               <td className="px-4 py-3 text-right">
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                    (h.xirr ?? 0) >= 0
+                                    return_pct >= 0
                                       ? "bg-success-100 text-success-700"
                                       : "bg-danger-100 text-danger-600"
                                   }`}
                                 >
-                                  {h.xirr === null ? "—" : `${h.xirr.toFixed(1)}%`}
+                                  {return_pct.toFixed(1)}%
                                 </span>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </Disclosure.Panel>
