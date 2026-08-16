@@ -129,9 +129,20 @@ export async function POST(req: NextRequest) {
   if (chatSessionId) {
     try {
       const stored = await container.app.GetChatSession({ user_id, session_id: chatSessionId });
-      storedHistory = (Array.isArray(stored.messages) ? stored.messages : []).map(
-        (m: any) => ({ role: m.role, content: m.content })
-      );
+      // Token economy: replay only the recent tail of the conversation, cap
+      // oversized single messages, and remind the model which tools already ran
+      // (so resumed turns skip re-discovery like whoami/list_plans).
+      storedHistory = (Array.isArray(stored.messages) ? stored.messages : [])
+        .slice(-30)
+        .map((m: any) => {
+          const base = typeof m.content === "string" ? m.content.slice(0, 4000) : "";
+          const tools = Array.isArray(m.tools) ? m.tools : [];
+          const suffix =
+            tools.length > 0
+              ? `\n\n(earlier in this chat I ran tools: ${tools.join(", ")})`
+              : "";
+          return { role: m.role, content: base + suffix };
+        });
     } catch {
       return NextResponse.json({ error: { message: "session not found" } }, { status: 404 });
     }
@@ -142,9 +153,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Create the session up front so the FIRST SSE event can carry its id.
-  // It is only ever created when a message actually arrives; if the turn fails
-  // before anything is persisted, the empty session is rolled back (finally).
-  let chatSessionCreatedHere = false;
+  // It is only ever created when a message actually arrives; the user's message
+  // is always persisted (even for failed turns), so sessions are never empty.
   if (!chatSessionId) {
     const firstUserMessage = messages.find((m) => m.role === "user");
     const created = await container.app.CreateChatSession({
@@ -152,7 +162,6 @@ export async function POST(req: NextRequest) {
       title: firstUserMessage ? firstUserMessage.content.slice(0, 60) : undefined,
     });
     chatSessionId = created.session_id;
-    chatSessionCreatedHere = true;
   }
 
   // Model context = stored history + the incoming messages (the client is not
@@ -164,8 +173,8 @@ export async function POST(req: NextRequest) {
 
   let collectedSegments: string[] = [];
   let currentSegment = "";
-  let hadToolActivity = false;
   let streamErrored = false;
+  const ranTools = new Set<string>();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -183,6 +192,7 @@ export async function POST(req: NextRequest) {
               currentSegment += event.text;
             }
             if (event.type === "tool_call") {
+              ranTools.add(event.name);
               if (currentSegment) {
                 collectedSegments.push(currentSegment);
                 currentSegment = "";
@@ -199,9 +209,6 @@ export async function POST(req: NextRequest) {
                   )
                 );
               }
-            }
-            if (event.type === "tool_result") {
-              hadToolActivity = true;
             }
             if (event.type === "error") {
               streamErrored = true;
@@ -225,14 +232,7 @@ export async function POST(req: NextRequest) {
           encoder.encode(`data: ${JSON.stringify({ type: "error", message: String(e?.message || e) })}\n\n`)
         );
       } finally {
-        const persisted = await persistChat();
-        // Roll back a session that was created for this request but never got a
-        // message persisted (LLM/stream failure) — no empty sessions in the list.
-        if (chatSessionCreatedHere && !persisted) {
-          await container.app
-            .DeleteChatSession({ user_id, session_id: chatSessionId! })
-            .catch((e: any) => console.error("[fi-plan] empty-session rollback failed:", e?.message || e));
-        }
+        await persistChat();
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       }
@@ -247,17 +247,26 @@ export async function POST(req: NextRequest) {
       currentSegment = "";
     }
     const assistantText = collectedSegments.join("\n\n").trim();
-    if (streamErrored || (!assistantText && !hadToolActivity)) return false;
+    // Always record what the user asked — even a failed turn keeps its question
+    // in the session (retry can continue it; no silent data loss).
     for (const message of userMessages) {
       await appendMessage(message.role, message.content);
     }
-    if (assistantText) await appendMessage("assistant", assistantText);
+    if (streamErrored) return true; // question recorded, no assistant text
+    if (assistantText)
+      await appendMessage("assistant", assistantText, ranTools.size ? [...ranTools] : undefined);
     return true;
   }
 
-  async function appendMessage(role: "user" | "assistant", content: string) {
+  async function appendMessage(role: "user" | "assistant", content: string, tools?: string[]) {
     try {
-      await container.app.AppendChatMessage({ user_id, session_id: chatSessionId!, role, content });
+      await container.app.AppendChatMessage({
+        user_id,
+        session_id: chatSessionId!,
+        role,
+        content,
+        tools,
+      });
     } catch (e: any) {
       console.error("[fi-plan] chat persistence failed:", e?.message || e);
     }

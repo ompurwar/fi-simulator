@@ -19,7 +19,9 @@ type PatchApplicator = (plan: any, patch: any) => void;
 function ApplyAddCashflow(plan: any, patch: any, category: "i" | "e"): void {
   const cashflow = patch.cashflow;
   if (!cashflow || typeof cashflow !== "object")
-    throw new InvalidPropertyError("invalid: cashflow should be an object");
+    throw new InvalidPropertyError(
+      `invalid: ${category === "i" ? "add_income" : "add_expense"} patches need a nested "cashflow" object (desc, amount, start_month, end_month) — ${PATCH_SCHEMA_HINT}`
+    );
 
   if (cashflow.category !== undefined && cashflow.category !== category)
     throw new InvalidPropertyError("invalid: cashflow category does not match op");
@@ -59,7 +61,9 @@ function ApplyAddCashflow(plan: any, patch: any, category: "i" | "e"): void {
 function ApplyAddCashflowChange(plan: any, patch: any): void {
   const change = patch.change;
   if (!change || typeof change !== "object")
-    throw new InvalidPropertyError("invalid: change should be an object");
+    throw new InvalidPropertyError(
+      `invalid: add_cashflow_change patches need a nested "change" object — ${PATCH_SCHEMA_HINT}`
+    );
 
   const { cashflow_id, change_desc, value, start_month, change_category, change_type } = change;
   const cashflow_exists = (plan.cashflow_list || []).some((cf: any) => cf._id === cashflow_id);
@@ -79,28 +83,51 @@ function ApplyAddCashflowChange(plan: any, patch: any): void {
     active: true,
   });
 
+  // Same replace semantics as the add_cashflow_change tool: the engine applies
+  // only the FIRST change per (line, start_month, category), so a scenario
+  // change overrides an existing one instead of being silently shadowed.
   plan.cashflow_change_list = plan.cashflow_change_list || [];
+  const sameMonth = plan.cashflow_change_list.filter(
+    (x: any) =>
+      String(x.cashflow_id) === String(cashflow_id) &&
+      x.start_month === start_month &&
+      x.category === (change_category ?? entry.category)
+  );
+  plan.cashflow_change_list = plan.cashflow_change_list.filter(
+    (x: any) => !sameMonth.includes(x)
+  );
   plan.cashflow_change_list.push(entry);
 }
 
 function ApplyAddLoan(plan: any, patch: any): void {
   const loan = patch.loan;
   if (!loan || typeof loan !== "object")
-    throw new InvalidPropertyError("invalid: loan should be an object");
+    throw new InvalidPropertyError(
+      `invalid: add_loan patches need a nested "loan" object — ${PATCH_SCHEMA_HINT}`
+    );
 
-  const { loan_name, amount, interest_rate, tenure, start_month, parent_id } = loan;
+  // Accept both vocabularies: the patch-native (amount + tenure) and the
+  // add_loan-tool shape (principal_amount + end_month).
+  const amount = loan.amount ?? loan.principal_amount;
+  const tenure =
+    loan.tenure ??
+    (loan.end_month !== undefined && loan.start_month !== undefined
+      ? loan.end_month - loan.start_month + 1
+      : undefined);
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0)
+    throw new InvalidPropertyError("invalid: loan amount should be a positive number");
   if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
     throw new InvalidPropertyError("invalid: loan tenure should be a positive number");
 
-  const start = start_month ?? 1;
+  const start = loan.start_month ?? 1;
   const entry = MakeLoanAccount({
-    title: loan_name || "Simulated Loan",
+    title: loan.loan_name ?? loan.title ?? "Simulated Loan",
     principal_amount: amount,
-    interest_rate,
+    interest_rate: loan.interest_rate,
     start_month: start,
-    end_month: start + tenure - 1,
+    end_month: loan.end_month ?? start + tenure - 1,
     type: loan.type ?? LOAN_CONSTANTS.TYPE.OTHER,
-    ref_id: parent_id ?? null,
+    ref_id: loan.parent_id ?? null,
     deposit_to_bank: loan.deposit_to_bank ?? false,
   });
 
@@ -163,19 +190,26 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Apply an ordered list of scenario patches to a deep copy of the plan.
  * The input plan is never mutated; every patch is validated against the same
  * domain entities the web app uses, so invalid fields throw InvalidPropertyError.
+ * Error messages carry the expected patch shape so agents self-correct.
  */
+export const PATCH_SCHEMA_HINT =
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}]';
+
 export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
   if (!plan || typeof plan !== "object")
     throw new InvalidPropertyError("invalid: plan should be an object");
   if (!Array.isArray(patches))
-    throw new InvalidPropertyError("invalid: patches should be an array");
+    throw new InvalidPropertyError(`invalid: patches should be an array — ${PATCH_SCHEMA_HINT}`);
 
   const scenario = DeepCopy(plan);
 
   patches.forEach((patch, index) => {
     const op = patch?.op;
     const apply = PATCH_APPLICATORS[op];
-    if (!apply) throw new InvalidPropertyError(`invalid: unknown scenario op '${String(op)}' at index ${index}`);
+    if (!apply)
+      throw new InvalidPropertyError(
+        `invalid: unknown scenario op '${String(op)}' at index ${index} — ${PATCH_SCHEMA_HINT}`
+      );
     apply(scenario, patch);
   });
 

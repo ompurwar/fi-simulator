@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Token-reduction for the assistant (Task 2.21) — `simulate_plan` accepts `plan_id` (server loads the plan; no more pasting `plan_json`), `list_plans` returns compact metadata, `plan_snapshot`/`simulate_plan` support `summary: true`, session replay capped (last 30 messages, 4k-char), tool activity persisted and echoed on resume, and the system prompt now carries worked patch examples + a plan_id-first rule. Combined with Phase A/B/C fixes this cuts typical multi-turn input tokens by an estimated 60–80%.
+- Ops scripts (Task 2.22) — `standalone/dedupe-changes.ts` (idempotent, keeps the latest change per line+month) and the existing migration script; Phase A verification confirmed the persisted hikes project exactly (₹2,41,000 → ₹2,89,200 → ₹3,47,040 → ₹4,16,448 → ₹4,58,092.80 at months 24/36/48/60).
 - Net worth provider module with a `NetWorthProvider` port interface (Task 1.1) — the service layer depends only on the interface, so providers can be swapped freely.
 - IndMoney net worth provider via the official IndMoney MCP server (Task 1.2) — OAuth 2.1 + PKCE through the MCP TypeScript SDK, pulling `networth_snapshot` / `networth_holdings` with tolerant payload normalizers; tokens and daily snapshots persisted in MongoDB.
 - Net worth API + connect flow (Task 1.3) — `POST /networth/status|connect|sync|disconnect` endpoints and the browser OAuth callback route at `/api/networth/oauth/callback`.
@@ -23,6 +25,9 @@
 - Fixed 5 pre-existing app-layer bugs found during tool wiring (Task 2.3) — `MakeCashFlowChange` empty title/desc, `UpdateIncome/UpdateExpense` dropping active/primary, `MakePlan` rejecting id-strings in cashflow_list, `UpdateCashflowChange` persisting random ObjectIds, share-object auth comparing ObjectId vs string.
 
 ### Fixed
+- "Persisted but invisible" add-side bug (Task 2.23) — `AddIncome`/`AddExpense` now embed the **full cashflow object** in `plan.cashflow_list` instead of a bare id string (the projection engine reads objects; strings were silently dropped). Store updates/deletes sync the embedded copy; `simulate_plan` errors carry the schema hint for `add_income`/`add_expense`; a migration (`standalone/embed-cashflows.ts`) hydrates existing bare-id entries.
+- The `simulate_plan` "invalid: cashflow should be an object" failure loop — schema hints + a prompt rule ("stop after 2 consecutive same-tool failures") cut the iteration-limit churn.
+- Permanent quality gate (`tests/mcp/quality.test.ts`) — add-then-project assertions for expense/income + the funded-purchase (₹T = ₹Y own + ₹Z loan) no-double-count guard; runs on every `npm test`.
 - SSE tool-use args were corrupted when `content_block_start` carried an empty `input: {}` placeholder — args now accumulate from `input_json_delta` fragments only (tool calls were silently dropped).
 - Loan disbursement now credits the bank account **one month before the first EMI** (`start_month - 1`; month 1 for loans starting in the first month) — the money arrives before the first EMI falls due; Loan Manager labels the field "EMI starts from".
 - Loan add/edit/delete in the Loan Manager auto-sync to the server — local-only saves were silently reverted by a refresh (the plan snapshot reads the server copy).

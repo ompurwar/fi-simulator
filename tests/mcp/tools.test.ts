@@ -283,6 +283,76 @@ describe("engine & simulation", () => {
     }
   });
 
+  it("plan_snapshot summary mode returns a compact projection", async () => {
+    const { ctx } = await signupCtx();
+    const plan = await createPlan(ctx);
+    const res = await callRegistryTool(registry, ctx, "plan_snapshot", {
+      plan_id: plan._id,
+      duration: 12,
+      summary: true,
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const snap = res.data as any;
+      expect(snap.transaction_list).toBeUndefined(); // full detail omitted
+      expect(Array.isArray(snap.monthly_totals)).toBe(true);
+      expect(snap.monthly_totals[0]).toMatchObject({ month: 1, income: 50000 });
+      expect(Array.isArray(snap.balances_by_month)).toBe(true);
+      expect(Array.isArray(snap.net_cashflow)).toBe(true);
+    }
+  });
+
+  it("simulate_plan accepts plan_id and never persists (token-saving mode)", async () => {
+    const { ctx } = await signupCtx();
+    const plan = await createPlan(ctx);
+    const plan_id = String(plan._id);
+
+    const before = await callRegistryTool(registry, ctx, "plan_snapshot", { plan_id, duration: 12 });
+    const baseNet = ((before as any).data as any).net_cashflow.reduce(
+      (s: number, m: any) => s + m.total,
+      0
+    );
+
+    const simulated = await callRegistryTool(registry, ctx, "simulate_plan", {
+      plan_id,
+      patches: [
+        {
+          op: "add_income",
+          cashflow: { desc: "Side hustle", amount: 100000, start_month: 1, end_month: 12 },
+        },
+      ],
+      duration: 12,
+      summary: true,
+    });
+    expect(simulated.ok).toBe(true);
+    if (simulated.ok) {
+      const sim = simulated.data as any;
+      expect(sim.applied_patches).toHaveLength(1);
+      const simNet = (sim.snapshot as any).monthly_totals.reduce(
+        (s: number, m: any) => s + m.net,
+        0
+      );
+      expect(simNet).toBeGreaterThan(baseNet);
+      // nothing persisted: the plan doc is unchanged
+      const after = await callRegistryTool(registry, ctx, "get_plan", { plan_id });
+      expect(
+        (((after as any).data as any).cashflow_list || []).some((c: any) => c.desc === "Side hustle")
+      ).toBe(false);
+    }
+  });
+
+  it("simulate_plan rejects providing both plan_id and plan_json", async () => {
+    const { ctx } = await signupCtx();
+    const plan = await createPlan(ctx);
+    const res = await callRegistryTool(registry, ctx, "simulate_plan", {
+      plan_id: String(plan._id),
+      plan_json: { cashflow_list: [] },
+      patches: [],
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe("VALIDATION_FAILED");
+  });
+
   it("loan_amortization computes a schedule", async () => {
     const ctx: ToolContext = { user_id: "loan-test-user" };
     const res = await callRegistryTool(registry, ctx, "loan_amortization", {

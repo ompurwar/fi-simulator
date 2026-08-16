@@ -57,6 +57,54 @@ describe("ApplyScenarioToPlan", () => {
     );
   });
 
+  it("accepts both loan vocabularies in add_loan patches (amount+tenure and principal_amount+end_month)", () => {
+    const byTenure = ApplyScenarioToPlan(EMPTY_PLAN, [
+      { op: "add_loan", loan: { amount: 400000, interest_rate: 10, tenure: 13, start_month: 40 } },
+    ]);
+    expect(byTenure.loan_accounts).toHaveLength(1);
+    expect(byTenure.loan_accounts[0]).toMatchObject({
+      principal_amount: 400000,
+      start_month: 40,
+      end_month: 52,
+    });
+
+    const byMonths = ApplyScenarioToPlan(EMPTY_PLAN, [
+      {
+        op: "add_loan",
+        loan: { principal_amount: 500000, interest_rate: 9, start_month: 24, end_month: 84 },
+      },
+    ]);
+    expect(byMonths.loan_accounts).toHaveLength(1);
+    expect(byMonths.loan_accounts[0]).toMatchObject({
+      principal_amount: 500000,
+      start_month: 24,
+      end_month: 84,
+    });
+  });
+
+  it("add_cashflow_change patches replace existing same-line+month changes (parity with the persist tool)", () => {
+    const plan: any = JSON.parse(JSON.stringify(EMPTY_PLAN));
+    plan.cashflow_list = [{ _id: "cf1", category: "e" }];
+    plan.cashflow_change_list = [
+      {
+        _id: "old",
+        cashflow_id: "cf1",
+        category: "e",
+        change_type: "p",
+        value: 8,
+        start_month: 1,
+        end_month: 60,
+        frequency: "y",
+      },
+    ];
+
+    const scenario = ApplyScenarioToPlan(plan, [
+      { op: "add_cashflow_change", change: { cashflow_id: "cf1", change_category: "e", change_type: "p", value: 6, start_month: 1 } },
+    ]);
+    expect(scenario.cashflow_change_list).toHaveLength(1);
+    expect(scenario.cashflow_change_list[0].value).toBe(6);
+  });
+
   it("throws InvalidPropertyError on a category that contradicts the op", () => {
     expect(() =>
       ApplyScenarioToPlan(EMPTY_PLAN, [

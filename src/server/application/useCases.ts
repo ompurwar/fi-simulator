@@ -133,6 +133,7 @@ export interface ApplicationLayer {
     session_id: string;
     role: string;
     content: string;
+    tools?: string[];
   }): Promise<any>;
   PlanSnapshot(input: { plan: any; duration?: number }): Promise<any>;
   GetNetWorthStatus(input: { user_id: string }): Promise<any>;
@@ -713,9 +714,15 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     });
 
     let { success, created } = await cashflow_list.Add(income_object);
-    if (!plan.cashflow_list.some((c: any) => c._id === created._id))
-      (plan.cashflow_list as any).push(created._id);
-    await plan_list.Update({ ...plan });
+    // Embed the FULL line into the plan document (the projection engine iterates
+    // cashflow_list as objects — a bare id string is silently dropped, making
+    // the line "persisted but invisible" in statements).
+    const embedded_lines = (plan.cashflow_list || []).map((c: any) =>
+      c && typeof c === "object" && String(c._id) === String(created._id) ? created : c
+    );
+    if (!embedded_lines.some((c: any) => c && typeof c === "object" && c._id === created._id))
+      embedded_lines.push(created);
+    await plan_list.Update({ ...plan, cashflow_list: embedded_lines });
     if (success) return created;
   }
 
@@ -818,9 +825,15 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     });
 
     let { success, created } = await cashflow_list.Add(expense_object);
-    if (!plan.cashflow_list.some((c: any) => c._id === created._id))
-      (plan.cashflow_list as any).push(created._id);
-    await plan_list.Update({ ...plan });
+    // Embed the FULL line into the plan document (the projection engine iterates
+    // cashflow_list as objects — a bare id string is silently dropped, making
+    // the line "persisted but invisible" in statements).
+    const embedded_lines = (plan.cashflow_list || []).map((c: any) =>
+      c && typeof c === "object" && String(c._id) === String(created._id) ? created : c
+    );
+    if (!embedded_lines.some((c: any) => c && typeof c === "object" && c._id === created._id))
+      embedded_lines.push(created);
+    await plan_list.Update({ ...plan, cashflow_list: embedded_lines });
     if (success) return created;
   }
 
@@ -1176,16 +1189,21 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     session_id,
     role,
     content,
+    tools,
   }: {
     user_id: string;
     session_id: string;
     role: string;
     content: string;
+    /** tool names the assistant ran for this message (persisted for resume context) */
+    tools?: string[];
   }) {
     const session = await GetChatSession({ user_id, session_id });
     const messages = Array.isArray(session.messages) ? session.messages : [];
+    const message: Record<string, any> = { role, content, created_at: Date.now() };
+    if (Array.isArray(tools) && tools.length > 0) message.tools = tools;
     const updates: Record<string, any> = {
-      messages: [...messages, { role, content, created_at: Date.now() }],
+      messages: [...messages, message],
     };
     if (role === "user" && (!session.title || session.title === "New chat")) {
       updates.title = content.slice(0, 60);
