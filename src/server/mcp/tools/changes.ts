@@ -75,7 +75,7 @@ export function makeChangeTools(container: Container): ToolDefinition[] {
       name: "add_cashflow_change",
       title: "Add a cashflow change",
       description:
-        "Persists a change (e.g. a 10% hike) to a cashflow line of the plan. cashflow_id, change_category (i|e), value and start_month are required. Pass plan_id to attach the change to a line embedded in the plan document (the web-onboarding model); without it, store-registered lines are used. change_type defaults to flat (f); percentage (p) caps value at 100.",
+        "Persists a change (e.g. a 10% hike) to a cashflow line of the plan. cashflow_id, change_category (i|e), value and start_month are required. Pass plan_id to attach the change to a line embedded in the plan document (the web-onboarding model); without it, store-registered lines are used. REPLACES any existing change on the same line at the same start_month (the engine applies only the first) — a new hike at month 24 overrides the old one. change_type defaults to flat (f); percentage (p) caps value at 100.",
       inputSchema: {
         plan_id: z.string().optional(),
         cashflow_id: z.string(),
@@ -100,17 +100,29 @@ export function makeChangeTools(container: Container): ToolDefinition[] {
           if (findLine(plan, args.cashflow_id)) {
             // Plan-document path: works for lines embedded in the plan (the model
             // the web onboarding uses) — the engine reads cashflow_change_list.
+            // The engine applies only the FIRST change per (line, start_month);
+            // replace same-month changes so a new hike wins instead of being
+            // silently shadowed by an older one.
             return callUseCase(async () => {
               const change = MakeCashFlowChange({
                 user_id: ctx.user_id,
                 cashflow_id: args.cashflow_id,
                 ...toUseCaseChange(args, {}),
               });
+              const sameMonth = (plan.cashflow_change_list || []).filter(
+                (x: any) =>
+                  String(x.cashflow_id) === String(args.cashflow_id) &&
+                  x.start_month === args.start_month &&
+                  x.category === (args.change_category ?? change.category)
+              );
+              const remaining = (plan.cashflow_change_list || []).filter(
+                (x: any) => !sameMonth.includes(x)
+              );
               return app.UpdatePlan({
                 _id: args.plan_id,
                 user_id: ctx.user_id,
                 ...plan,
-                cashflow_change_list: [...(plan.cashflow_change_list || []), change],
+                cashflow_change_list: [...remaining, change],
               });
             });
           }

@@ -382,6 +382,31 @@ describe("share objects", () => {
     const income_statement = (snapshot as any).data.cashflow.income_statement;
     const month24 = income_statement.find((s: any) => s.month === 24);
     expect(month24.total_income).toBe(60000); // 50000 * 1.2
+
+    // A second change on the same line at the same month REPLACES the first —
+    // the engine applies only the first change per (line, start_month), so the
+    // new value must win instead of being shadowed.
+    const second = await callRegistryTool(registry, ctx, "add_cashflow_change", {
+      plan_id,
+      cashflow_id: salary_id,
+      change_category: "i",
+      change_type: "p",
+      value: 30,
+      start_month: 24,
+      change_desc: "revised 30% hike",
+    });
+    expect(second.ok).toBe(true);
+
+    const planAgain = (await t.container.plan_list.FindById(plan_id)) as any;
+    const month24Changes = (planAgain.cashflow_change_list || []).filter(
+      (c: any) => String(c.cashflow_id) === salary_id && c.start_month === 24
+    );
+    expect(month24Changes).toHaveLength(1);
+    expect(month24Changes[0].value).toBe(30);
+
+    const snapshot2 = await callRegistryTool(registry, ctx, "plan_snapshot", { plan_id, duration: 30 });
+    const month24b = (snapshot2 as any).data.cashflow.income_statement.find((s: any) => s.month === 24);
+    expect(month24b.total_income).toBe(65000); // 50000 * 1.3
   });
 });
 
