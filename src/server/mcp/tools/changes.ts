@@ -22,8 +22,11 @@ function toUseCaseChange(args: Record<string, any>, merged: Record<string, any>)
     change_type: merged.change_type ?? args.change_type ?? "f",
     value: merged.value ?? args.value,
     start_month: merged.start_month ?? args.start_month,
-    end_month: merged.end_month ?? merged.start_month ?? args.start_month,
-    frequency: merged.frequency ?? "m",
+    // args win over merged (fresh adds) — previously args.end_month/frequency
+    // were silently dropped, storing "m / end=start" for every change.
+    end_month:
+      args.end_month ?? merged.end_month ?? merged.start_month ?? args.start_month,
+    frequency: args.frequency ?? merged.frequency ?? "m",
     title: merged.title ?? merged.change_desc ?? args.change_desc ?? "cashflow change",
     desc: merged.desc ?? merged.change_desc ?? args.change_desc ?? "",
     active: true,
