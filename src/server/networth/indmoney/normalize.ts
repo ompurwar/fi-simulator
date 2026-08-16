@@ -222,6 +222,13 @@ export function normalizeHoldings(raw: any): NetWorthHolding[] {  const arr = Ar
       const raw_class = String(
         first(h, ["asset_class", "assetClass", "asset_type", "assetType", "category", "instrument_type"]) ?? "Other"
       );
+      // IndMoney sends xirr: 0 as a PLACEHOLDER for holdings it doesn't compute
+      // XIRR for. 0 is ambiguous ("no return" vs "not provided"), so when the
+      // holding demonstrably has P&L but xirr is 0, surface null — agents must
+      // not report a fake 0% XIRR. A genuine 0 (or zero-invested holding) keeps 0.
+      const raw_xirr = first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]);
+      const xirr_value = raw_xirr !== undefined ? toNum(raw_xirr) : null;
+      const xirr = xirr_value !== null && xirr_value === 0 && pnl !== 0 ? null : xirr_value;
       return {
         code: first(h, ["investment_code", "investmentCode", "code", "holding_id"]) !== undefined
           ? String(first(h, ["investment_code", "investmentCode", "code", "holding_id"]))
@@ -233,9 +240,7 @@ export function normalizeHoldings(raw: any): NetWorthHolding[] {  const arr = Ar
         current_value,
         pnl: pnl || (invested ? current_value - invested : 0),
         pnl_pct: pnl_pct || (invested > 0 ? ((current_value - invested) / invested) * 100 : 0),
-        xirr: first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]) !== undefined
-          ? toNum(first(h, ["xirr", "xirr_pct", "xirr_percentage", "xirrPercentage", "annualized_returns", "annualised_returns"]))
-          : null,
+        xirr,
         broker: first(h, ["broker", "broker_name", "holding_source"]) !== undefined
           ? String(first(h, ["broker", "broker_name", "holding_source"]))
           : null,

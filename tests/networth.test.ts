@@ -393,6 +393,20 @@ describe("indmoney payload normalization", () => {
     expect(holds[0].pnl_pct).toBeCloseTo(25, 1);
   });
 
+  it("converts IndMoney's placeholder xirr:0 to null when the holding has real P&L", () => {
+    const holds = normalizeHoldings([
+      // placeholder zero with real profit — the IndMoney MCP reality
+      { investment: "HDFC Flexi Cap", xirr: 0, invested_amount: 26000, market_value: 39513, total_pnl: 13518, pnl_per: 51.99 },
+      // genuinely zero return (pnl 0) — keep 0
+      { investment: "Liquid Fund", xirr: 0, invested_amount: 10000, market_value: 10000, total_pnl: 0, pnl_per: 0 },
+      // xirr actually populated — keep it
+      { investment: "Nifty 50 Index", xirr: 12.4, invested_amount: 10000, market_value: 11240, total_pnl: 1240, pnl_per: 12.4 },
+    ]);
+    expect(holds[0].xirr).toBeNull(); // placeholder → unavailable, not a fake 0%
+    expect(holds[1].xirr).toBe(0); // genuine zero return stays 0
+    expect(holds[2].xirr).toBe(12.4); // real XIRR passes through
+  });
+
   it("degrades gracefully on unreadable payloads", () => {
     expect(normalizeSnapshot(null).total_net_worth).toBe(0);
     expect(normalizeSnapshot({}).allocation).toEqual([]);
