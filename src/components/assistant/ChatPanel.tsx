@@ -509,8 +509,38 @@ export function ChatPanel() {
             {/* messages */}
             <div ref={list_ref} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
               {items.length === 0 && !streaming && (
-                <div className="m-auto max-w-[90%] text-center text-xs text-dark-300">
-                  Ask about your plans — runway, net worth, cashflows, what-if simulations…
+                <div className="m-auto flex w-full max-w-[24rem] flex-col gap-3 text-center">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="grid h-12 w-12 place-content-center rounded-full bg-primary-500/15 text-primary-400">
+                      <FontAwesomeIcon icon={faRobot} className="h-6 w-6" />
+                    </div>
+                    <div className="text-sm font-semibold text-dark-50">Hi, I&apos;m your Fi-Plan assistant</div>
+                    <div className="text-xs leading-relaxed text-dark-300">
+                      I can read and update your financial plans, run what-if simulations, and answer
+                      questions — try one of these:
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      "What's my current runway?",
+                      "Add a ₹30,000 side income from month 12",
+                      "What if my salary doubles in month 24?",
+                      "List my plans",
+                    ].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => SendMessage(s)}
+                        className="rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-left text-xs text-dark-100 transition-colors hover:border-primary-400 hover:bg-dark-700 hover:text-dark-50"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[10px] leading-relaxed text-dark-400">
+                    Entities I touch appear as clickable chips below my replies (plan, net worth, share
+                    objects). Conversations auto-save — open the list icon to resume an older session.
+                  </div>
                 </div>
               )}
               {items.map((item) => {
@@ -591,7 +621,7 @@ export function ChatPanel() {
             <textarea
               rows={2}
               value={input}
-              placeholder="Ask the assistant…"
+              placeholder="Ask about your plan — e.g. “what’s my runway?”"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
