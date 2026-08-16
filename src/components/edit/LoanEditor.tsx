@@ -126,7 +126,9 @@ function LoanAccountCommand({
         end_month: loan.end_month,
         interest_rate: loan.interest_rate,
         type: loan.type,
-        deposit_to_bank: loan.deposit_to_bank || false,
+        // Normalize: the engine credits only on strict `deposit_to_bank === true`,
+        // so a truthy non-boolean (e.g. the string "true") must not tick the box.
+        deposit_to_bank: loan.deposit_to_bank === true,
         loading: false,
         deleting: false,
       }));
@@ -175,7 +177,8 @@ function LoanAccountCommand({
       interest_rate: state.interest_rate,
       type: state.type,
       ref_id: state.ref_id,
-      deposit_to_bank: state.deposit_to_bank,
+      // always persist a real boolean so the engine and the checkbox agree
+      deposit_to_bank: state.deposit_to_bank === true,
     };
     setState((s: any) => ({ ...s, loading: true }));
     const loan_accounts = [...(plan.loan_accounts || [])];
