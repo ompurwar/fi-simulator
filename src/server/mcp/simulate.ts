@@ -59,7 +59,9 @@ function ApplyAddCashflow(plan: any, patch: any, category: "i" | "e"): void {
 function ApplyAddCashflowChange(plan: any, patch: any): void {
   const change = patch.change;
   if (!change || typeof change !== "object")
-    throw new InvalidPropertyError("invalid: change should be an object");
+    throw new InvalidPropertyError(
+      `invalid: add_cashflow_change patches need a nested "change" object — ${PATCH_SCHEMA_HINT}`
+    );
 
   const { cashflow_id, change_desc, value, start_month, change_category, change_type } = change;
   const cashflow_exists = (plan.cashflow_list || []).some((cf: any) => cf._id === cashflow_id);
@@ -163,19 +165,26 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Apply an ordered list of scenario patches to a deep copy of the plan.
  * The input plan is never mutated; every patch is validated against the same
  * domain entities the web app uses, so invalid fields throw InvalidPropertyError.
+ * Error messages carry the expected patch shape so agents self-correct.
  */
+export const PATCH_SCHEMA_HINT =
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"principal_amount":500000,"interest_rate":9,"start_month":24,"end_month":84}}]';
+
 export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
   if (!plan || typeof plan !== "object")
     throw new InvalidPropertyError("invalid: plan should be an object");
   if (!Array.isArray(patches))
-    throw new InvalidPropertyError("invalid: patches should be an array");
+    throw new InvalidPropertyError(`invalid: patches should be an array — ${PATCH_SCHEMA_HINT}`);
 
   const scenario = DeepCopy(plan);
 
   patches.forEach((patch, index) => {
     const op = patch?.op;
     const apply = PATCH_APPLICATORS[op];
-    if (!apply) throw new InvalidPropertyError(`invalid: unknown scenario op '${String(op)}' at index ${index}`);
+    if (!apply)
+      throw new InvalidPropertyError(
+        `invalid: unknown scenario op '${String(op)}' at index ${index} — ${PATCH_SCHEMA_HINT}`
+      );
     apply(scenario, patch);
   });
 

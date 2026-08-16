@@ -133,6 +133,7 @@ export interface ApplicationLayer {
     session_id: string;
     role: string;
     content: string;
+    tools?: string[];
   }): Promise<any>;
   PlanSnapshot(input: { plan: any; duration?: number }): Promise<any>;
   GetNetWorthStatus(input: { user_id: string }): Promise<any>;
@@ -1176,16 +1177,21 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     session_id,
     role,
     content,
+    tools,
   }: {
     user_id: string;
     session_id: string;
     role: string;
     content: string;
+    /** tool names the assistant ran for this message (persisted for resume context) */
+    tools?: string[];
   }) {
     const session = await GetChatSession({ user_id, session_id });
     const messages = Array.isArray(session.messages) ? session.messages : [];
+    const message: Record<string, any> = { role, content, created_at: Date.now() };
+    if (Array.isArray(tools) && tools.length > 0) message.tools = tools;
     const updates: Record<string, any> = {
-      messages: [...messages, { role, content, created_at: Date.now() }],
+      messages: [...messages, message],
     };
     if (role === "user" && (!session.title || session.title === "New chat")) {
       updates.title = content.slice(0, 60);

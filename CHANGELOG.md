@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Token-reduction for the assistant (Task 2.21) — `simulate_plan` accepts `plan_id` (server loads the plan; no more pasting `plan_json`), `list_plans` returns compact metadata, `plan_snapshot`/`simulate_plan` support `summary: true`, session replay capped (last 30 messages, 4k-char), tool activity persisted and echoed on resume, and the system prompt now carries worked patch examples + a plan_id-first rule. Combined with Phase A/B/C fixes this cuts typical multi-turn input tokens by an estimated 60–80%.
+- Ops scripts (Task 2.22) — `standalone/dedupe-changes.ts` (idempotent, keeps the latest change per line+month) and the existing migration script; Phase A verification confirmed the persisted hikes project exactly (₹2,41,000 → ₹2,89,200 → ₹3,47,040 → ₹4,16,448 → ₹4,58,092.80 at months 24/36/48/60).
 - Net worth provider module with a `NetWorthProvider` port interface (Task 1.1) — the service layer depends only on the interface, so providers can be swapped freely.
 - IndMoney net worth provider via the official IndMoney MCP server (Task 1.2) — OAuth 2.1 + PKCE through the MCP TypeScript SDK, pulling `networth_snapshot` / `networth_holdings` with tolerant payload normalizers; tokens and daily snapshots persisted in MongoDB.
 - Net worth API + connect flow (Task 1.3) — `POST /networth/status|connect|sync|disconnect` endpoints and the browser OAuth callback route at `/api/networth/oauth/callback`.

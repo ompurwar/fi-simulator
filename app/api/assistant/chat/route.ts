@@ -129,9 +129,20 @@ export async function POST(req: NextRequest) {
   if (chatSessionId) {
     try {
       const stored = await container.app.GetChatSession({ user_id, session_id: chatSessionId });
-      storedHistory = (Array.isArray(stored.messages) ? stored.messages : []).map(
-        (m: any) => ({ role: m.role, content: m.content })
-      );
+      // Token economy: replay only the recent tail of the conversation, cap
+      // oversized single messages, and remind the model which tools already ran
+      // (so resumed turns skip re-discovery like whoami/list_plans).
+      storedHistory = (Array.isArray(stored.messages) ? stored.messages : [])
+        .slice(-30)
+        .map((m: any) => {
+          const base = typeof m.content === "string" ? m.content.slice(0, 4000) : "";
+          const tools = Array.isArray(m.tools) ? m.tools : [];
+          const suffix =
+            tools.length > 0
+              ? `\n\n(earlier in this chat I ran tools: ${tools.join(", ")})`
+              : "";
+          return { role: m.role, content: base + suffix };
+        });
     } catch {
       return NextResponse.json({ error: { message: "session not found" } }, { status: 404 });
     }
@@ -166,6 +177,7 @@ export async function POST(req: NextRequest) {
   let currentSegment = "";
   let hadToolActivity = false;
   let streamErrored = false;
+  const ranTools = new Set<string>();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -183,6 +195,7 @@ export async function POST(req: NextRequest) {
               currentSegment += event.text;
             }
             if (event.type === "tool_call") {
+              ranTools.add(event.name);
               if (currentSegment) {
                 collectedSegments.push(currentSegment);
                 currentSegment = "";
@@ -251,13 +264,20 @@ export async function POST(req: NextRequest) {
     for (const message of userMessages) {
       await appendMessage(message.role, message.content);
     }
-    if (assistantText) await appendMessage("assistant", assistantText);
+    if (assistantText)
+      await appendMessage("assistant", assistantText, ranTools.size ? [...ranTools] : undefined);
     return true;
   }
 
-  async function appendMessage(role: "user" | "assistant", content: string) {
+  async function appendMessage(role: "user" | "assistant", content: string, tools?: string[]) {
     try {
-      await container.app.AppendChatMessage({ user_id, session_id: chatSessionId!, role, content });
+      await container.app.AppendChatMessage({
+        user_id,
+        session_id: chatSessionId!,
+        role,
+        content,
+        tools,
+      });
     } catch (e: any) {
       console.error("[fi-plan] chat persistence failed:", e?.message || e);
     }

@@ -763,6 +763,43 @@ engine tools exist — the LLM loop can land in parallel with MCP transports), t
 
 ---
 
+## 17. v1.2 — Fixes & Token Reduction (from live-session analysis)
+
+Analysis of real user sessions surfaced a set of fixes (some already shipped) and
+token-reduction work. Status tracked in `docs/TASKS.md` (2.20+).
+
+### 17.1 Already resolved
+- Loan editing tools (`list/add/update/delete_loan`)
+- Plan-embedded cashflow lines readable by tools (plan-doc-first + store fallback) + one-off migration (`standalone/migrate-cashflows.ts`)
+- Mutation SSE event → app refreshes its plan store
+- `max_tokens` 16384 (thinking-mode truncation)
+- `add_cashflow_change` replaces same (line, start_month) changes (engine applies only the first)
+- 405 for non-POST requests on the embedded router; vitest capped at 3 workers
+
+### 17.2 Remaining fixes (Phase A–C)
+| # | Item |
+|---|---|
+| A | Verify persisted hikes reflect in projections (m24/36/48/60) against live data |
+| B | `ApplyScenarioToPlan` errors include the expected patch schema; SYSTEM_PROMPT gets worked JSON examples (yearly hike simulate + persist) |
+| C | Idempotent dedupe of cashflow changes (keep latest per line+month) + run on existing users |
+
+### 17.3 Token reduction (Phase D — quality-preserving)
+| # | Change | Impact |
+|---|---|---|
+| D1 | `simulate_plan` gains `plan_id` mode (server fetches the plan; agents stop pasting `plan_json`) | ★★★ |
+| D2 | `list_plans` returns metadata only (id, title, is_default, counts) | ★★★ |
+| D3 | `plan_snapshot`/`simulate_plan` `summary: true` (runway, net_cashflow, balances only) | ★★ |
+| D4 | Context replay cap: last ~30 messages, 4k-char truncation | ★★ |
+| D5 | Prompt rule "prefer plan_id, never paste plan_json"; trimmed tool descriptions | ★ |
+| D6 | Persist tool activity in sessions so resumed turns skip re-discovery | ★ |
+
+Explicitly out (quality risk): turn summarization/compaction, dropping tools from
+the schema, capping thinking (DeepSeek ignores `budget_tokens`).
+
+**Execution order**: A → D2+D3+D4 → D1 → B → C → D5+D6.
+
+---
+
 ## 16. Out of Scope (v1)
 
 - OAuth 2.1 MCP server (SDK `OAuthServerProvider`) — future

@@ -26,16 +26,22 @@ export function makePlanTools(container: Container): ToolDefinition[] {
       name: "list_plans",
       title: "List the user's plans",
       description:
-        "Returns all plans owned by the current user, each flagged with is_default when it is the user's default plan. Use the returned plan_id as input to get_plan or the cashflow tools.",
+        "Returns all plans owned by the current user as compact metadata: _id, title, description, is_default and line/loan/account counts. Use get_plan for full detail — do not fetch the full document just to pick a plan.",
       inputSchema: {},
       async handler(ctx) {
         const plans = await plan_list.FindByUserId(ctx.user_id);
         const user = await user_list.FindById(ctx.user_id);
         return ok(
           plans.map((plan: any) => ({
-            ...planToPlain(plan),
-            is_default:
-              plan._id?.toString() === user?.default_plan_id?.toString(),
+            _id: plan._id?.toString(),
+            title: plan.title,
+            description: plan.description,
+            is_default: plan._id?.toString() === user?.default_plan_id?.toString(),
+            income_count: (plan.cashflow_list || []).filter((c: any) => c.category === "i").length,
+            expense_count: (plan.cashflow_list || []).filter((c: any) => c.category === "e").length,
+            loan_count: (plan.loan_accounts || []).length,
+            account_count: (plan.account_list || []).length,
+            change_count: (plan.cashflow_change_list || []).length,
           }))
         );
       },
