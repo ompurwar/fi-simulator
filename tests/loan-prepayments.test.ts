@@ -316,4 +316,78 @@ describe("loan manager MCP integration", () => {
     expect((res as any).data.applied_patches).toHaveLength(1);
     expect(Array.isArray((res as any).data.snapshot.emi_expense_cashflow)).toBe(true);
   });
+
+  it("simulate_plan update_loan patch stops the EMIs at the prepayment payoff month — without persisting", async () => {
+    const loan_id = home_loan_id;
+
+    const res = await callRegistryTool(makeToolRegistry(t.container), ctx, "simulate_plan", {
+      plan_id,
+      duration: 120,
+      patches: [
+        {
+          op: "update_loan",
+          loan_id,
+          prepayments: [{ start_month: 48, amount: 25000, frequency: "m", step_pct: 10, step_frequency: "y" }],
+        },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    const data = (res as any).data;
+    expect(data.applied_patches).toHaveLength(1);
+
+    // baseline: without prepayments the schedule runs the full 120-month window
+    const baseline = await callRegistryTool(makeToolRegistry(t.container), ctx, "simulate_plan", {
+      plan_id,
+      duration: 120,
+      patches: [],
+    });
+    const baseline_last_month = (baseline as any).data.snapshot.emi_schedule
+      .filter((e: any) => e.loan_id === loan_id)
+      .pop().month;
+
+    const loan_emis = data.snapshot.emi_schedule.filter((e: any) => e.loan_id === loan_id);
+    const last_emi_month = loan_emis[loan_emis.length - 1].month;
+    expect(loan_emis.length).toBeLessThan(121);
+    expect(loan_emis[loan_emis.length - 1].closing_balance).toBeLessThanOrEqual(0.005);
+    expect(last_emi_month).toBeLessThan(baseline_last_month);
+
+    const prepay_rows = data.snapshot.emi_expense_cashflow.filter(
+      (c: any) => c.desc && c.desc.startsWith("Prepayment #") && c.desc.includes("Home loan")
+    );
+    expect(prepay_rows.length).toBeGreaterThan(1);
+    expect(prepay_rows[0].start_month).toBe(48);
+
+    // EMIs stop at the payoff month: no EMI expense after the last EMI row's month
+    const emi_after = data.snapshot.emi_expense_cashflow.filter(
+      (c: any) => c.desc && c.desc.startsWith("EMI No.") && c.desc.includes("Home loan") && c.start_month > last_emi_month
+    );
+    expect(emi_after).toHaveLength(0);
+
+    // simulation never persists: the real loan still has no prepayments
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_loans", { plan_id });
+    const real = (list as any).data.find((l: any) => l._id === loan_id);
+    expect(real.prepayments).toEqual([]);
+  });
+
+  it("simulate_plan update_loan infers the op from flat fields", async () => {
+    const res = await callRegistryTool(makeToolRegistry(t.container), ctx, "simulate_plan", {
+      plan_id,
+      duration: 60,
+      patches: [{ loan_id: home_loan_id, interest_rate: 10 }],
+    });
+    expect(res.ok).toBe(true);
+    const emis = (res as any).data.snapshot.emi_schedule.filter((e: any) => e.loan_id === home_loan_id);
+    expect(emis.length).toBeGreaterThan(0);
+    expect(emis[0].emi_paid).toBeGreaterThan(0);
+  });
+
+  it("simulate_plan update_loan rejects an unknown loan_id", async () => {
+    const res = await callRegistryTool(makeToolRegistry(t.container), ctx, "simulate_plan", {
+      plan_id,
+      duration: 60,
+      patches: [{ op: "update_loan", loan_id: "does-not-exist", prepayments: [] }],
+    });
+    expect(res.ok).toBe(false);
+    expect(JSON.stringify((res as any).error)).toMatch(/loan not found/i);
+  });
 });

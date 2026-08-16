@@ -253,7 +253,7 @@ describe("in-app assistant loan prepayments", () => {
     expect(loans.ok).toBe(true);
     expect((loans as any).data).toEqual([]);
     const plan = await container.plan_list.FindById(plan_id);
-    expect(plan.loan_accounts).toEqual([]);
+    expect(plan?.loan_accounts).toEqual([]);
   });
 
   it("teaches prepayment semantics in the system prompt", async () => {

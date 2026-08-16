@@ -136,6 +136,47 @@ function ApplyAddLoan(plan: any, patch: any): void {
   plan.loan_accounts.push(entry);
 }
 
+const LOAN_EDITABLE_FIELDS = [
+  "title",
+  "principal_amount",
+  "interest_rate",
+  "start_month",
+  "end_month",
+  "deposit_to_bank",
+  "type",
+  "ref_id",
+  "prepayments",
+] as const;
+
+function ApplyUpdateLoan(plan: any, patch: any): void {
+  const { loan_id } = patch;
+  if (typeof loan_id !== "string" || loan_id.length === 0)
+    throw new InvalidPropertyError(
+      `invalid: update_loan patches need a "loan_id" field — ${PATCH_SCHEMA_HINT}`
+    );
+
+  const loans = plan.loan_accounts || [];
+  const idx = loans.findIndex((l: any) => String(l._id) === String(loan_id));
+  if (idx < 0) throw new InvalidPropertyError(`invalid: loan not found with id ${loan_id}`);
+
+  const merged: any = { ...loans[idx] };
+  let touched = false;
+  for (const key of LOAN_EDITABLE_FIELDS) {
+    if (patch[key] !== undefined) {
+      merged[key] = patch[key];
+      touched = true;
+    }
+  }
+  if (!touched)
+    throw new InvalidPropertyError(
+      `invalid: update_loan patch has no editable fields (title, principal_amount, interest_rate, start_month, end_month, deposit_to_bank, type, ref_id, prepayments) — ${PATCH_SCHEMA_HINT}`
+    );
+
+  // Same domain entity the web app uses — full validation (including the
+  // prepayments shape), then the rebuilt loan replaces the original.
+  loans[idx] = MakeLoanAccount(merged);
+}
+
 function ApplyAddFdp(plan: any, patch: any): void {
   const fdp = patch.fdp;
   if (!fdp || typeof fdp !== "object")
@@ -183,6 +224,7 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
   add_expense: (plan, patch) => ApplyAddCashflow(plan, patch, "e"),
   add_cashflow_change: ApplyAddCashflowChange,
   add_loan: ApplyAddLoan,
+  update_loan: ApplyUpdateLoan,
   add_fdp: ApplyAddFdp,
   set_account_balance: ApplySetAccountBalance,
 };
@@ -194,7 +236,7 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Error messages carry the expected patch shape so agents self-correct.
  */
 export const PATCH_SCHEMA_HINT =
-  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}, {"op":"set_account_balance","account_id":"<account _id>","month":12,"balance":500000}] — flat fields are also accepted (op inferred, fields auto-wrapped)';
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}, {"op":"update_loan","loan_id":"<loan _id>","prepayments":[{"start_month":40,"amount":25000,"frequency":"m","step_pct":10,"step_frequency":"y"}]}, {"op":"set_account_balance","account_id":"<account _id>","month":12,"balance":500000}] — flat fields are also accepted (op inferred, fields auto-wrapped)';
 
 /** Infer the op and wrap flat fields into the nested shapes the applicators expect. */
 function normalizePatch(patch: any, index: number): any {
@@ -211,6 +253,9 @@ function normalizePatch(patch: any, index: number): any {
     else if (has("cashflow_id") && has("value") && has("start_month")) op = "add_cashflow_change";
     else if (has("desc") && has("amount") && has("start_month"))
       op = patch.category === "i" ? "add_income" : "add_expense";
+    // update_loan BEFORE add_loan: loan_id is unambiguous — an update patch
+    // like {loan_id, principal_amount, end_month} would otherwise match add_loan.
+    else if (has("loan_id")) op = "update_loan";
     else if (
       (has("amount") || has("principal_amount")) &&
       has("interest_rate") &&
