@@ -310,6 +310,50 @@ export function ChatPanel() {
     );
   }
 
+  /** Retry the last failed turn IN PLACE: drop the partial/failed bubbles, keep
+   *  the user's question, and re-run the loop without re-sending the prompt
+   *  (the server re-runs over stored history — no duplicated tokens/messages). */
+  async function RetryLast() {
+    if (streaming) return;
+    const content = last_user_ref.current;
+    if (!content) return;
+
+    // No session (e.g. the guardrail path) → plain re-send of the message.
+    if (!session_id) {
+      await SendMessage(content);
+      return;
+    }
+
+    abort_ref.current?.abort();
+    setError("");
+    setThinkingText("");
+    setAnswerStarted(false);
+    setThinkingCollapsed(true);
+    pending_refs_ref.current = [];
+
+    // Remove everything after the last user bubble (failed partial + tool badges).
+    setItems((prev) => {
+      const lastUserIdx = [...prev].reverse().findIndex((i) => i.kind === "message" && i.role === "user");
+      if (lastUserIdx === -1) return prev;
+      return prev.slice(0, prev.length - lastUserIdx);
+    });
+
+    const controller = new AbortController();
+    abort_ref.current = controller;
+    setStreaming(true);
+
+    let res: Response;
+    try {
+      res = await api.ChatAssistantRetry(session_id);
+    } catch (e: any) {
+      setStreaming(false);
+      abort_ref.current = null;
+      setError(e?.message || "The stream was interrupted.");
+      return;
+    }
+    await ReadStream(res, null);
+  }
+
   async function SendMessage(text: string) {
     const content = text.trim();
     if (!content || streaming) return;
@@ -363,6 +407,12 @@ export function ChatPanel() {
       return;
     }
 
+    await ReadStream(res, null);
+  }
+
+  /** Consume the SSE stream into chat items (shared by send + retry). */
+  async function ReadStream(res: Response, _assistant_id: number | null) {
+    if (!res.body) return;
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -806,7 +856,7 @@ export function ChatPanel() {
                   <button
                     type="button"
                     aria-label="Retry last message"
-                    onClick={() => SendMessage(last_user_ref.current)}
+                    onClick={() => RetryLast()}
                     className="flex items-center gap-1 rounded-md px-2 py-1 text-danger-200 transition-colors hover:bg-danger-500/20 hover:text-danger-100"
                   >
                     <FontAwesomeIcon icon={faRotateRight} className="h-3 w-3" />

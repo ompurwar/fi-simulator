@@ -79,7 +79,13 @@ export async function POST(req: NextRequest) {
   } catch {
     body = {};
   }
-  const messages = parseMessages(body?.messages);
+
+  // Retry mode: re-run the loop over the stored conversation WITHOUT sending a
+  // new user message (the question is already in history) — avoids duplicating
+  // the prompt and wasting tokens on a re-send.
+  const retryMode = body?.retry === true;
+
+  const messages = retryMode ? [] : parseMessages(body?.messages);
   if (!messages) {
     return NextResponse.json(
       { error: { message: "messages must be a non-empty array of { role, content } (max 50)" } },
@@ -125,6 +131,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Load stored history for the given session (404 if missing or not owned).
+  // Retry mode REQUIRES a session — it re-runs over the stored conversation.
   let storedHistory: { role: "user" | "assistant"; content: string }[] = [];
   if (chatSessionId) {
     try {
@@ -146,6 +153,11 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: { message: "session not found" } }, { status: 404 });
     }
+  } else if (retryMode) {
+    return NextResponse.json(
+      { error: { message: "retry requires a session_id" } },
+      { status: 400 }
+    );
   }
 
   if (!container.env.ANTHROPIC_API_KEY) {
