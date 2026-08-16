@@ -7,6 +7,9 @@ import { fetchIndStocksSnapshot } from "../../indstocks";
 import type { ToolDefinition } from "../types";
 
 export function makeIndStocksTools(container: Container): ToolDefinition[] {
+  // Disabled by default: without INDSTOCKS_API_TOKEN the tool is not registered
+  // at all — agents never see it, no calls are attempted.
+  if (!container.env.INDSTOCKS_API_TOKEN) return [];
   return [
     {
       name: "indstocks_positions",
