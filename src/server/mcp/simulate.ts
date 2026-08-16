@@ -88,21 +88,32 @@ function ApplyAddCashflowChange(plan: any, patch: any): void {
 function ApplyAddLoan(plan: any, patch: any): void {
   const loan = patch.loan;
   if (!loan || typeof loan !== "object")
-    throw new InvalidPropertyError("invalid: loan should be an object");
+    throw new InvalidPropertyError(
+      `invalid: add_loan patches need a nested "loan" object — ${PATCH_SCHEMA_HINT}`
+    );
 
-  const { loan_name, amount, interest_rate, tenure, start_month, parent_id } = loan;
+  // Accept both vocabularies: the patch-native (amount + tenure) and the
+  // add_loan-tool shape (principal_amount + end_month).
+  const amount = loan.amount ?? loan.principal_amount;
+  const tenure =
+    loan.tenure ??
+    (loan.end_month !== undefined && loan.start_month !== undefined
+      ? loan.end_month - loan.start_month + 1
+      : undefined);
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0)
+    throw new InvalidPropertyError("invalid: loan amount should be a positive number");
   if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
     throw new InvalidPropertyError("invalid: loan tenure should be a positive number");
 
-  const start = start_month ?? 1;
+  const start = loan.start_month ?? 1;
   const entry = MakeLoanAccount({
-    title: loan_name || "Simulated Loan",
+    title: loan.loan_name ?? loan.title ?? "Simulated Loan",
     principal_amount: amount,
-    interest_rate,
+    interest_rate: loan.interest_rate,
     start_month: start,
-    end_month: start + tenure - 1,
+    end_month: loan.end_month ?? start + tenure - 1,
     type: loan.type ?? LOAN_CONSTANTS.TYPE.OTHER,
-    ref_id: parent_id ?? null,
+    ref_id: loan.parent_id ?? null,
     deposit_to_bank: loan.deposit_to_bank ?? false,
   });
 
@@ -168,7 +179,7 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Error messages carry the expected patch shape so agents self-correct.
  */
 export const PATCH_SCHEMA_HINT =
-  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"principal_amount":500000,"interest_rate":9,"start_month":24,"end_month":84}}]';
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}]';
 
 export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
   if (!plan || typeof plan !== "object")

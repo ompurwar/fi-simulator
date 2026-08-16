@@ -57,6 +57,31 @@ describe("ApplyScenarioToPlan", () => {
     );
   });
 
+  it("accepts both loan vocabularies in add_loan patches (amount+tenure and principal_amount+end_month)", () => {
+    const byTenure = ApplyScenarioToPlan(EMPTY_PLAN, [
+      { op: "add_loan", loan: { amount: 400000, interest_rate: 10, tenure: 13, start_month: 40 } },
+    ]);
+    expect(byTenure.loan_accounts).toHaveLength(1);
+    expect(byTenure.loan_accounts[0]).toMatchObject({
+      principal_amount: 400000,
+      start_month: 40,
+      end_month: 52,
+    });
+
+    const byMonths = ApplyScenarioToPlan(EMPTY_PLAN, [
+      {
+        op: "add_loan",
+        loan: { principal_amount: 500000, interest_rate: 9, start_month: 24, end_month: 84 },
+      },
+    ]);
+    expect(byMonths.loan_accounts).toHaveLength(1);
+    expect(byMonths.loan_accounts[0]).toMatchObject({
+      principal_amount: 500000,
+      start_month: 24,
+      end_month: 84,
+    });
+  });
+
   it("throws InvalidPropertyError on a category that contradicts the op", () => {
     expect(() =>
       ApplyScenarioToPlan(EMPTY_PLAN, [
