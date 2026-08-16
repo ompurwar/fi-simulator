@@ -347,7 +347,7 @@ export function ChatPanel() {
 
     let res: Response;
     try {
-      res = await api.ChatAssistantRetry(session_id);
+      res = await api.ChatAssistantRetry(session_id, controller.signal);
     } catch (e: any) {
       setStreaming(false);
       abort_ref.current = null;
@@ -379,11 +379,11 @@ export function ChatPanel() {
 
     let res: Response;
     try {
-      res = await api.ChatAssistant(history, session_id ?? undefined);
+      res = await api.ChatAssistant(history, session_id ?? undefined, controller.signal);
     } catch (e: any) {
       setStreaming(false);
       abort_ref.current = null;
-      setError(e.message || "Failed to reach the assistant.");
+      setError(e?.message || "Failed to reach the assistant.");
       return;
     }
 
