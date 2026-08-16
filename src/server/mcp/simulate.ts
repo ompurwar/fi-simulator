@@ -193,7 +193,62 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Error messages carry the expected patch shape so agents self-correct.
  */
 export const PATCH_SCHEMA_HINT =
-  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}]';
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}, {"op":"set_account_balance","account_id":"<account _id>","month":12,"balance":500000}] — flat fields are also accepted (op inferred, fields auto-wrapped)';
+
+/** Infer the op and wrap flat fields into the nested shapes the applicators expect. */
+function normalizePatch(patch: any, index: number): any {
+  if (!patch || typeof patch !== "object")
+    throw new InvalidPropertyError(`invalid: patch at index ${index} should be an object — ${PATCH_SCHEMA_HINT}`);
+  const has = (k: string) => patch[k] !== undefined;
+
+  let op = patch.op;
+  if (!op) {
+    if (has("change")) op = "add_cashflow_change";
+    else if (has("cashflow")) op = patch.category === "i" ? "add_income" : "add_expense";
+    else if (has("fdp")) op = "add_fdp";
+    else if (has("account_id") && has("month") && has("balance")) op = "set_account_balance";
+    else if (has("cashflow_id") && has("value") && has("start_month")) op = "add_cashflow_change";
+    else if (has("desc") && has("amount") && has("start_month"))
+      op = patch.category === "i" ? "add_income" : "add_expense";
+    else if (
+      (has("amount") || has("principal_amount")) &&
+      has("interest_rate") &&
+      (has("tenure") || has("end_month"))
+    )
+      op = "add_loan";
+  }
+  if (!op || !PATCH_APPLICATORS[op])
+    throw new InvalidPropertyError(
+      `invalid: unknown scenario op '${String(op)}' at index ${index} — ${PATCH_SCHEMA_HINT}`
+    );
+
+  const out: any = { ...patch, op };
+  if (op === "add_cashflow_change" && !patch.change) {
+    out.change = {};
+    for (const k of ["cashflow_id", "category", "change_category", "change_type", "value", "start_month", "end_month", "frequency", "change_desc", "title", "desc"]) {
+      if (patch[k] !== undefined) out.change[k] = patch[k];
+    }
+  }
+  if ((op === "add_income" || op === "add_expense") && !patch.cashflow) {
+    out.cashflow = {};
+    for (const k of ["desc", "amount", "start_month", "end_month", "frequency", "type", "category"]) {
+      if (patch[k] !== undefined) out.cashflow[k] = patch[k];
+    }
+  }
+  if (op === "add_loan" && !patch.loan) {
+    out.loan = {};
+    for (const k of ["amount", "principal_amount", "interest_rate", "tenure", "start_month", "end_month", "title", "loan_name", "deposit_to_bank", "type", "parent_id"]) {
+      if (patch[k] !== undefined) out.loan[k] = patch[k];
+    }
+  }
+  if (op === "add_fdp" && !patch.fdp) {
+    out.fdp = {};
+    for (const k of ["name", "amount", "interest_rate", "tenure", "start_month", "account_id"]) {
+      if (patch[k] !== undefined) out.fdp[k] = patch[k];
+    }
+  }
+  return out;
+}
 
 export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
   if (!plan || typeof plan !== "object")
@@ -204,13 +259,9 @@ export function ApplyScenarioToPlan(plan: any, patches: any[]): any {
   const scenario = DeepCopy(plan);
 
   patches.forEach((patch, index) => {
-    const op = patch?.op;
-    const apply = PATCH_APPLICATORS[op];
-    if (!apply)
-      throw new InvalidPropertyError(
-        `invalid: unknown scenario op '${String(op)}' at index ${index} — ${PATCH_SCHEMA_HINT}`
-      );
-    apply(scenario, patch);
+    const normalized = normalizePatch(patch, index);
+    const apply = PATCH_APPLICATORS[normalized.op];
+    apply(scenario, normalized);
   });
 
   return scenario;
