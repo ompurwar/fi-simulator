@@ -338,6 +338,51 @@ describe("share objects", () => {
     });
     expect(deleted.ok).toBe(true);
   });
+
+  it("persists a hike on a plan-embedded income line (the web-onboarding model)", async () => {
+    const { ctx } = await signupCtx();
+    // create_plan embeds income/expense lines INSIDE the plan document
+    // (cashflow_list) — the model that used to be invisible to the store-based
+    // AddCashflowChange path.
+    const plan = await createPlan(ctx);
+    const plan_id = String(plan._id);
+
+    // The salary line lives in the plan doc, not in Cash_Flow_Store.
+    const embedded = (plan.cashflow_list || []).find((c: any) => c.category === "i");
+    expect(embedded).toBeTruthy();
+    const salary_id = String(embedded._id);
+
+    const store_lookup = await t.container.cashflow_list.FindById(salary_id);
+    expect(store_lookup).toBeNull(); // proves the store-registered path would fail
+
+    const add = await callRegistryTool(registry, ctx, "add_cashflow_change", {
+      plan_id,
+      cashflow_id: salary_id,
+      change_category: "i",
+      change_type: "p",
+      value: 20,
+      start_month: 24,
+      change_desc: "20% yearly hike",
+    });
+    expect(add.ok).toBe(true);
+
+    const planAfter = (await t.container.plan_list.FindById(plan_id)) as any;
+    const changes = planAfter.cashflow_change_list || [];
+    const change = changes.find((c: any) => c.cashflow_id === salary_id);
+    expect(change).toBeTruthy();
+    expect(change).toMatchObject({ value: 20, change_type: "p", category: "i", start_month: 24 });
+
+    // list_cashflow_changes reads the embedded list (not the empty store)
+    const listed = await callRegistryTool(registry, ctx, "list_cashflow_changes", { plan_id });
+    expect(listed.ok).toBe(true);
+    expect(((listed as any).data as any[]).length).toBeGreaterThan(0);
+
+    // and the projection picks it up: salary grows 20% at month 24
+    const snapshot = await callRegistryTool(registry, ctx, "plan_snapshot", { plan_id, duration: 30 });
+    const income_statement = (snapshot as any).data.cashflow.income_statement;
+    const month24 = income_statement.find((s: any) => s.month === 24);
+    expect(month24.total_income).toBe(60000); // 50000 * 1.2
+  });
 });
 
 describe("cross-user isolation", () => {

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { Container } from "../../di/container";
 import { InvalidOperationError } from "../../domain/errors";
-import { callUseCase, fail, requireFields, isRecord } from "./envelope";
+import { callUseCase, fail, ok, requireFields, isRecord } from "./envelope";
 import type { ToolDefinition } from "../types";
 
 /** Normalize type/frequency/end_month so the result always satisfies MakeCashFlow. */
@@ -31,7 +31,7 @@ const CASHFLOW_CHANGE_KEYS = [
 ] as const;
 
 function buildCashflowTools(container: Container, category: "i" | "e") {
-  const { app, cashflow_list } = container;
+  const { app, cashflow_list, plan_list } = container;
   const listName = category === "i" ? "list_income" : "list_expense";
   const addName = category === "i" ? "add_income" : "add_expense";
   const updateName = category === "i" ? "update_income" : "update_expense";
@@ -45,18 +45,41 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
     delete: category === "i" ? app.DeleteIncome : app.DeleteExpense,
   };
 
+  /** Embedded lines live inside the plan document (web onboarding model); store
+   *  lines live in Cash_Flow_Store. Prefer the plan doc — it is what the engine
+   *  projects from — and fall back to the store for legacy/registered lines. */
+  async function getPlanOrNull(plan_id: string) {
+    if (!plan_id) return null;
+    return (await plan_list.FindById(plan_id)) || null;
+  }
+  function embeddedLines(plan: any) {
+    return (plan?.cashflow_list || []).filter((c: any) => c.category === category);
+  }
+  function findEmbedded(plan: any, id: string) {
+    return (plan?.cashflow_list || []).find((c: any) => String(c._id) === String(id));
+  }
+
   return [
     {
       name: listName,
       title: `List ${title.toLowerCase()} lines`,
-      description: `Returns the ${title.toLowerCase()} cashflows of the plan with plan_id for the current user. Each line includes amount, frequency, start/end month and category.`,
+      description: `Returns the ${title.toLowerCase()} cashflows of the plan with plan_id for the current user. Each line includes amount, frequency, start/end month and category. Reads the plan document first (the source the engine projects from); falls back to the store.`,
       inputSchema: { plan_id: z.string() },
       async handler(ctx: any, args: Record<string, any>) {
         const missing = requireFields(args, ["plan_id"]);
         if (missing) return missing;
-        return callUseCase(() =>
-          useCase.list({ plan_id: args.plan_id, user_id: ctx.user_id })
-        );
+        const plan = await getPlanOrNull(args.plan_id);
+        const embedded = embeddedLines(plan);
+        if (embedded.length > 0) {
+          // union with store-registered lines so nothing is hidden
+          const storeLines = await useCase
+            .list({ plan_id: args.plan_id, user_id: ctx.user_id })
+            .catch(() => []);
+          const seen = new Set(embedded.map((c: any) => String(c._id)));
+          const extra = storeLines.filter((c: any) => !seen.has(String(c._id)));
+          return ok([...embedded, ...extra]);
+        }
+        return callUseCase(() => useCase.list({ plan_id: args.plan_id, user_id: ctx.user_id }));
       },
     },
     {
@@ -90,10 +113,11 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
     {
       name: updateName,
       title: `Update an ${title.toLowerCase()} line`,
-      description: `Patches the ${title.toLowerCase()} cashflow with income_id/expense_id. changes may include desc, amount, start_month, end_month, frequency or type; omitted fields keep their current values.`,
+      description: `Patches the ${title.toLowerCase()} cashflow with income_id/expense_id. changes may include desc, amount, start_month, end_month, frequency or type; omitted fields keep their current values. Pass plan_id to update a line embedded in the plan document; otherwise the store record is updated.`,
       inputSchema: {
         income_id: z.string().optional(),
         expense_id: z.string().optional(),
+        plan_id: z.string().optional(),
         changes: z.record(z.string(), z.any()),
       },
       async handler(ctx: any, args: Record<string, any>) {
@@ -102,6 +126,35 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
         if (missing) return missing;
         if (!isRecord(args.changes))
           return fail("VALIDATION_FAILED", "changes must be an object");
+
+        const plan = await getPlanOrNull(args.plan_id);
+        const embedded = plan ? findEmbedded(plan, id) : null;
+        if (embedded && plan) {
+          const planDoc: any = plan;
+          return callUseCase(async () => {
+            const merged: Record<string, any> = { ...embedded };
+            for (const key of CASHFLOW_CHANGE_KEYS) {
+              if (args.changes[key] !== undefined) merged[key] = args.changes[key];
+            }
+            const normalized = normalizeCashflowArgs(merged);
+            const updatedLine = {
+              ...merged,
+              ...normalized,
+              category,
+              active: merged.active ?? true,
+              primary: merged.primary ?? false,
+            };
+            return app.UpdatePlan({
+              _id: args.plan_id,
+              user_id: ctx.user_id,
+              ...planDoc,
+              cashflow_list: (planDoc.cashflow_list || []).map((c: any) =>
+                String(c._id) === String(id) ? updatedLine : c
+              ),
+            });
+          });
+        }
+
         return callUseCase(async () => {
           const existing: any = await cashflow_list.FindById(id);
           if (!existing) throw new InvalidOperationError(`cashflow not found: ${id}`);
@@ -131,15 +184,30 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
     {
       name: deleteName,
       title: `Delete an ${title.toLowerCase()} line`,
-      description: `Deletes the ${title.toLowerCase()} cashflow with income_id/expense_id. Fails if cashflow changes are still attached to the line — remove those first.`,
+      description: `Deletes the ${title.toLowerCase()} cashflow with income_id/expense_id. Fails if cashflow changes are still attached to the line — remove those first. Pass plan_id to remove a line embedded in the plan document; otherwise the store record is deleted.`,
       inputSchema: {
         income_id: z.string().optional(),
         expense_id: z.string().optional(),
+        plan_id: z.string().optional(),
       },
-      async handler(_ctx: any, args: Record<string, any>) {
+      async handler(ctx: any, args: Record<string, any>) {
         const id = args.income_id ?? args.expense_id;
         const missing = requireFields({ id }, ["id"]);
         if (missing) return missing;
+        const plan = await getPlanOrNull(args.plan_id);
+        if (plan && findEmbedded(plan, id)) {
+          const planDoc: any = plan;
+          return callUseCase(() =>
+            app.UpdatePlan({
+              _id: args.plan_id,
+              user_id: ctx.user_id,
+              ...planDoc,
+              cashflow_list: (planDoc.cashflow_list || []).filter(
+                (c: any) => String(c._id) !== String(id)
+              ),
+            })
+          );
+        }
         return callUseCase(() => useCase.delete({ id }));
       },
     },
