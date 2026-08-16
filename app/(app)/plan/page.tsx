@@ -157,6 +157,64 @@ function MonthlyStatement({ details, mobile = false }: { details: any; mobile?: 
   );
 }
 
+/** Paginated transaction rows for one account card (5 per page). */
+const TXN_PAGE_SIZE = 5;
+
+function AccountTxns({ txns, month }: { txns: any[]; month: number }) {
+  const rows = (txns || []).filter((t: any) => t.amount > 0);
+  const pages = Math.max(1, Math.ceil(rows.length / TXN_PAGE_SIZE));
+  const [page, setPage] = useState(0);
+  const safe_page = Math.min(page, pages - 1);
+  const visible = rows.slice(safe_page * TXN_PAGE_SIZE, safe_page * TXN_PAGE_SIZE + TXN_PAGE_SIZE);
+
+  return (
+    <>
+      {visible.map((txn: any, tidx: number) => (
+        <div key={tidx} className="mr-1 flex gap-2 text-[9px] text-dark-200 sm:mr-3 sm:text-[12px] md:text-[10px]">
+          <span className="font-medium md:font-normal">{txn.tran_desc}</span>
+          <div className="flex ml-auto">
+            <strong>
+              <DisplayAmount
+                className="text-dark-400"
+                notation={txn.amount > 999999 ? "compact" : "standard"}
+                amount={txn.amount}
+              />
+            </strong>
+          </div>
+          <div className={txn.tran_type === "cr" ? "text-success-400" : "text-red-400"}>{txn.tran_type}</div>
+        </div>
+      ))}
+      {pages > 1 && (
+        <div className="mr-1 flex items-center justify-between gap-2 pt-1 text-[10px] text-dark-300">
+          <button
+            type="button"
+            aria-label="Previous transactions"
+            disabled={safe_page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-dark-800 disabled:opacity-40"
+          >
+            <FontAwesomeIcon icon={faChevronLeft} className="h-2.5 w-2.5" />
+            Prev
+          </button>
+          <span>
+            {safe_page + 1}/{pages}
+          </span>
+          <button
+            type="button"
+            aria-label="Next transactions"
+            disabled={safe_page >= pages - 1}
+            onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-dark-800 disabled:opacity-40"
+          >
+            Next
+            <FontAwesomeIcon icon={faChevronRight} className="h-2.5 w-2.5" />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function BalanceAndTxn({
   balances,
   month,
@@ -165,8 +223,7 @@ function BalanceAndTxn({
   expenseStatement,
   alignment = "v",
   onEdit,
-}: {
-  balances: any[];
+}: {  balances: any[];
   month: number;
   fdpMonthMap?: Record<number, any>;
   accountList?: any[];
@@ -310,23 +367,7 @@ function BalanceAndTxn({
                 </div>
                 <hr className="hidden mb-1 md:block" />
                 <div className="flex flex-col self-center h-16 gap-1 pl-2 overflow-y-scroll border-l-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
-                  {(account.txn || [])
-                    .filter((t: any) => t.amount > 0)
-                    .map((txn: any, tidx: number) => (
-                      <div key={tidx} className="mr-1 flex gap-2 text-[9px] text-dark-200 sm:mr-3 sm:text-[12px] md:text-[10px]">
-                        <span className="font-medium md:font-normal">{txn.tran_desc}</span>
-                        <div className="flex ml-auto">
-                          <strong>
-                            <DisplayAmount
-                              className="text-dark-400"
-                              notation={txn.amount > 999999 ? "compact" : "standard"}
-                              amount={txn.amount}
-                            />
-                          </strong>
-                        </div>
-                        <div className={txn.tran_type === "cr" ? "text-success-400" : "text-red-400"}>{txn.tran_type}</div>
-                      </div>
-                    ))}
+                  <AccountTxns key={`${b.account_id}-${month}`} txns={account.txn || []} month={month} />
                 </div>
               </div>
             );
