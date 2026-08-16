@@ -714,9 +714,15 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     });
 
     let { success, created } = await cashflow_list.Add(income_object);
-    if (!plan.cashflow_list.some((c: any) => c._id === created._id))
-      (plan.cashflow_list as any).push(created._id);
-    await plan_list.Update({ ...plan });
+    // Embed the FULL line into the plan document (the projection engine iterates
+    // cashflow_list as objects — a bare id string is silently dropped, making
+    // the line "persisted but invisible" in statements).
+    const embedded_lines = (plan.cashflow_list || []).map((c: any) =>
+      c && typeof c === "object" && String(c._id) === String(created._id) ? created : c
+    );
+    if (!embedded_lines.some((c: any) => c && typeof c === "object" && c._id === created._id))
+      embedded_lines.push(created);
+    await plan_list.Update({ ...plan, cashflow_list: embedded_lines });
     if (success) return created;
   }
 
@@ -819,9 +825,15 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     });
 
     let { success, created } = await cashflow_list.Add(expense_object);
-    if (!plan.cashflow_list.some((c: any) => c._id === created._id))
-      (plan.cashflow_list as any).push(created._id);
-    await plan_list.Update({ ...plan });
+    // Embed the FULL line into the plan document (the projection engine iterates
+    // cashflow_list as objects — a bare id string is silently dropped, making
+    // the line "persisted but invisible" in statements).
+    const embedded_lines = (plan.cashflow_list || []).map((c: any) =>
+      c && typeof c === "object" && String(c._id) === String(created._id) ? created : c
+    );
+    if (!embedded_lines.some((c: any) => c && typeof c === "object" && c._id === created._id))
+      embedded_lines.push(created);
+    await plan_list.Update({ ...plan, cashflow_list: embedded_lines });
     if (success) return created;
   }
 

@@ -59,6 +59,25 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
     return (plan?.cashflow_list || []).find((c: any) => String(c._id) === String(id));
   }
 
+  /** Best-effort: mirror a store-updated/created line into the plan document so
+   *  the projection engine (which reads the plan doc) stays in sync. Passing
+   *  line=null removes the embedded copy (store delete). */
+  async function syncEmbeddedLine(plan_id: string, id: string, line: any) {
+    if (!plan_id) return;
+    const plan: any = await getPlanOrNull(plan_id);
+    if (!plan || !findEmbedded(plan, id)) return;
+    await app.UpdatePlan({
+      _id: plan_id,
+      user_id: line?.user_id ?? "",
+      ...plan,
+      cashflow_list: line
+        ? (plan.cashflow_list || []).map((c: any) =>
+            String(c._id) === String(id) ? { ...c, ...line, _id: c._id } : c
+          )
+        : (plan.cashflow_list || []).filter((c: any) => String(c._id) !== String(id)),
+    }).catch(() => {});
+  }
+
   return [
     {
       name: listName,
@@ -163,7 +182,7 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
             if (args.changes[key] !== undefined) merged[key] = args.changes[key];
           }
           const normalized = normalizeCashflowArgs(merged);
-          return useCase.update({
+          const result = await useCase.update({
             _id: id,
             plan_id: merged.plan_id,
             user_id: ctx.user_id,
@@ -178,6 +197,13 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
             active: merged.active ?? true,
             primary: merged.primary ?? false,
           });
+          // Keep the plan-document copy in sync (the projection engine reads it).
+          await syncEmbeddedLine(
+            String(merged.plan_id || ""),
+            id,
+            { ...merged, ...normalized, category, active: merged.active ?? true, primary: merged.primary ?? false }
+          );
+          return result;
         });
       },
     },
@@ -208,7 +234,13 @@ function buildCashflowTools(container: Container, category: "i" | "e") {
             })
           );
         }
-        return callUseCase(() => useCase.delete({ id }));
+        return callUseCase(async () => {
+          const existing: any = await cashflow_list.FindById(id);
+          const result = await useCase.delete({ id });
+          // remove the embedded copy too (if any)
+          if (existing) await syncEmbeddedLine(String(existing.plan_id || ""), id, null);
+          return result;
+        });
       },
     },
   ] as ToolDefinition[];

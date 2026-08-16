@@ -25,6 +25,9 @@
 - Fixed 5 pre-existing app-layer bugs found during tool wiring (Task 2.3) — `MakeCashFlowChange` empty title/desc, `UpdateIncome/UpdateExpense` dropping active/primary, `MakePlan` rejecting id-strings in cashflow_list, `UpdateCashflowChange` persisting random ObjectIds, share-object auth comparing ObjectId vs string.
 
 ### Fixed
+- "Persisted but invisible" add-side bug (Task 2.23) — `AddIncome`/`AddExpense` now embed the **full cashflow object** in `plan.cashflow_list` instead of a bare id string (the projection engine reads objects; strings were silently dropped). Store updates/deletes sync the embedded copy; `simulate_plan` errors carry the schema hint for `add_income`/`add_expense`; a migration (`standalone/embed-cashflows.ts`) hydrates existing bare-id entries.
+- The `simulate_plan` "invalid: cashflow should be an object" failure loop — schema hints + a prompt rule ("stop after 2 consecutive same-tool failures") cut the iteration-limit churn.
+- Permanent quality gate (`tests/mcp/quality.test.ts`) — add-then-project assertions for expense/income + the funded-purchase (₹T = ₹Y own + ₹Z loan) no-double-count guard; runs on every `npm test`.
 - SSE tool-use args were corrupted when `content_block_start` carried an empty `input: {}` placeholder — args now accumulate from `input_json_delta` fragments only (tool calls were silently dropped).
 - Loan disbursement now credits the bank account **one month before the first EMI** (`start_month - 1`; month 1 for loans starting in the first month) — the money arrives before the first EMI falls due; Loan Manager labels the field "EMI starts from".
 - Loan add/edit/delete in the Loan Manager auto-sync to the server — local-only saves were silently reverted by a refresh (the plan snapshot reads the server copy).

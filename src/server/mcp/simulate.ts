@@ -19,7 +19,9 @@ type PatchApplicator = (plan: any, patch: any) => void;
 function ApplyAddCashflow(plan: any, patch: any, category: "i" | "e"): void {
   const cashflow = patch.cashflow;
   if (!cashflow || typeof cashflow !== "object")
-    throw new InvalidPropertyError("invalid: cashflow should be an object");
+    throw new InvalidPropertyError(
+      `invalid: ${category === "i" ? "add_income" : "add_expense"} patches need a nested "cashflow" object (desc, amount, start_month, end_month) — ${PATCH_SCHEMA_HINT}`
+    );
 
   if (cashflow.category !== undefined && cashflow.category !== category)
     throw new InvalidPropertyError("invalid: cashflow category does not match op");
