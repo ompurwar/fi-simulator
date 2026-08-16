@@ -638,7 +638,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
 
         {/* selected loan meta card */}
         {show_loan_meta_card && selected_loan && (
-          <div className="flex flex-col gap-2 rounded-md border-dashed px-2 md:w-[470px]">
+          <div className="mb-12 flex flex-col gap-2 rounded-md border-dashed px-2 md:mb-0 md:w-[470px]">
             <LoanCard plan={plan} loan={selected_loan}>
               <div className="ml-auto self-center px-3 text-dark-300" onClick={() => SetState(stage, "edit", selected_loan_id)}>
                 <FontAwesomeIcon icon={faPenToSquare} className="self-center" />
