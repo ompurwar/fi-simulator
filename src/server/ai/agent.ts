@@ -138,6 +138,10 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<void> {
         name: call.name,
         ok: result.ok,
         error: result.ok ? undefined : result.error.message,
+        // Share-object results carry the created entity id — surfaced as a reference chip.
+        ...(result.ok && (call.name === "create_share_object" || call.name === "update_share_object")
+          ? { result: result.data }
+          : {}),
       });
       collectedResults.push({
         tool_use_id: call.id,

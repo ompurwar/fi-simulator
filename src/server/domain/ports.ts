@@ -89,6 +89,14 @@ export interface ApiTokenRepository {
   Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
 }
 
+export interface ChatSessionRepository {
+  Add(info: Record<string, any>): Promise<{ success: boolean; created: any }>;
+  FindById(session_id: string): Promise<any | null>;
+  FindByUserId(user_id: string): Promise<any[]>;
+  Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
+  Delete(session_id: string): Promise<{ success: boolean }>;
+}
+
 export interface CommonCollectionRepository {
   GetCommonCollectionList(): Promise<any>;
 }

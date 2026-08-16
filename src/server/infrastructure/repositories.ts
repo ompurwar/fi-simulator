@@ -8,6 +8,7 @@ import {
   MakePasswordResetSession,
   MakeShareObject,
   MakeApiToken,
+  MakeChatSession,
 } from "../domain/entities";
 import {
   CASHFLOW_CHANGE_CONSTANTS,
@@ -26,6 +27,7 @@ import type {
   PasswordResetSessionRepository,
   CommonCollectionRepository,
   ApiTokenRepository,
+  ChatSessionRepository,
 } from "../domain/ports";
 import { DbInsertFailedError } from "../domain/errors";
 
@@ -38,6 +40,7 @@ const shareObjectCollection = "Share_Object_Store";
 const resetSessionCollection = "Change_Pass_Session";
 const commonCollection = "Common_Collection";
 const apiTokenCollection = "Api_Token_Store";
+const chatSessionCollection = "Chat_Session_Store";
 
 function DocToUser(user_info: Record<string, any>): any {
   return MakeUser(user_info, GenerateHash);
@@ -541,6 +544,69 @@ export function makePasswordResetSessionRepository(
         .collection(resetSessionCollection)
         .updateMany(
           { _id: db.MakeId(_id), status: "active" },
+          { $set: { status: "deleted" } }
+        );
+      return { success: acknowledged };
+    },
+  };
+}
+
+/* ------------------------------ ChatSession ------------------------------ */
+
+export function makeChatSessionRepository(database: Database): ChatSessionRepository {
+  const db = database;
+  function DocToChatSession(session_info: Record<string, any>): any {
+    return MakeChatSession({
+      ...session_info,
+      _id: session_info._id.toString(),
+      user_id: session_info.user_id.toString(),
+    });
+  }
+  return {
+    async Add(session_info: Record<string, any>) {
+      const doc: Record<string, any> = { ...session_info };
+      // Let Mongo assign the ObjectId (matching makeUserRepository).
+      delete doc._id;
+      if (doc.user_id) doc.user_id = db.MakeId(doc.user_id);
+      doc.status = "active";
+      doc.created_at = Date.now();
+      doc.updated_at = doc.created_at;
+      const { acknowledged, insertedId } = await db
+        .collection(chatSessionCollection)
+        .insertOne(doc);
+      const created = DocToChatSession({ ...doc, _id: insertedId.toString() });
+      return { success: acknowledged, created };
+    },
+    async FindById(session_id: string) {
+      const found = await db
+        .collection(chatSessionCollection)
+        .findOne({ _id: db.MakeId(session_id), status: "active" });
+      return found ? DocToChatSession(found) : null;
+    },
+    async FindByUserId(user_id: string) {
+      const list = await db
+        .collection(chatSessionCollection)
+        .find({ user_id: db.MakeId(user_id), status: "active" })
+        .sort({ updated_at: -1 })
+        .toArray();
+      return list.map(DocToChatSession);
+    },
+    async Update({ _id, ...session_info }) {
+      if (session_info.user_id) session_info.user_id = db.MakeId(session_info.user_id);
+      session_info.updated_at = Date.now();
+      const { acknowledged } = await db
+        .collection(chatSessionCollection)
+        .updateMany(
+          { _id: db.MakeId(_id), status: "active" },
+          { $set: session_info }
+        );
+      return { success: acknowledged };
+    },
+    async Delete(session_id: string) {
+      const { acknowledged } = await db
+        .collection(chatSessionCollection)
+        .updateMany(
+          { _id: db.MakeId(session_id), status: "active" },
           { $set: { status: "deleted" } }
         );
       return { success: acknowledged };

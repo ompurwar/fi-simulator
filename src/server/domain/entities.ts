@@ -766,6 +766,57 @@ export function MakePasswordResetSession(
   return Object.freeze({ user_id, secret, expires_at, used, ...other_info });
 }
 
+/* ------------------------------ ChatSession ------------------------------ */
+
+export interface ChatSession {
+  _id: string;
+  user_id: string;
+  title: string;
+  messages: { role: "user" | "assistant"; content: string; created_at?: number }[];
+  created_at: number;
+  updated_at: number;
+  status?: "active" | "deleted";
+}
+
+export function MakeChatSession(input: Record<string, any>): ChatSession {
+  const {
+    _id = GenerateRandomString(24),
+    user_id,
+    title = "New chat",
+    messages = [],
+    created_at = Date.now(),
+    updated_at = created_at,
+    ...other_info
+  } = input;
+
+  if (typeof user_id !== "string" || user_id.length === 0)
+    throw new InvalidPropertyError("invalid: user_id is required");
+  if (typeof title !== "string")
+    throw new InvalidPropertyError("invalid: title should be a string");
+  if (!Array.isArray(messages))
+    throw new InvalidPropertyError("invalid: messages should be an array");
+  for (const message of messages) {
+    if (typeof message !== "object" || message === null)
+      throw new InvalidPropertyError("invalid: messages should be objects");
+    if (message.role !== "user" && message.role !== "assistant")
+      throw new InvalidPropertyError("invalid: message role");
+    if (typeof message.content !== "string")
+      throw new InvalidPropertyError("invalid: message content should be a string");
+  }
+  if (other_info.status && !/^(active|deleted)$/.test(other_info.status))
+    throw new InvalidPropertyError("status should be active | deleted");
+
+  return Object.freeze({
+    _id,
+    user_id,
+    title,
+    messages,
+    created_at,
+    updated_at,
+    ...other_info,
+  });
+}
+
 /* ------------------------------ ApiToken ------------------------------ */
 
 export interface ApiToken {

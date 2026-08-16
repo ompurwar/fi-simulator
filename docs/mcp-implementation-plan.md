@@ -316,6 +316,69 @@ token, CORS + Origin rules get involved, and every tool round-trip is a separate
 assistant is already server-side code, calling the registry directly is simpler, faster, and keeps the
 session cookie as the only credential. External agents still get full MCP (§6).
 
+### 7.4 Chat sessions & entity references (v1.1)
+
+**Goal:** conversations persist per user, the assistant window lists past sessions and lets the user
+resume them, and every entity the agent touches surfaces as a clickable reference in the chat.
+
+**Storage** — new `Chat_Session_Store` collection (entity `ChatSession`, port `ChatSessionRepository`):
+
+```mermaid
+erDiagram
+  User_Store ||--o{ Chat_Session_Store : "owns"
+  Chat_Session_Store {
+    object_id _id PK
+    string user_id FK
+    string title "first user message, truncated to 60 chars"
+    array messages "[{ role, content, created_at }] — user + assistant text only"
+    number created_at
+    number updated_at
+  }
+```
+
+**API (session-authenticated, same envelope as the rest of the app):**
+
+| Endpoint | Body | Returns |
+|---|---|---|
+| `POST /api/chat_session/create` | `{ data: { title? } }` | `{ session_id }` |
+| `POST /api/chat_session/list` | `{ data: {} }` | `[{ _id, title, created_at, updated_at, message_count }]` |
+| `POST /api/chat_session/get` | `{ data: { session_id } }` | `{ session, messages }` (ownership enforced) |
+| `POST /api/chat_session/delete` | `{ data: { session_id } }` | `{ deleted: true }` |
+| `POST /api/assistant/chat` | `{ session_id?, messages }` | now **persists**: loads stored history into the model context, appends the user message + final assistant text, emits `{ type: "session", id }` as the first SSE event, updates `title`/`updated_at` |
+
+**Entity references** — derived **client-side** from the streamed `tool_call`/`tool_result` events (no
+backend round-trip): every tool argument or result containing an entity id yields a reference chip in the
+message:
+
+| Entity | Source (tool args / result) | Target |
+|---|---|---|
+| Plan | `plan_id` in any tool args or `_id` in plan results | `/plan?p_id=<id>` |
+| Cashflow / income / expense / cashflow change | `plan_id` present in the same call | `/plan?p_id=<id>` (entity lives inside the plan) |
+| Share object | `AddShareObject`/`UpdateShareObject` result `_id`/`share_ids` | `/shared_templates` |
+| Net worth | `networth_*` tool names | `/networth` |
+
+**UI (ChatPanel)** — session list drawer (open/close button): shows `title`, relative `updated_at`,
+"New session" action; clicking a session loads it (fetch + restore message bubbles + `session_id`) and
+continues; delete with confirm. References render as chips (icon + label) below the message, navigable
+with `router.push`.
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant P as ChatPanel
+  participant R as /api/assistant/chat
+  participant C as ChatSessionRepo
+  participant D as MongoDB
+
+  U->>P: open session "Runway question"
+  P->>R: POST { session_id, messages:[...] }
+  R->>C: GetChatSession(user_id, session_id) → history
+  R->>R: prepend history to model context
+  R-->>P: SSE: session event, text, tool_call (plan_id), tool_result, done
+  P->>P: render references from plan_id (chip → /plan?p_id=)
+  R->>C: append user msg + assistant text, bump updated_at
+```
+
 ---
 
 ## 8. Tool Inventory (v1)
@@ -668,6 +731,6 @@ engine tools exist — the LLM loop can land in parallel with MCP transports), t
 - MCP *resources* / *prompts* — tools only
 - Multi-tenancy / orgs
 - Agent-to-agent sharing of tokens
-- Persistent chat history / memory / RAG over docs
+- Persistent chat history beyond per-session persistence (memory / RAG over docs) — v2
 - Custom model fine-tuning; non-Anthropic providers (interface ready, impl later)
 - Any change to how the web app works (assistant UI is additive)

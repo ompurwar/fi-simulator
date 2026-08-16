@@ -16,6 +16,7 @@ export interface AiToolDef {
 
 /** Events streamed to the chat UI over SSE. */
 export type AiStreamEvent =
+  | { type: "session"; id: string }
   | { type: "text"; text: string }
   | { type: "thinking"; text: string }
   | { type: "tool_call"; name: string; args: Record<string, any> }

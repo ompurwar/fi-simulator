@@ -711,6 +711,55 @@ export function MakeControllers(app: ApplicationLayer) {
     };
   };
 
+  /* ---------------------------- ChatSession ---------------------------- */
+
+  const ChatSessionCreate = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const { title } = http_request.body.data;
+    const result = await app.CreateChatSession({ user_id, title });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const ChatSessionList = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const sessions = await app.ListChatSessions({ user_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: sessions, status: "success", error: null },
+    };
+  };
+
+  const ChatSessionGet = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const { session_id } = http_request.body.data;
+    const session = await app.GetChatSession({ user_id, session_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: { session, messages: session.messages }, status: "success", error: null },
+    };
+  };
+
+  const ChatSessionDelete = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const { session_id } = http_request.body.data;
+    const result = await app.DeleteChatSession({ user_id, session_id });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
   return {
     Login,
     IsLoggedIn,
@@ -748,6 +797,10 @@ export function MakeControllers(app: ApplicationLayer) {
     ApiTokenCreate,
     ApiTokenList,
     ApiTokenRevoke,
+    ChatSessionCreate,
+    ChatSessionList,
+    ChatSessionGet,
+    ChatSessionDelete,
     PlanSnapshot,
     GetNetWorthStatus,
     ConnectNetWorth,

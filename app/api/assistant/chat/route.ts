@@ -57,35 +57,106 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Optional session_id: must be a string; ownership checked via GetChatSession.
+  let chatSessionId: string | null = null;
+  if (body?.session_id !== undefined && body?.session_id !== null) {
+    if (typeof body.session_id !== "string" || body.session_id.length === 0) {
+      return NextResponse.json(
+        { error: { message: "session_id must be a string" } },
+        { status: 400 }
+      );
+    }
+    chatSessionId = body.session_id;
+  }
+
+  // Load stored history for the given session (404 if missing or not owned).
+  let storedHistory: { role: "user" | "assistant"; content: string }[] = [];
+  if (chatSessionId) {
+    try {
+      const stored = await container.app.GetChatSession({ user_id, session_id: chatSessionId });
+      storedHistory = (Array.isArray(stored.messages) ? stored.messages : []).map(
+        (m: any) => ({ role: m.role, content: m.content })
+      );
+    } catch {
+      return NextResponse.json({ error: { message: "session not found" } }, { status: 404 });
+    }
+  }
+
   if (!container.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: { message: "AI not configured" } }, { status: 503 });
   }
 
+  // Create the session up front so the FIRST SSE event can carry its id.
+  if (!chatSessionId) {
+    const firstUserMessage = messages.find((m) => m.role === "user");
+    const created = await container.app.CreateChatSession({
+      user_id,
+      title: firstUserMessage ? firstUserMessage.content.slice(0, 60) : undefined,
+    });
+    chatSessionId = created.session_id;
+  }
+
+  // Model context = stored history + the incoming messages (the client is not
+  // trusted to repeat history, so storedHistory is never duplicated).
+  const contextMessages: AiMessage[] = [...storedHistory, ...messages];
+
   const registry = makeToolRegistry(container);
   const encoder = new TextEncoder();
 
+  let collectedText = "";
+  let hadToolActivity = false;
+  let streamErrored = false;
+
   const stream = new ReadableStream({
     async start(controller) {
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ type: "session", id: chatSessionId })}\n\n`)
+      );
       try {
         await runAgentLoop({
           ctx: { user_id },
-          messages,
+          messages: contextMessages,
           registry,
           provider: container.ai_provider,
           onEvent: (event) => {
+            if (event.type === "text") collectedText += event.text;
+            if (event.type === "tool_call" || event.type === "tool_result")
+              hadToolActivity = true;
+            if (event.type === "error") streamErrored = true;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           },
         });
       } catch (e: any) {
+        streamErrored = true;
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ type: "error", message: String(e?.message || e) })}\n\n`)
         );
       } finally {
+        await persistChat();
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       }
     },
   });
+
+  const userMessages = messages.filter((m) => m.role === "user");
+
+  async function persistChat() {
+    const assistantText = collectedText.trim();
+    if (streamErrored || (!assistantText && !hadToolActivity)) return;
+    for (const message of userMessages) {
+      await appendMessage(message.role, message.content);
+    }
+    if (assistantText) await appendMessage("assistant", assistantText);
+  }
+
+  async function appendMessage(role: "user" | "assistant", content: string) {
+    try {
+      await container.app.AppendChatMessage({ user_id, session_id: chatSessionId!, role, content });
+    } catch (e: any) {
+      console.error("[fi-plan] chat persistence failed:", e?.message || e);
+    }
+  }
 
   return new NextResponse(stream, {
     headers: {

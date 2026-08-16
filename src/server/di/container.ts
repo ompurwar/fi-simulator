@@ -4,6 +4,7 @@ import type {
   ApiTokenRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
+  ChatSessionRepository,
   CommonCollectionRepository,
   Database,
   PasswordResetSessionRepository,
@@ -26,6 +27,7 @@ import {
   makeApiTokenRepository,
   makeCashFlowChangeRepository,
   makeCashFlowRepository,
+  makeChatSessionRepository,
   makeCommonCollectionRepository,
   makePasswordResetSessionRepository,
   makePlanTemplateRepository,
@@ -58,6 +60,7 @@ export interface Container {
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
+  chat_session_list: ChatSessionRepository;
   app: ApplicationLayer;
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
@@ -105,6 +108,7 @@ export async function buildContainer(
   });
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
+  const chat_session_list = makeChatSessionRepository(db);
 
   const networth_repo = makeNetWorthRepository(db);
   const networth_provider =
@@ -142,6 +146,7 @@ export async function buildContainer(
     password_reset_session_list,
     common_collection_list,
     api_token_list,
+    chat_session_list,
     networth_service,
     GenerateHash,
     CreateCredentials,
@@ -167,6 +172,7 @@ export async function buildContainer(
     password_reset_session_list,
     common_collection_list,
     api_token_list,
+    chat_session_list,
     app,
     networth_repo,
     networth_provider,

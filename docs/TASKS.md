@@ -28,3 +28,6 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 2.8 | `app/api/assistant/chat/route.ts` — session auth + SSE streaming + tests | DONE | — | Events: text, tool_call, tool_result, error, done + `[DONE]` |
 | 2.9 | ChatPanel UI — floating assistant panel | DONE | — | `src/components/assistant/ChatPanel.tsx` mounted in `app/(app)/layout.tsx` |
 | 2.10 | Agent usage guide + CHANGELOG + TASKS completion | DONE | — | `docs/mcp-usage.md` |
+| 2.11 | Chat sessions backend — entity + repo + `create/list/get/delete` use cases + routes + tests | TODO | — | `Chat_Session_Store`; ownership enforced |
+| 2.12 | Chat route persistence — `session_id` support, history into model context, append + `session` SSE event | TODO | — | Title from first user message; updated_at bump |
+| 2.13 | ChatPanel sessions + references — session list drawer, resume/delete, entity reference chips | TODO | — | Chips → `/plan?p_id=`, `/networth`, `/shared_templates` |

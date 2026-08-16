@@ -40,6 +40,10 @@ const ENDPOINTS = {
   API_TOKEN_LIST: "/api_token/list",
   API_TOKEN_REVOKE: "/api_token/revoke",
   ASSISTANT_CHAT: "/assistant/chat",
+  CHAT_SESSION_CREATE: "/chat_session/create",
+  CHAT_SESSION_LIST: "/chat_session/list",
+  CHAT_SESSION_GET: "/chat_session/get",
+  CHAT_SESSION_DELETE: "/chat_session/delete",
 };
 
 export { ENDPOINTS };
@@ -127,18 +131,27 @@ export const api = {
 
   /* ------- assistant ------- */
   /** Raw SSE fetch for the assistant — returns the Response so the caller can read res.body. */
-  ChatAssistant: async (messages: AssistantMessage[]): Promise<Response> => {
+  ChatAssistant: async (messages: AssistantMessage[], session_id?: string): Promise<Response> => {
     try {
       return await fetch(`${API_BASE}${ENDPOINTS.ASSISTANT_CHAT}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ ...(session_id ? { session_id } : {}), messages }),
       });
     } catch {
       throw new FiPlanServerHttpError("network error", { code: 0 });
     }
   },
+
+  /* ------- chat sessions ------- */
+  CreateChatSession: (title?: string) =>
+    Post<{ session_id: string }>(ENDPOINTS.CHAT_SESSION_CREATE, { data: { title } }),
+  ListChatSessions: () => Post<ChatSessionSummary[]>(ENDPOINTS.CHAT_SESSION_LIST, { data: {} }),
+  GetChatSession: (session_id: string) =>
+    Post<{ session: ChatSessionDetail }>(ENDPOINTS.CHAT_SESSION_GET, { data: { session_id } }),
+  DeleteChatSession: (session_id: string) =>
+    Post<{ deleted: boolean }>(ENDPOINTS.CHAT_SESSION_DELETE, { data: { session_id } }),
 };
 
 export interface ApiToken {
@@ -152,6 +165,27 @@ export interface ApiToken {
 export interface AssistantMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface ChatSessionSummary {
+  _id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  message_count: number;
+}
+
+export interface ChatSessionMessage {
+  role: "user" | "assistant";
+  content: string;
+  created_at?: number;
+}
+
+export interface ChatSessionDetail {
+  _id: string;
+  title: string;
+  updated_at: number;
+  messages: ChatSessionMessage[];
 }
 
 export default api;
