@@ -85,6 +85,32 @@ describe("in-app assistant chat route", () => {
     expect(res.text).toContain("AI not configured");
   });
 
+  it("blocks off-topic requests via the guardrail gate — no LLM, no session, friendly error", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+    const res = await chat(
+      { messages: [{ role: "user", content: "write a python function to sort a list" }] },
+      { "auth-token": session_id }
+    );
+    const events = parseSse(res.text);
+
+    expect(res.status).toBe(200);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "error", code: "OFF_TOPIC" });
+    expect(events[0].message).toContain("financial planning assistant");
+    expect(res.text).toContain("[DONE]");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("allows small talk and plan questions through the guardrail gate", async () => {
+    const res = await chat(
+      { messages: [{ role: "user", content: "what's my current runway?" }] },
+      { "auth-token": session_id }
+    );
+    // No API key here → the request passes the guardrail and hits the 503 key check.
+    expect(res.status).toBe(503);
+  });
+
   it("rejects a malformed messages payload (400)", async () => {
     const res = await chat({ messages: "nope" }, { "auth-token": session_id });
     expect(res.status).toBe(400);

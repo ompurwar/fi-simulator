@@ -22,7 +22,7 @@ export type AiStreamEvent =
   | { type: "tool_call"; name: string; args: Record<string, any> }
   | { type: "tool_result"; name: string; ok: boolean; error?: string }
   | { type: "done" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; code?: string };
 
 export interface AiProvider {
   /** Stream an Anthropic Messages request; yields raw text deltas and completed tool_use blocks (with full JSON args). */

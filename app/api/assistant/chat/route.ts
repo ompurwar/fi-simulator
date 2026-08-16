@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildContainer } from "@/server/di/container";
 import { makeToolRegistry } from "@/server/mcp";
 import { runAgentLoop } from "@/server/ai/agent";
+import { classifyTopic, OFF_TOPIC_MESSAGES } from "@/server/ai/guardrails";
 import type { AiMessage } from "@/server/ai/types";
 
 // One expensive container per process, built from process.env (mirrors app/api/mcp/route.ts).
@@ -55,6 +56,31 @@ export async function POST(req: NextRequest) {
       { error: { message: "messages must be a non-empty array of { role, content } (max 50)" } },
       { status: 400 }
     );
+  }
+
+  // Guardrail gate: block clear-cut off-topic requests BEFORE any LLM cost.
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const verdict = lastUserMessage ? classifyTopic(lastUserMessage.content) : { decision: "allow" as const };
+  if (verdict.decision === "block") {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "error", code: "OFF_TOPIC", message: OFF_TOPIC_MESSAGES[verdict.reason] ?? "That's outside what I can help with." })}\n\n`
+          )
+        );
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+      },
+    });
   }
 
   // Optional session_id: must be a string; ownership checked via GetChatSession.
