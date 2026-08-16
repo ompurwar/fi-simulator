@@ -35,3 +35,5 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 2.15 | Markdown rendering — react-markdown + GFM, dark-themed; plain while streaming | DONE | — | |
 | 2.16 | Guardrails — pre-LLM topic gate + system-prompt scope rules + tests | DONE | — | `OFF_TOPIC` error event; blocks coding/other domains/standalone math |
 | 2.17 | DeepSeek support + thinking echo — `AI_BASE_URL`/`AI_MODEL` env, thinking-block capture/echo + tests | DONE | — | DeepSeek's Anthropic-compatible endpoint works as-is |
+| 2.18 | Loan tools — `list/add/update/delete_loan` (persist via `UpdatePlan`, entity-validated) + tests | DONE | — | `deposit_to_bank: false` fixes double-counted disbursement |
+| 2.19 | Chat UX polish — copy-message button, Claude Code-style thinking indicator + caret | DONE | — | Pulsing reasoning bubble → collapsible "Reasoning" toggle |

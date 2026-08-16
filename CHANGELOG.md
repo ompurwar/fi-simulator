@@ -18,6 +18,8 @@
 - Markdown replies (Task 2.15) — assistant messages render as GitHub-flavored markdown (tables/lists/code, dark-themed) via react-markdown; plain text while streaming.
 - Guardrails (Task 2.16) — deterministic pre-LLM topic gate (`classifyTopic`) blocks coding, other domains and standalone math with a friendly `OFF_TOPIC` decline; system prompt enforces scope + exact cashflow-change frequency semantics (one-time vs yearly vs monthly).
 - DeepSeek support + thinking echo (Task 2.17) — `AI_BASE_URL`/`AI_MODEL` env make any Anthropic-format endpoint work (`https://api.deepseek.com/anthropic`); thinking blocks are captured from the stream and echoed back verbatim (required by DeepSeek thinking mode, spec-correct for Anthropic).
+- Loan tools (Task 2.18) — `list_loans`, `add_loan`, `update_loan`, `delete_loan` persist through `UpdatePlan` with full entity validation; `deposit_to_bank: false` removes a double-counted disbursement credit while keeping EMI + amortization.
+- Chat UX (Task 2.19) — copy-message button on assistant bubbles; Claude Code-style thinking indicator (pulsing reasoning bubble with staggered dots → auto-folding "Reasoning" toggle) and a blinking caret on streamed text.
 - Fixed 5 pre-existing app-layer bugs found during tool wiring (Task 2.3) — `MakeCashFlowChange` empty title/desc, `UpdateIncome/UpdateExpense` dropping active/primary, `MakePlan` rejecting id-strings in cashflow_list, `UpdateCashflowChange` persisting random ObjectIds, share-object auth comparing ObjectId vs string.
 
 ### Fixed

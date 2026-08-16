@@ -503,10 +503,17 @@ refinement on top of the JSON-string envelopes if agents start needing strictly 
 | `update_share_object` | `share_id, changes` | `UpdateShareObject` |
 | `delete_share_object` | `share_id` | `DeleteShareObject` |
 
-### 8.7 Loan / FDP (v1.1 — engine already supports both)
+### 8.7 Loans
 
-Loan/FDP creation goes through `UpdatePlan` patches today; v1.1 adds dedicated tools once the web app's
-loan/FDP flows are confirmed (engine has `MakeLoanObject`, `AmortizationScheduleByMonth`, `MakeLoanScheduleByMonthToCashFlow`).
+| Tool | Inputs | Use case | Persists? |
+|---|---|---|---|
+| `list_loans` | `plan_id` | plan doc `loan_accounts` | ❌ read-only |
+| `add_loan` | `plan_id, principal_amount, interest_rate, start_month, end_month, title?, type? (1-5), deposit_to_bank?` | `MakeLoanObject` + `UpdatePlan` | ✅ |
+| `update_loan` | `plan_id, loan_id, changes` (title, amounts, months, type, deposit_to_bank…) | `UpdatePlan` (entity-validated) | ✅ |
+| `delete_loan` | `plan_id, loan_id` | `UpdatePlan` (removes EMI + disbursement) | ✅ |
+
+`deposit_to_bank: true` credits the principal into the bank account at `start_month` (disbursement);
+setting it `false` removes a double-counted cash credit while keeping EMI + amortization intact.
 
 ---
 

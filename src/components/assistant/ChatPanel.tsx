@@ -16,6 +16,8 @@ import {
   faTrash,
   faBrain,
   faChevronDown,
+  faCopy,
+  faRotateRight,
   faFolderOpen,
   faLandmark,
   faShareNodes,
@@ -164,6 +166,37 @@ function MarkdownText({ text }: { text: string }) {
   );
 }
 
+/** Copy-to-clipboard button with transient "Copied" feedback. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable — ignore
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Copy message"
+      onClick={copy}
+      className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors ${
+        copied
+          ? "text-success-300"
+          : "text-dark-400 hover:bg-dark-800 hover:text-dark-100"
+      }`}
+    >
+      <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-2.5 w-2.5" />
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
 /** Module-level open trigger — registered by the panel, called by external launchers. */let openAssistant: (() => void) | null = null;
 
 /** Open the assistant from anywhere (e.g. the mobile TopNav button). */
@@ -200,6 +233,7 @@ export function ChatPanel() {
   const items_ref = useRef<ChatItem[]>([]);
   const list_ref = useRef<HTMLDivElement | null>(null);
   const pending_refs_ref = useRef<ReferenceChip[]>([]);
+  const last_user_ref = useRef<string>("");
 
   useEffect(() => {
     // expose an imperative open trigger for launchers outside this component
@@ -224,6 +258,7 @@ export function ChatPanel() {
       setThinkingText("");
       setAnswerStarted(false);
       setThinkingCollapsed(true);
+      last_user_ref.current = "";
     }
   }, [profile]);
 
@@ -257,6 +292,7 @@ export function ChatPanel() {
     setThinkingText("");
     setAnswerStarted(false);
     setThinkingCollapsed(true);
+    last_user_ref.current = "";
   }
 
   function FlushRefs(assistant_id: number | null) {
@@ -284,6 +320,7 @@ export function ChatPanel() {
     const history = [{ role: "user" as const, content }];
 
     setInput("");
+    last_user_ref.current = content;
     setItems((prev) => [...prev, { id: NextId(), kind: "message", role: "user", content }]);
     pending_refs_ref.current = [];
 
@@ -714,6 +751,11 @@ export function ChatPanel() {
                           ))}
                         </div>
                       )}
+                      {!is_user && (
+                        <div className="mt-1.5 flex justify-end">
+                          <CopyButton text={item.content} />
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -748,14 +790,27 @@ export function ChatPanel() {
           {error && (
             <div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
               <span>{error}</span>
-              <button
-                type="button"
-                aria-label="Dismiss error"
-                className="text-danger-300 hover:text-danger-200"
-                onClick={() => setError("")}
-              >
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                {last_user_ref.current && !streaming && (
+                  <button
+                    type="button"
+                    aria-label="Retry last message"
+                    onClick={() => SendMessage(last_user_ref.current)}
+                    className="flex items-center gap-1 rounded-md px-2 py-1 text-danger-200 transition-colors hover:bg-danger-500/20 hover:text-danger-100"
+                  >
+                    <FontAwesomeIcon icon={faRotateRight} className="h-3 w-3" />
+                    Retry
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label="Dismiss error"
+                  className="text-danger-300 hover:text-danger-200"
+                  onClick={() => setError("")}
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </div>
             </div>
           )}
 
