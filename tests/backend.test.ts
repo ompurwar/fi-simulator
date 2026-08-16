@@ -291,6 +291,18 @@ describe("share objects", () => {
 });
 
 describe("engine", () => {
+  it("rejects GET on POST-only routes with 405 instead of crashing", async () => {
+    const res = await t.app(
+      new Request("http://localhost:3001/api/engine/plan_snapshot", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      })
+    );
+    expect(res.status).toBe(405);
+    const body = await res.json();
+    expect(body.error.msg).toBe("method not allowed");
+  });
+
   it("produces a plan snapshot for a signed-up user's plan", async () => {
     const { session_id } = await signupUser(t.app);
     const plan = (

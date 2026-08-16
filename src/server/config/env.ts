@@ -22,6 +22,14 @@ const envSchema = z.object({
   SUPPORT_MAIL: z.string().optional(),
   MAILER_NAME: z.string().optional(),
   INDMONEY_MCP_URL: z.string().default("https://mcp.indmoney.com/mcp"),
+  MCP_ENABLED: z.enum(["true", "false"]).default("true"),
+  AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  /** Anthropic-format endpoint; works with any compatible gateway, e.g. DeepSeek: https://api.deepseek.com/anthropic */
+  AI_BASE_URL: z.string().default("https://api.anthropic.com"),
+  /** Anthropic-format model name; DeepSeek maps claude-* names or accepts deepseek-v4-flash/-pro directly */
+  AI_MODEL: z.string().default("claude-3-5-sonnet-latest"),
+  FIPLAN_API_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

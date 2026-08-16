@@ -18,7 +18,9 @@ import {
   faCircleCheck,
   faWallet,
   faHouse,
+  faRobot,
 } from "@fortawesome/free-solid-svg-icons";
+import { OpenAssistant } from "@/components/assistant/ChatPanel";
 
 /** Port of the App.vue top navigation bar (fixed, bg-dark-50, px-2 py-3). */
 export function TopNav() {
@@ -137,6 +139,16 @@ export function TopNav() {
             </div>
           </Listbox>
         )}
+
+        {/* Assistant launcher (mobile only — desktop uses the floating FAB) */}
+        <button
+          type="button"
+          aria-label="Open Fi-Plan Assistant"
+          onClick={OpenAssistant}
+          className="grid h-[40px] w-[40px] self-center place-content-center rounded-md border-2 border-primary-400/40 bg-primary-500/10 text-primary-400 transition-colors hover:bg-primary-500/20 md:hidden"
+        >
+          <FontAwesomeIcon icon={faRobot} className="text-lg" />
+        </button>
 
         {/* Profile menu */}
         <Popover className="relative flex">

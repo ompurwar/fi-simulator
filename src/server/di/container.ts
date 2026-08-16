@@ -1,8 +1,10 @@
 import type { Env } from "../config/env";
 import { loadEnv } from "../config/env";
 import type {
+  ApiTokenRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
+  ChatSessionRepository,
   CommonCollectionRepository,
   Database,
   PasswordResetSessionRepository,
@@ -22,8 +24,10 @@ import {
   VerifyCookie,
 } from "../infrastructure/crypto";
 import {
+  makeApiTokenRepository,
   makeCashFlowChangeRepository,
   makeCashFlowRepository,
+  makeChatSessionRepository,
   makeCommonCollectionRepository,
   makePasswordResetSessionRepository,
   makePlanTemplateRepository,
@@ -41,6 +45,8 @@ import {
   type NetWorthRepository,
   type NetWorthService,
 } from "../networth";
+import { makeAnthropicProvider } from "../ai/provider";
+import type { AiProvider } from "../ai/types";
 
 export interface Container {
   env: Env;
@@ -53,10 +59,13 @@ export interface Container {
   share_object_list: ShareObjectRepository;
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
+  api_token_list: ApiTokenRepository;
+  chat_session_list: ChatSessionRepository;
   app: ApplicationLayer;
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
   networth_service: NetWorthService;
+  ai_provider: AiProvider;
   googleOAuth: GoogleOAuth;
   mailConfig: MailConfig;
   cookieSecret: string;
@@ -75,7 +84,7 @@ export interface Container {
 /** Composition root — wires the entire embedded server. */
 export async function buildContainer(
   envSource: Record<string, string | undefined> = process.env,
-  overrides: { networthProvider?: NetWorthProvider } = {}
+  overrides: { networthProvider?: NetWorthProvider; aiProvider?: AiProvider } = {}
 ): Promise<Container> {
   const env = loadEnv(envSource);
   const db = await makeDatabase(env.DB_URL, env.DB_NAME);
@@ -98,6 +107,8 @@ export async function buildContainer(
     pwResetSessionLengthMin,
   });
   const common_collection_list = makeCommonCollectionRepository(db);
+  const api_token_list = makeApiTokenRepository(db);
+  const chat_session_list = makeChatSessionRepository(db);
 
   const networth_repo = makeNetWorthRepository(db);
   const networth_provider =
@@ -108,6 +119,13 @@ export async function buildContainer(
     provider: networth_provider,
   });
 
+  const ai_provider =
+    overrides.aiProvider ??
+    makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
+      model: env.AI_MODEL,
+      baseURL: env.AI_BASE_URL,
+    });
+
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,
     apiKeyPrivate: env.MJ_APIKEY_PRIVATE,
@@ -115,6 +133,8 @@ export async function buildContainer(
     mailerName: env.MAILER_NAME,
     isDev: env.NODE_ENV !== "production",
   };
+
+  const cookieSecret = env.COOKIE_SECRET;
 
   const app = MakeApplicationLayer({
     user_list,
@@ -125,18 +145,20 @@ export async function buildContainer(
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    api_token_list,
+    chat_session_list,
     networth_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
     sessionTimeoutHours,
     pwResetSessionLengthMin,
+    cookieSecret,
     clientApplication,
     sendTemplateMail: (args) => SendTemplateMail(mailConfig, args),
   });
 
   const googleOAuth = buildGoogleOAuth(env);
-  const cookieSecret = env.COOKIE_SECRET;
 
   return {
     env,
@@ -149,10 +171,13 @@ export async function buildContainer(
     share_object_list,
     password_reset_session_list,
     common_collection_list,
+    api_token_list,
+    chat_session_list,
     app,
     networth_repo,
     networth_provider,
     networth_service,
+    ai_provider,
     googleOAuth,
     mailConfig,
     cookieSecret,

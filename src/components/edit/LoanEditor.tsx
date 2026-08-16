@@ -99,6 +99,7 @@ function LoanAccountCommand({
   onDone: (result: { action: string; loan_id?: string }) => void;
 }) {
   const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
+  const sync_plan = useFiPlanStore((s) => s.sync_plan);
   const common_collection = useFiPlanStore((s) => s.common_collection);
   const loan_type_options = (common_collection as any)?.loan_type || [];
 
@@ -126,7 +127,9 @@ function LoanAccountCommand({
         end_month: loan.end_month,
         interest_rate: loan.interest_rate,
         type: loan.type,
-        deposit_to_bank: loan.deposit_to_bank || false,
+        // Normalize: the engine credits only on strict `deposit_to_bank === true`,
+        // so a truthy non-boolean (e.g. the string "true") must not tick the box.
+        deposit_to_bank: loan.deposit_to_bank === true,
         loading: false,
         deleting: false,
       }));
@@ -175,7 +178,8 @@ function LoanAccountCommand({
       interest_rate: state.interest_rate,
       type: state.type,
       ref_id: state.ref_id,
-      deposit_to_bank: state.deposit_to_bank,
+      // always persist a real boolean so the engine and the checkbox agree
+      deposit_to_bank: state.deposit_to_bank === true,
     };
     setState((s: any) => ({ ...s, loading: true }));
     const loan_accounts = [...(plan.loan_accounts || [])];
@@ -185,6 +189,13 @@ function LoanAccountCommand({
       if (idx >= 0) loan_accounts[idx] = loan_obj;
     }
     update_plan_local({ ...plan, loan_accounts });
+    // Persist immediately — the plan page's snapshot and any refresh read the
+    // server copy, so a local-only edit would vanish on refresh.
+    try {
+      await sync_plan(plan._id);
+    } catch (e: any) {
+      alert(`Saved locally but could not sync to the server: ${e?.message || e}`);
+    }
     setState((s: any) => ({ ...s, loading: false }));
     onDone({ action: "added", loan_id: loan_obj._id });
   }
@@ -193,6 +204,11 @@ function LoanAccountCommand({
     setState((s: any) => ({ ...s, deleting: true }));
     const loan_accounts = (plan.loan_accounts || []).filter((l: any) => l._id !== loan?._id);
     update_plan_local({ ...plan, loan_accounts });
+    try {
+      await sync_plan(plan._id);
+    } catch (e: any) {
+      alert(`Deleted locally but could not sync to the server: ${e?.message || e}`);
+    }
     setState((s: any) => ({ ...s, deleting: false }));
     onDone({ action: "deleted" });
   }
@@ -302,7 +318,10 @@ function LoanAccountCommand({
       </div>
 
       <div className="flex grow flex-col gap-1 transition-all duration-200">
-        <span className="text-sm text-dark-300">Starting from</span>
+        <span className="text-sm text-dark-300">EMI starts from</span>
+        <span className="-mt-1 text-[10px] text-dark-500">
+          When checked, "Direct deposit" credits the loan amount here — the month before the first EMI.
+        </span>
         <div className="relative">
           <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
             <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
@@ -619,7 +638,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
 
         {/* selected loan meta card */}
         {show_loan_meta_card && selected_loan && (
-          <div className="flex flex-col gap-2 rounded-md border-dashed px-2 md:w-[470px]">
+          <div className="mb-12 flex flex-col gap-2 rounded-md border-dashed px-2 md:mb-0 md:w-[470px]">
             <LoanCard plan={plan} loan={selected_loan}>
               <div className="ml-auto self-center px-3 text-dark-300" onClick={() => SetState(stage, "edit", selected_loan_id)}>
                 <FontAwesomeIcon icon={faPenToSquare} className="self-center" />
@@ -646,12 +665,19 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
               onDone={(r) => {
                 if (r.action === "deleted") SetState(stage, "deleted");
                 if (r.action === "added") {
-                  SetState(stage, "back");
-                  setTimeout(() => {
-                    setStage("view_loan");
+                  if (mode === "add") {
+                    // new loan: return to the list, then open the new loan's view
+                    SetState(stage, "back");
+                    setTimeout(() => {
+                      setStage("view_loan");
+                      setSelectedLoanId(r.loan_id || "");
+                      setStack((s) => [...s, "view_loan"]);
+                    }, 1000);
+                  } else {
+                    // edit: we are already back on view_loan — refreshing the
+                    // selected id is enough (no duplicate breadcrumb entry)
                     setSelectedLoanId(r.loan_id || "");
-                    setStack((s) => [...s, "view_loan"]);
-                  }, 1000);
+                  }
                 }
               }}
             />

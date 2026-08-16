@@ -2,6 +2,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { buildContainer, type Container } from "@/server/di/container";
 import { buildApp } from "@/server/http/app";
 import type { NetWorthProvider } from "@/server/networth";
+import type { AiProvider } from "@/server/ai";
 
 /** A running test instance: in-memory Mongo + wired container + fetch handler. */
 export interface TestApp {
@@ -34,7 +35,7 @@ async function getMongo(): Promise<MongoMemoryServer> {
 
 /** Boot one sociable test instance against a fresh in-memory Mongo. */
 export async function createTestApp(
-  overrides: { networthProvider?: NetWorthProvider } = {}
+  overrides: { networthProvider?: NetWorthProvider; aiProvider?: AiProvider } = {}
 ): Promise<TestApp> {
   const mongo = await getMongo();
   const dbUrl = mongo.getUri();

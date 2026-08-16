@@ -9,3 +9,31 @@
 | 1.5 | Behavioral tests for the net worth flow | DONE | — | `tests/networth.test.ts` — fake provider at the port boundary, real repo/service/HTTP + in-memory Mongo |
 
 Acceptance criteria (feature): a user can connect their IndMoney account via the official MCP OAuth flow, sync a net worth snapshot, view it on `/networth`, and disconnect — all provider logic behind the `NetWorthProvider` interface so new providers can be added without touching the service layer.
+
+---
+
+## Phase 2: AI & MCP — one tool registry, three surfaces (branch `mcp-implementeation`)
+
+Plan: `docs/mcp-implementation-plan.md`.
+
+| # | Task | Status | Owner | Notes |
+|---|---|---|---|---|
+| 2.1 | ApiToken infra — entity + port + repo + Create/List/Revoke use cases + routes + tests | DONE | — | `Api_Token_Store`; `fp_` + 32 random chars, stored hashed via `GenerateHash(token, COOKIE_SECRET)`; raw token shown once |
+| 2.2 | mcp core — types, registry (`makeToolRegistry`), auth, `ApplyScenarioToPlan`, `makeMcpServer` | DONE | — | Single source of tool schemas (zod) + handlers `(ctx, args) → envelope` |
+| 2.3 | Tool definitions — plans, engine, cashflows, changes, networth, share + tests | DONE | — | 26 tools; also fixed 5 pre-existing app-layer bugs found during wiring |
+| 2.4 | API token management UI on profile page | DONE | — | `src/components/profile/ApiTokens.tsx` — create with one-time reveal, list, revoke |
+| 2.5 | `app/api/mcp/route.ts` — stateless Streamable HTTP (Bearer auth) | DONE | — | Per-request transport (SDK forbids reuse/connect); fresh `McpServer` per request over a cached container |
+| 2.6 | `standalone/mcp-stdio.ts` — stdio transport | DONE | — | `FIPLAN_API_TOKEN` env via `staticAuth` option; `npm run mcp:stdio` |
+| 2.7 | ai module — Anthropic provider, agent loop, prompts + tests | DONE | — | Plain `fetch` + manual SSE parse; `toJsonSchemaCompat` for tool schemas; 8-iteration cap |
+| 2.8 | `app/api/assistant/chat/route.ts` — session auth + SSE streaming + tests | DONE | — | Events: text, tool_call, tool_result, error, done + `[DONE]` |
+| 2.9 | ChatPanel UI — floating assistant panel | DONE | — | `src/components/assistant/ChatPanel.tsx` mounted in `app/(app)/layout.tsx` |
+| 2.10 | Agent usage guide + CHANGELOG + TASKS completion | DONE | — | `docs/mcp-usage.md` |
+| 2.11 | Chat sessions backend — entity + repo + `create/list/get/delete` use cases + routes + tests | DONE | — | `Chat_Session_Store`; ownership enforced |
+| 2.12 | Chat route persistence — `session_id` support, history into model context, append + `session` SSE event | DONE | — | Title from first user message; updated_at bump |
+| 2.13 | ChatPanel sessions + references — session list drawer, resume/delete, entity reference chips | DONE | — | Chips → `/plan?p_id=`, `/networth`, `/shared_templates` |
+| 2.14 | Mobile assistant — TopNav launcher (mobile) + full-screen panel | DONE | — | Desktop keeps the floating FAB |
+| 2.15 | Markdown rendering — react-markdown + GFM, dark-themed; plain while streaming | DONE | — | |
+| 2.16 | Guardrails — pre-LLM topic gate + system-prompt scope rules + tests | DONE | — | `OFF_TOPIC` error event; blocks coding/other domains/standalone math |
+| 2.17 | DeepSeek support + thinking echo — `AI_BASE_URL`/`AI_MODEL` env, thinking-block capture/echo + tests | DONE | — | DeepSeek's Anthropic-compatible endpoint works as-is |
+| 2.18 | Loan tools — `list/add/update/delete_loan` (persist via `UpdatePlan`, entity-validated) + tests | DONE | — | `deposit_to_bank: false` fixes double-counted disbursement |
+| 2.19 | Chat UX polish — copy-message button, Claude Code-style thinking indicator + caret | DONE | — | Pulsing reasoning bubble → collapsible "Reasoning" toggle |
