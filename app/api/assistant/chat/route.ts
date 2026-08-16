@@ -152,7 +152,19 @@ export async function POST(req: NextRequest) {
             if (event.type === "text") collectedText += event.text;
             if (event.type === "tool_call" || event.type === "tool_result")
               hadToolActivity = true;
-            if (event.type === "error") streamErrored = true;
+            if (event.type === "error") {
+              streamErrored = true;
+              // Agent-loop failures never throw — surface them to server logs
+              // (Vercel) with enough context to debug.
+              console.error(
+                `[fi-plan] assistant error (user=${user_id}, session=${chatSessionId}): ${event.code ? `[${event.code}] ` : ""}${event.message}`
+              );
+            }
+            if (event.type === "tool_result" && !event.ok) {
+              console.error(
+                `[fi-plan] assistant tool failure (user=${user_id}, session=${chatSessionId}): ${event.name} -> ${event.error || "unknown"}`
+              );
+            }
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           },
         });
