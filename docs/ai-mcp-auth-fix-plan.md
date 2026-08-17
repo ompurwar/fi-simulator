@@ -4,7 +4,8 @@
 >
 > Scope: verify the merged MCP + API-token layer, fix auth/gate gaps so **GitHub Copilot,
 > ChatGPT, Cursor, Windsurf, Claude Code/Desktop** connect reliably over MCP, and document
-> each client's connection flow.
+> each client's connection flow. **Extended** with a full **OAuth 2.1 authorization server**
+> (§9) for the IndMoney-style "Sign in with Fi-Plan" experience.
 
 ## 1. Background
 
@@ -111,3 +112,47 @@ POST handler, after auth:
 
 Token TTL · per-token scopes (read/write) · rate limiting · OAuth 2.1 MCP server
 (`OAuthServerProvider`) · MCP resources/prompts.
+
+## 9. Extended — OAuth 2.1 authorization server (IndMoney-style sign-in)
+
+> Implemented on this branch: **`OAuth 2.1 MCP authorization server`** — external MCP
+> clients (Claude Desktop, ChatGPT, GitHub Copilot, Cursor) now get the same experience
+> as IndMoney's MCP: register the server URL → "Sign in with Fi-Plan" → email/password
+> login → auto token, nothing to paste.
+
+### 9.1 What was built
+
+| Piece | Location |
+|---|---|
+| OAuth types + TTLs (code 10m, access 1h, refresh 30d) | `src/server/mcp/oauth/types.ts` |
+| Mongo store (`OAuth_Store`, `type` discriminator) | `src/server/mcp/oauth/repository.ts` |
+| Service: register / start / issueCode / exchange / refresh / verify / revoke | `src/server/mcp/oauth/service.ts` |
+| Fetch-style handlers (framework-agnostic, testable) | `src/server/mcp/oauth/handlers.ts` |
+| Routes under `/api/mcp/…` (catch-all) | `app/api/mcp/[...path]/route.ts` |
+| MCP transport accepts `fp_oa_…` access tokens | `app/api/mcp/route.ts` |
+| Login-page hook (`/login?oauth=<id>` → continue → client redirect) | `app/(app)/login/page.tsx` |
+| `npm run mcp:auth` CLI (token mint + auto-signup, prints client configs) | `standalone/mcp-auth.ts` |
+| Sociable tests (12) | `tests/mcp/oauth.test.ts` |
+
+### 9.2 Endpoints (discovered from metadata)
+
+```
+GET  /api/mcp/.well-known/oauth-authorization-server   metadata (RFC 8414)
+POST /api/mcp/oauth/register                            dynamic client registration (RFC 7591)
+GET  /api/mcp/oauth/authorize                           start → /login?oauth=<id> (auto-completes when already signed in)
+POST /api/mcp/oauth/authorize                           session → authorization code → redirect to client
+POST /api/mcp/oauth/token                               authorization_code / refresh_token (PKCE S256)
+POST /api/mcp/oauth/revoke                              RFC 7009
+```
+
+### 9.3 Security notes
+
+- PKCE **S256 required**; codes single-use (consumed only after successful verification)
+- Tokens opaque (`fp_oa_` / `fp_or_`), **stored hashed** with `GenerateHash` + `COOKIE_SECRET` (same as API tokens/passwords)
+- Client registration requires absolute `http(s)`/loopback/custom-scheme redirect URIs
+- All OAuth routes gated by `MCP_ENABLED` (404 when off); `/api/mcp` Origin allowlist applies to browser requests
+- Google sign-in + consent page: v2 (email/password login today)
+
+### 9.4 Usage
+
+`docs/mcp-usage.md` §0.2 — Claude Desktop config, ChatGPT/Copilot/Cursor flows, token-exchange diagram.

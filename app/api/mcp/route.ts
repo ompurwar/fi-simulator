@@ -84,7 +84,12 @@ export async function POST(req: NextRequest) {
   let authInfo;
   if (token) {
     try {
-      const ctx = await resolveApiToken(container, token);
+      // OAuth access tokens (IndMoney-style sign-in flow) carry the fp_oa_ prefix;
+      // everything else is treated as a manually minted API token (fp_).
+      const ctx =
+        token.startsWith("fp_oa_")
+          ? await container.oauth_service.verifyAccessToken(token)
+          : await resolveApiToken(container, token);
       authInfo = makeAuthInfo(ctx.user_id);
     } catch {
       authInfo = undefined;

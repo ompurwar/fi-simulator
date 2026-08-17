@@ -4,10 +4,54 @@ Design: `docs/mcp-implementation-plan.md` + `docs/ai-mcp-auth-fix-plan.md`.
 
 ## 0. Auth model (external agents)
 
-External agents authenticate to `/api/mcp` with an **API token** (Bearer):
+Two ways for external agents to authenticate to `/api/mcp`:
+
+1. **API token (Bearer)** — manual, for scripts/CLI agents (see §0.1)
+2. **OAuth 2.1 sign-in (IndMoney-style)** — interactive, for MCP clients with a
+   browser (Claude Desktop, ChatGPT, Copilot): "Sign in with Fi-Plan" → login →
+   auto token, nothing to paste (see §0.2)
+
+### 0.1 API tokens
 
 1. Create a token: Profile → API Tokens → Create (copy it — shown once; only a hash is stored).
 2. Send it on every request as `Authorization: Bearer fp_<token>`.
+
+Or mint it from the server env (assistant-runnable, auto-signup supported):
+
+```
+npm run mcp:auth -- --email me@example.com --password xxx
+# prints the token + ready-to-paste configs for every client
+```
+
+### 0.2 OAuth 2.1 sign-in (zero manual token)
+
+The server exposes a full OAuth 2.1 authorization server (PKCE S256) at the MCP
+endpoint — the same experience as IndMoney's MCP:
+
+- **Claude Desktop**: File → Settings → Developer → Edit Config →
+  `"mcpServers": { "fi-plan": { "url": "http://localhost:3001/api/mcp" } }` → the
+  app shows a "Sign in with Fi-Plan" button → browser opens → log in with
+  email/password → the client stores the token automatically.
+- **ChatGPT / GitHub Copilot / Cursor / Windsurf**: same — connect to the MCP URL
+  and complete the browser sign-in when prompted (no header to configure).
+
+Flow under the hood (all endpoints discovered from the metadata doc):
+
+```
+GET  /api/mcp/.well-known/oauth-authorization-server   metadata (RFC 8414)
+POST /api/mcp/oauth/register                            dynamic client registration (RFC 7591)
+GET  /api/mcp/oauth/authorize                           start → /login?oauth=<id>
+POST /api/mcp/oauth/authorize                           session → authorization code → redirect
+POST /api/mcp/oauth/token                               code/refresh exchange (RFC 6749, PKCE)
+POST /api/mcp/oauth/revoke                              revocation (RFC 7009)
+```
+
+Access tokens (`fp_oa_…`) are opaque, stored hashed, 1h TTL; refresh tokens
+(`fp_or_…`) 30d, session-style. `/api/mcp` accepts them as
+`Authorization: Bearer fp_oa_…` exactly like API tokens. Clients register
+dynamically — no static config needed. Consent page + Google sign-in: v2.
+
+### 0.3 Failure semantics (both modes)
 
 - Missing/invalid/revoked token → **HTTP 401 + `WWW-Authenticate: Bearer`** (spec-compliant; MCP
   clients surface a login/credential error instead of failing silently).
