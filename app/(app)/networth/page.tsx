@@ -102,7 +102,7 @@ function NetWorthDashboard() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // right after the OAuth callback lands us back here, pull data once

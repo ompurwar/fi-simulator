@@ -149,7 +149,7 @@ function LoginInner() {
       const { email, password, name } = values;
       setLoggingInWithOutGoogle(true);
       commit(null);
-      let [first_name, last_name = ""] = name.split(" ");
+      const [first_name, last_name = ""] = name.split(" ");
       const full_name = name.toLowerCase().trim();
       await api.Signup(email, password, first_name, last_name);
       setLoggingInWithOutGoogle(false);

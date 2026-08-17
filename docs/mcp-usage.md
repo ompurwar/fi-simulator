@@ -1,6 +1,21 @@
 # MCP & AI Assistant — Usage Guide
 
-Implemented on branch `mcp-implementeation`. Design: `docs/mcp-implementation-plan.md`.
+Design: `docs/mcp-implementation-plan.md` + `docs/ai-mcp-auth-fix-plan.md`.
+
+## 0. Auth model (external agents)
+
+External agents authenticate to `/api/mcp` with an **API token** (Bearer):
+
+1. Create a token: Profile → API Tokens → Create (copy it — shown once; only a hash is stored).
+2. Send it on every request as `Authorization: Bearer fp_<token>`.
+
+- Missing/invalid/revoked token → **HTTP 401 + `WWW-Authenticate: Bearer`** (spec-compliant; MCP
+  clients surface a login/credential error instead of failing silently).
+- Browser-originated requests (an `Origin` header is present) must come from the app's own origin
+  (`CLIENT_APPLICATION`) or an origin in `MCP_ALLOWED_ORIGINS` (comma-separated) → otherwise **HTTP 403**.
+  Server-to-server clients (Claude Code, GitHub Copilot, ChatGPT, curl, OpenCode) send no `Origin`
+  and are always allowed.
+- `MCP_ENABLED=false` disables the endpoint entirely (**404**).
 
 ## 1. In-app AI assistant
 
@@ -23,21 +38,78 @@ Requires an LLM key in the server env — any Anthropic-format endpoint works (s
 
 ## 2. External agents via MCP (HTTP)
 
-1. Create an API token: Profile → API Tokens → Create (copy it — shown once).
-2. Point any MCP client at the endpoint URL, e.g. Claude Code:
+### 2.1 Claude Code / Claude Desktop
 
 ```
 claude mcp add fi-plan --transport http http://localhost:3000/api/mcp --header "Authorization: Bearer fp_<token>"
 ```
 
-or OpenCode (`opencode.json`):
+### 2.2 GitHub Copilot
+
+Remote MCP server in VS Code settings (`github.copilot.chat.mcp.servers`) or `~/.copilot/mcp.json`:
+
+```jsonc
+{
+  "github.copilot.chat.mcp.servers": {
+    "fi-plan": {
+      "type": "http",
+      "url": "http://localhost:3000/api/mcp",
+      "headers": { "Authorization": "Bearer fp_<token>" }
+    }
+  }
+}
+```
+
+### 2.3 ChatGPT
+
+ChatGPT MCP connector (macOS ChatGPT app → Settings → Apps & Services → Connectors →
+MCP) — or any MCP-aware ChatGPT flow:
+
+- Server URL: `http://localhost:3000/api/mcp`
+- Auth type: **API key**
+- Header name: `Authorization`
+- Header value: `Bearer fp_<token>` (prefix `Bearer` + space + token)
+
+### 2.4 Cursor
+
+`.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+
+```jsonc
+{
+  "mcpServers": {
+    "fi-plan": {
+      "type": "http",
+      "url": "http://localhost:3000/api/mcp",
+      "headers": { "Authorization": "Bearer fp_<token>" }
+    }
+  }
+}
+```
+
+### 2.5 Windsurf
+
+`~/.codeium/windsurf/mcp_config.json`:
+
+```jsonc
+{
+  "mcpServers": {
+    "fi-plan": {
+      "type": "http",
+      "url": "http://localhost:3000/api/mcp",
+      "headers": { "Authorization": "Bearer fp_<token>" }
+    }
+  }
+}
+```
+
+### 2.6 OpenCode (`opencode.json`)
 
 ```jsonc
 { "mcp": { "fiplan": { "type": "remote", "url": "http://localhost:3000/api/mcp",
     "headers": { "Authorization": "Bearer fp_<token>" } } } }
 ```
 
-or a raw JSON-RPC check:
+### 2.7 Raw JSON-RPC check
 
 ```
 curl -X POST http://localhost:3000/api/mcp \
@@ -57,12 +129,13 @@ Claude Code: `claude mcp add fi-plan-local -- node_modules/.bin/tsx standalone/m
 
 ## 4. Tools
 
-30 tools across 7 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
+35 tools across 8 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
 `create_plan`, `update_plan`, `delete_plan`, `fork_plan`, `set_default_plan`),
 engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`), cashflows
 (income/expense list/add/update/delete), changes (`*_cashflow_change`), **loans
 (`list_loans`, `add_loan`, `update_loan`, `delete_loan`)**, net worth
-(`networth_status|sync|connect_url`), sharing (`*_share_object`).
+(`networth_status|sync|connect_url`), indstocks (`indstocks_positions`), sharing
+(`*_share_object`).
 
 `simulate_plan` takes `{ plan_json, patches: [{op, ...}], duration }` — ops:
 `add_income`, `add_expense`, `add_cashflow_change`, `add_loan`, `add_fdp`,
@@ -80,4 +153,5 @@ Cashflow-change frequency semantics: one-time = `end_month` equal to `start_mont
 | `AI_BASE_URL` | Anthropic-format endpoint — default `https://api.anthropic.com`; set `https://api.deepseek.com/anthropic` for DeepSeek |
 | `AI_MODEL` | Model name — default `claude-3-5-sonnet-latest`; DeepSeek: `deepseek-v4-flash` / `deepseek-v4-pro` (or any `claude-*` name, auto-mapped) |
 | `FIPLAN_API_TOKEN` | stdio single-user auth |
-| `MCP_ENABLED` | `true`/`false` gate for the MCP endpoint |
+| `MCP_ENABLED` | `true`/`false` gate for the MCP endpoint (false → 404) |
+| `MCP_ALLOWED_ORIGINS` | optional comma-separated extra browser origins allowed to call `/api/mcp`; server clients (no `Origin`) are always allowed |

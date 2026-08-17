@@ -249,7 +249,7 @@ export function GenerateTransactionsAndAccountBalances(
   account_list: AccountLike[] = [],
   loan_accounts: LoanLike[] = []
 ): TxnResult {
-  let transaction_list: Transaction[] = [];
+  const transaction_list: Transaction[] = [];
   let account_balances: AccountBalance[] = [];
   const account_map = GetHashmap(account_list, (account: any) => account._id);
   const FDP_month_map: Record<number, FDPLike> = {};

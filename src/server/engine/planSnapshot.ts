@@ -55,9 +55,9 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
     let expense_statement: MonthlyStatement[] = [];
     if (plan_obj) {
       let expense_list = (plan_obj.cashflow_list || []).filter((_: any) => _.category === "e");
-      let income_list = (plan_obj.cashflow_list || []).filter((_: any) => _.category === "i");
+      const income_list = (plan_obj.cashflow_list || []).filter((_: any) => _.category === "i");
       expense_list = [...expense_list, ...emi_expense_cashflow];
-      let cashflow_change_list = plan_obj.cashflow_change_list || [];
+      const cashflow_change_list = plan_obj.cashflow_change_list || [];
       income_statement = GetMonthlyIncomeList(dur, income_list, cashflow_change_list);
       expense_statement = GetMonthlyExpenseList(dur, expense_list, cashflow_change_list);
     }

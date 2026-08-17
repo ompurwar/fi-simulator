@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
   const registry = makeToolRegistry(container);
   const encoder = new TextEncoder();
 
-  let collectedSegments: string[] = [];
+  const collectedSegments: string[] = [];
   let currentSegment = "";
   let streamErrored = false;
   const ranTools = new Set<string>();

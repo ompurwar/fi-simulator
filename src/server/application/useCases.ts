@@ -172,11 +172,11 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     if (!IsValidEmail(email))
       throw new InvalidPropertyError(`${email} is not a valid email`);
 
-    let user_being_logging_in = await user_list.FindByEmail(email);
+    const user_being_logging_in = await user_list.FindByEmail(email);
     if (user_being_logging_in.length) {
-      let the_user = user_being_logging_in[0];
+      const the_user = user_being_logging_in[0];
       if (the_user.IsValidPassword!(password)) {
-        let session = MakeSession(
+        const session = MakeSession(
           { user_id: the_user._id.toString() },
           { sessionIdLength: 24, sessionTimeoutHours }
         );
@@ -205,13 +205,13 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     photos?: string[];
     src?: string;
   }) {
-    let user_obj = { first_name, last_name, email, password, photos, src };
-    let user_info = MakeUser(user_obj, GenerateHash);
-    let user_found = await user_list.FindByEmail(user_info.email);
+    const user_obj = { first_name, last_name, email, password, photos, src };
+    const user_info = MakeUser(user_obj, GenerateHash);
+    const user_found = await user_list.FindByEmail(user_info.email);
     if (!user_found.length) {
       const user_add_result = await user_list.Add(user_info);
       if (user_add_result.success) {
-        let session = MakeSession(
+        const session = MakeSession(
           { user_id: user_add_result.created._id },
           { sessionIdLength: 24, sessionTimeoutHours }
         );
@@ -250,12 +250,12 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       if (!user_id) RequiredParam("user_id");
       if (!current_password) RequiredParam("current_password");
 
-      let user = await user_list.FindById(user_id!);
+      const user = await user_list.FindById(user_id!);
       if (user && user.src !== "std")
         throw new InvalidOperationError(
           "this user do not have password based credentials"
         );
-      let valid = user!.IsValidPassword!(current_password!);
+      const valid = user!.IsValidPassword!(current_password!);
       if (!valid) throw new InvalidOperationError(user!.email);
 
       const credentials = CreateCredentials(new_password);
@@ -269,7 +269,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     }
     if (mode === "reset_forgotten") {
       if (!session_secret) RequiredParam("session_secret");
-      let reset_session = await password_reset_session_list.FindByUserIdAndSecret(
+      const reset_session = await password_reset_session_list.FindByUserIdAndSecret(
         session_secret!
       );
       if (!reset_session)
@@ -280,7 +280,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
         throw new InvalidOperationError("unauthorized session");
 
       const { user_id: reset_user_id } = reset_session;
-      let user = await user_list.FindById(reset_user_id);
+      const user = await user_list.FindById(reset_user_id);
       const credentials = CreateCredentials(new_password);
       user_list.Update({ _id: reset_user_id, credentials });
       password_reset_session_list.Update({
@@ -294,19 +294,19 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
   async function InitiateResetPasswordSession({ email }: { email: string }) {
     const reset_password_link_template_id = 4418784;
-    let [user] = await user_list.FindByEmail(email);
+    const [user] = await user_list.FindByEmail(email);
     if (!user) throw new UserNotFoundByEmailError(email);
     if (user && user.src !== "std")
       throw new InvalidOperationError(
         "this user do not have password based credentials"
       );
 
-    let reset_session = MakePasswordResetSession(
+    const reset_session = MakePasswordResetSession(
       { user_id: user._id },
       pwResetSessionLengthMin
     );
     await password_reset_session_list.Add(reset_session);
-    let link = CreatePasswordResetLink(reset_session.secret);
+    const link = CreatePasswordResetLink(reset_session.secret);
 
     sendTemplateMail({
       to: {
@@ -344,9 +344,9 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   /* ------------------------------ User ------------------------------ */
 
   async function GetUser({ user_id }: { user_id: string }) {
-    let user_found = await user_list.FindById(user_id);
+    const user_found = await user_list.FindById(user_id);
     if (user_found) {
-      let temp_user: any = { ...user_found };
+      const temp_user: any = { ...user_found };
       delete temp_user.credentials;
       delete temp_user.IsValidPassword;
       return temp_user;
@@ -361,17 +361,17 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     user_id: string;
     ob_params: Record<string, any>;
   }) {
-    let result = await user_list.Update({ _id: user_id, ob_params });
+    const result = await user_list.Update({ _id: user_id, ob_params });
     if (result.success) {
       let new_plan = null;
-      let user_found = await user_list.FindById(user_id);
+      const user_found = await user_list.FindById(user_id);
       if (user_found) {
-        let {
+        const {
           income,
           monthly_expense,
           runway,
         } = ob_params;
-        let plan_obj: Record<string, any> = {
+        const plan_obj: Record<string, any> = {
           user_id,
           title: "My first plan.",
           description: "",
@@ -383,7 +383,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
         };
 
         if (monthly_expense) {
-          let expense_cashflow = MakeCashFlow({
+          const expense_cashflow = MakeCashFlow({
             category: CASHFLOW_CONSTANTS.CATEGORY.EXPENSE,
             type: CASHFLOW_CONSTANTS.TYPE.PERIODIC,
             frequency: CASHFLOW_CONSTANTS.FREQUENCY.MONTHLY,
@@ -397,7 +397,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           plan_obj.cashflow_list.push(expense_cashflow);
         }
         if (income) {
-          let income_cashflow = MakeCashFlow({
+          const income_cashflow = MakeCashFlow({
             category: CASHFLOW_CONSTANTS.CATEGORY.INCOME,
             type: CASHFLOW_CONSTANTS.TYPE.PERIODIC,
             frequency: CASHFLOW_CONSTANTS.FREQUENCY.MONTHLY,
@@ -411,7 +411,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           plan_obj.cashflow_list.push(income_cashflow);
         }
 
-        let emergency_account = MakeAccount({
+        const emergency_account = MakeAccount({
           title: "Emergency",
           init_balance: runway && monthly_expense ? monthly_expense * runway : 0,
           category: ACCOUNT_CONSTANTS.CATEGORY.EMERGENCY,
@@ -420,7 +420,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           type: ACCOUNT_CONSTANTS.TYPE.ASSET,
           roi: 3,
         });
-        let saving_account = MakeAccount({
+        const saving_account = MakeAccount({
           title: "Saving",
           init_balance: 0,
           category: ACCOUNT_CONSTANTS.CATEGORY.SAVING,
@@ -429,7 +429,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           type: ACCOUNT_CONSTANTS.TYPE.ASSET,
           roi: 5,
         });
-        let investment_account = MakeAccount({
+        const investment_account = MakeAccount({
           title: "Investment",
           init_balance: 0,
           category: ACCOUNT_CONSTANTS.CATEGORY.INVESTMENT,
@@ -445,7 +445,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
         new_plan = await AddPlan(plan_obj);
       }
-      let temp_user = { ...user_found };
+      const temp_user = { ...user_found };
       delete (temp_user as any).credentials;
       delete (temp_user as any).IsValidPassword;
       return { user: temp_user, plan: new_plan };
@@ -460,13 +460,13 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     user_id: string;
     plan_id: string;
   }) {
-    let plan = await plan_list.FindById(plan_id);
+    const plan = await plan_list.FindById(plan_id);
     if (!plan)
       throw new InvalidOperationError(`Sorry invalid plan selected plan_id:${plan_id}`);
     if (plan.user_id.toString() !== user_id)
       throw new InvalidOperationError(`Sorry invalid plan selected plan_id:${plan_id}`);
 
-    let result = await user_list.Update({ _id: user_id, default_plan_id: plan_id });
+    const result = await user_list.Update({ _id: user_id, default_plan_id: plan_id });
     if (result.success) return null;
     throw new InvalidOperationError("Something went wrong.");
   }
@@ -518,7 +518,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
         description,
       });
     }
-    let { success, created } = await plan_list.Add(plan_object);
+    const { success, created } = await plan_list.Add(plan_object);
     if (success) return created;
   }
 
@@ -531,7 +531,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       monthly_expense,
       runway,
     } = input;
-    let plan_obj: Record<string, any> = {
+    const plan_obj: Record<string, any> = {
       user_id,
       title,
       description,
@@ -628,21 +628,21 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       description: plan_info.description,
       ...plan_info,
     });
-    let { success } = await plan_list.Update(plan_object);
+    const { success } = await plan_list.Update(plan_object);
     return success ? { updated: true } : null;
   }
 
   async function DeletePlan({ id }: { id: string }) {
-    let plan = await plan_list.FindById(id);
+    const plan = await plan_list.FindById(id);
     if (plan) {
-      let { success } = await plan_list.Delete(id);
+      const { success } = await plan_list.Delete(id);
       if (success) return true;
     }
   }
 
   async function ForkPlan(input: Record<string, any>) {
     const { plan_id, user_id, title, description, share_id, category } = input;
-    let plan_to_be_forked = await plan_list.FindById(plan_id);
+    const plan_to_be_forked = await plan_list.FindById(plan_id);
     if (!plan_to_be_forked) throw new InvalidOperationError("Plan not found!");
     if (
       !share_id &&
@@ -673,7 +673,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       fund_distribution_percentage,
       category,
     });
-    let { success, created } = await plan_list.Add(plan_object);
+    const { success, created } = await plan_list.Add(plan_object);
     if (success) return created;
   }
 
@@ -696,7 +696,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active = true,
       primary = false,
     } = input;
-    let plan = await plan_list.FindById(plan_id);
+    const plan = await plan_list.FindById(plan_id);
     if (!plan) throw new InvalidOperationError("Invalid plane Id Assigned");
 
     const income_object = MakeCashFlow({
@@ -713,7 +713,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       plan_id,
     });
 
-    let { success, created } = await cashflow_list.Add(income_object);
+    const { success, created } = await cashflow_list.Add(income_object);
     // Embed the FULL line into the plan document (the projection engine iterates
     // cashflow_list as objects — a bare id string is silently dropped, making
     // the line "persisted but invisible" in statements).
@@ -754,7 +754,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active,
       primary,
     });
-    let { updated } = await cashflow_list.Update({
+    const { updated } = await cashflow_list.Update({
       category: CASHFLOW_CONSTANTS.CATEGORY.INCOME,
       type,
       frequency,
@@ -771,18 +771,18 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     if (typeof id !== "string")
       throw new InvalidPropertyError("id should be of type string");
     if (id.length === 0) throw new InvalidPropertyError("id is required");
-    let cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
+    const cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
       cashflow_id: id,
     });
     if (!cashflow_changes.length) {
-      let income = await cashflow_list.FindById(id);
+      const income = await cashflow_list.FindById(id);
       if (income) {
         await plan_list.RemoveCashflowAndAccount({
           _id: income.plan_id,
           cashflow_list: [id],
         });
       }
-      let { success } = await cashflow_list.Delete({ _id: id });
+      const { success } = await cashflow_list.Delete({ _id: id });
       if (success) return true;
     }
     throw new InvalidOperationError(
@@ -807,7 +807,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active = true,
       primary = false,
     } = input;
-    let plan = await plan_list.FindById(plan_id);
+    const plan = await plan_list.FindById(plan_id);
     if (!plan) throw new InvalidOperationError("Invalid plane Id Assigned");
 
     const expense_object = MakeCashFlow({
@@ -824,7 +824,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       plan_id,
     });
 
-    let { success, created } = await cashflow_list.Add(expense_object);
+    const { success, created } = await cashflow_list.Add(expense_object);
     // Embed the FULL line into the plan document (the projection engine iterates
     // cashflow_list as objects — a bare id string is silently dropped, making
     // the line "persisted but invisible" in statements).
@@ -865,7 +865,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active,
       primary,
     });
-    let { updated } = await cashflow_list.Update({
+    const { updated } = await cashflow_list.Update({
       category: CASHFLOW_CONSTANTS.CATEGORY.EXPENSE,
       type,
       frequency,
@@ -882,18 +882,18 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     if (typeof id !== "string")
       throw new InvalidPropertyError("id should be of type string");
     if (id.length === 0) throw new InvalidPropertyError("id is required");
-    let cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
+    const cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
       cashflow_id: id,
     });
     if (!cashflow_changes.length) {
-      let expense = await cashflow_list.FindById(id);
+      const expense = await cashflow_list.FindById(id);
       if (expense) {
         await plan_list.RemoveCashflowAndAccount({
           _id: expense.plan_id,
           cashflow_list: [id],
         });
       }
-      let { success } = await cashflow_list.Delete({ _id: id });
+      const { success } = await cashflow_list.Delete({ _id: id });
       if (success) return true;
     }
     throw new InvalidOperationError(
@@ -918,9 +918,9 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active: true,
       ...input,
     });
-    let cashflow = await cashflow_list.FindById(cashflow_id);
+    const cashflow = await cashflow_list.FindById(cashflow_id);
     if (cashflow) {
-      let { success, created } = await cashflow_change_list.Add(cashflow_change_object);
+      const { success, created } = await cashflow_change_list.Add(cashflow_change_object);
       if (success) return created;
     }
     throw new InvalidOperationError(
@@ -938,7 +938,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       active: true,
       ...input,
     });
-    let { updated } = await cashflow_change_list.Update({
+    const { updated } = await cashflow_change_list.Update({
       _id,
       category,
       change_type,
@@ -948,7 +948,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   }
 
   async function DeleteCashflowChange({ id }: { id: string }) {
-    let { success } = await cashflow_change_list.Delete({ _id: id });
+    const { success } = await cashflow_change_list.Delete({ _id: id });
     if (success) return true;
   }
 
@@ -1004,8 +1004,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       ...other_info,
     });
 
-    let { success, created } = await share_object_list.Add(share_object);
-    let map_for_given_plan_ids_to_cloned_plans: Record<string, any> = {};
+    const { success, created } = await share_object_list.Add(share_object);
+    const map_for_given_plan_ids_to_cloned_plans: Record<string, any> = {};
 
     let fork_promises: any[] = [];
     if (created) {
@@ -1025,7 +1025,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
         map_for_given_plan_ids_to_cloned_plans[plan.parent_id.toString()] = plan;
       });
     }
-    let temp_share_object = {
+    const temp_share_object = {
       ...created,
       plan_ids: plan_ids.map((plan_id: string) => {
         return map_for_given_plan_ids_to_cloned_plans[plan_id]._id;
@@ -1037,7 +1037,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
   async function UpdateShareObject(input: Record<string, any>) {
     const { _id, title, description = "", type, category, promotional_links, creator_name, user_id, img_url, plan_ids, ...other_info } = input;
-    let _object = await share_object_list.FindById({ share_ids: [_id] });
+    const _object = await share_object_list.FindById({ share_ids: [_id] });
     if (_object && String(_object.creator_id) !== String(user_id))
       throw new InvalidOperationError("Unauthorized access to share object");
 
@@ -1054,7 +1054,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       plan_ids,
       ...other_info,
     });
-    let { success } = await share_object_list.Update(share_object);
+    const { success } = await share_object_list.Update(share_object);
     if (success) return { updated: true };
   }
 
@@ -1066,7 +1066,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     user_id: string;
   }) {
     let fork_promises: any[] = [];
-    let share_object = await share_object_list.FindById({
+    const share_object = await share_object_list.FindById({
       share_ids: [share_id],
       state: "public",
     });
@@ -1091,11 +1091,11 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   }
 
   async function DeleteShareObject({ id, user_id }: { id: string; user_id: string }) {
-    let share_object = await share_object_list.FindById({ share_ids: [id] });
+    const share_object = await share_object_list.FindById({ share_ids: [id] });
     if (share_object) {
       if (String(share_object.creator_id) !== String(user_id))
         throw new InvalidOperationError("Un authorized access to the share_object");
-      let { success } = await share_object_list.Delete(id);
+      const { success } = await share_object_list.Delete(id);
       if (success) return true;
     }
   }
@@ -1103,7 +1103,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   /* ------------------------- CommonCollection ------------------------- */
 
   async function GetCommonCollection() {
-    let common_collection = await common_collection_list.GetCommonCollectionList();
+    const common_collection = await common_collection_list.GetCommonCollectionList();
     if (common_collection) return common_collection;
     return {};
   }

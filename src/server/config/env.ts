@@ -25,6 +25,8 @@ const envSchema = z.object({
   /** INDstocks trading API token (read-only use) — from indstocks.com/app/api-trading/access-tokens */
   INDSTOCKS_API_TOKEN: z.string().optional(),
   MCP_ENABLED: z.enum(["true", "false"]).default("true"),
+  /** Comma-separated extra origins allowed to call /api/mcp from browsers (DNS-rebinding protection); server clients send no Origin and are always allowed. */
+  MCP_ALLOWED_ORIGINS: z.string().optional(),
   AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),
   /** Anthropic-format endpoint; works with any compatible gateway, e.g. DeepSeek: https://api.deepseek.com/anthropic */
