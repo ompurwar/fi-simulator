@@ -125,6 +125,31 @@ describe("OAuth 2.1 MCP authorization server", () => {
     expect(client.client_id).toMatch(/^fp_oc_/);
   });
 
+  it("treats localhost and 127.0.0.1 loopback redirects as interchangeable (Claude Code 2.1.229 quirk)", async () => {
+    const reg = new NextRequest(`${ORIGIN}/api/mcp/oauth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Claude Code", redirect_uris: ["http://localhost:3118/callback"] }),
+    });
+    const regRes = await handleRegister(reg, container);
+    const { client_id } = await regRes.json();
+
+    // Authorize with the 127.0.0.1 form even though localhost was registered.
+    const res = await getAuthorize(
+      {
+        client_id,
+        redirect_uri: "http://127.0.0.1:3118/callback",
+        code_challenge: s256("verifier-2"),
+        code_challenge_method: "S256",
+      },
+      sessionCookie
+    );
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.get("location") || "");
+    expect(location.searchParams.get("code")).toMatch(/^fp_ocd_/);
+    globalThis.__code2 = location.searchParams.get("code") as string;
+  });
+
   it("redirects unauthenticated /authorize to the app login (oauth flow param)", async () => {
     const res = await getAuthorize({
       client_id,

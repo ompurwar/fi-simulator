@@ -65,6 +65,17 @@ function pkceMatches(challenge: string, verifier: string): boolean {
   return timingSafeEqual(Buffer.from(computed), Buffer.from(challenge));
 }
 
+/** Normalize loopback hosts so http://127.0.0.1:PORT and http://localhost:PORT are interchangeable. */
+function normalizeRedirectUri(uri: string): string {
+  return uri.replace(/^http:\/\/127\.0\.0\.1(?=:)/, "http://localhost");
+}
+
+/** A requested redirect URI matches a registered one when either is a loopback variant of the other. */
+function redirectUriRegistered(registered: string[], requested: string): boolean {
+  const normalized = normalizeRedirectUri(requested);
+  return registered.some((uri) => normalizeRedirectUri(uri) === normalized);
+}
+
 export function makeOAuthService(deps: OAuthServiceDeps): OAuthService {
   const { store, cookieSecret, GenerateHash, GenerateRandomString } = deps;
 
@@ -162,7 +173,9 @@ export function makeOAuthService(deps: OAuthServiceDeps): OAuthService {
     async startAuthorization({ client_id, redirect_uri, code_challenge, code_challenge_method, state }) {
       const client = await store.FindClientByClientId(client_id);
       if (!client) throw new Error("invalid client_id");
-      if (!client.redirect_uris.includes(redirect_uri)) throw new Error("redirect_uri not registered for client");
+      if (!redirectUriRegistered(client.redirect_uris, redirect_uri)) {
+        throw new Error("redirect_uri not registered for client");
+      }
       if (!code_challenge) throw new Error("code_challenge is required");
       if (code_challenge_method && code_challenge_method !== "S256") throw new Error("only S256 PKCE is supported");
       const now = Date.now();
@@ -207,7 +220,9 @@ export function makeOAuthService(deps: OAuthServiceDeps): OAuthService {
       if (!found) throw new Error("invalid authorization code");
       if (Date.now() > found.expires_at) throw new Error("authorization code expired");
       if (found.client_id !== client_id) throw new Error("code was issued to another client");
-      if (redirect_uri && found.redirect_uri !== redirect_uri) throw new Error("redirect_uri mismatch");
+      if (redirect_uri && !redirectUriRegistered([found.redirect_uri], redirect_uri)) {
+        throw new Error("redirect_uri mismatch");
+      }
       if (!code_verifier || !pkceMatches(found.code_challenge, code_verifier)) {
         throw new Error("PKCE verification failed");
       }
