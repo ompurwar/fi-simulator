@@ -253,7 +253,7 @@ export function makeIndMoneyNetWorthProvider(deps: {
 
         // Recurring investment commitments — what gets deposited each month
         // (best-effort; missing tools/rows are fine).
-        let sips: any[] = [];
+        const sips: any[] = [];
         const sips_raw: Record<string, any> = {};
         try {
           const [mf, stock] = await Promise.allSettled([

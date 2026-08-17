@@ -19,7 +19,7 @@ export function buildApp(container: Container): (req: Request) => Promise<Respon
   async function dispatch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     // strip the /api prefix (Next.js mounts under /api; standalone mounts at root)
-    let path = url.pathname.replace(/^\/api/, "") || "/";
+    const path = url.pathname.replace(/^\/api/, "") || "/";
     const method = req.method.toUpperCase();
 
     // health

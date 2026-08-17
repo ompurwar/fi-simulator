@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { buildContainer } from "@/server/di/container";
 import { NextRequest } from "next/server";
@@ -8,18 +8,21 @@ const mongo = await MongoMemoryServer.create();
 process.env.DB_URL = mongo.getUri();
 process.env.DB_NAME = "fi_plan_test_mcp";
 process.env.COOKIE_SECRET = "test-cookie-secret";
+process.env.MCP_ENABLED = "true";
+process.env.CLIENT_APPLICATION = "http://localhost:3001";
 
 const { POST, GET } = await import("../../app/api/mcp/route");
 
-async function rpc(method: string, params: any, token?: string, id = 1) {
+async function rpc(method: string, params: any, token?: string, id = 1, headers: Record<string, string> = {}) {
   const body = { jsonrpc: "2.0", id, method, params };
-  const headers: Record<string, string> = {
+  const allHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
+    ...headers,
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await POST(new NextRequest("http://localhost:3001/api/mcp", { method: "POST", headers, body: JSON.stringify(body) }));
-  return { status: res.status, text: await res.text() };
+  if (token) allHeaders.Authorization = `Bearer ${token}`;
+  const res = await POST(new NextRequest("http://localhost:3001/api/mcp", { method: "POST", headers: allHeaders, body: JSON.stringify(body) }));
+  return { status: res.status, text: await res.text(), wwwAuth: res.headers.get("www-authenticate") };
 }
 
 describe("MCP over HTTP (stateless route)", () => {
@@ -47,23 +50,62 @@ describe("MCP over HTTP (stateless route)", () => {
     expect(JSON.parse(text).ok).toBe(true);
   });
 
-  it("rejects tools/call without a token (UNAUTHORIZED)", async () => {
+  it("rejects tools/call without a token with HTTP 401 + WWW-Authenticate", async () => {
     const call = await rpc("tools/call", { name: "list_plans", arguments: {} }, undefined);
+    expect(call.status).toBe(401);
+    expect(call.wwwAuth).toBe("Bearer");
+    expect(call.text).toContain("unauthorized");
+  });
+
+  it("rejects initialize without a token with HTTP 401", async () => {
+    const init = await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "anonymous", version: "1" } }, undefined, 0);
+    expect(init.status).toBe(401);
+  });
+
+  it("rejects a garbage token with HTTP 401", async () => {
+    const call = await rpc("tools/call", { name: "list_plans", arguments: {} }, "fp_totally-fake-token");
+    expect(call.status).toBe(401);
+  });
+
+  it("rejects browser requests from a disallowed Origin with 403", async () => {
+    const call = await rpc("tools/call", { name: "list_plans", arguments: {} }, token, 1, { Origin: "https://evil.example.com" });
+    expect(call.status).toBe(403);
+  });
+
+  it("allows browser requests from the app's own origin (CLIENT_APPLICATION)", async () => {
+    const call = await rpc("tools/call", { name: "list_plans", arguments: {} }, token, 1, { Origin: "http://localhost:3001" });
+    expect(call.status).toBe(200);
     const parsed = JSON.parse(call.text);
     const text = parsed.result?.content?.[0]?.text;
-    expect(JSON.parse(text).error.code).toBe("UNAUTHORIZED");
+    expect(JSON.parse(text).ok).toBe(true);
   });
 
   it("rejects tools/call with a revoked token", async () => {
     await container.app.RevokeApiToken({ user_id, token_id: (await container.app.ListApiTokens({ user_id }))[0]._id });
     const call = await rpc("tools/call", { name: "list_plans", arguments: {} }, token);
-    const parsed = JSON.parse(call.text);
-    const text = parsed.result?.content?.[0]?.text;
-    expect(JSON.parse(text).error.code).toBe("UNAUTHORIZED");
+    expect(call.status).toBe(401);
   });
 
   it("answers GET without 500 (SSE stream or 405, per spec)", async () => {
     const res = await GET(new NextRequest("http://localhost:3001/api/mcp", { method: "GET", headers: { Accept: "text/event-stream" } }));
     expect([200, 405]).toContain(res.status);
+  });
+});
+
+describe("MCP route gating (MCP_ENABLED=false)", () => {
+  it("returns 404 for POST and GET when disabled", async () => {
+    process.env.MCP_ENABLED = "false";
+    // Fresh module instance picks up the new env (resetModules busts the cache)
+    vi.resetModules();
+    const disabled = await import("../../app/api/mcp/route");
+    const post = await disabled.POST(new NextRequest("http://localhost:3001/api/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    }));
+    expect(post.status).toBe(404);
+    const get = await disabled.GET(new NextRequest("http://localhost:3001/api/mcp", { method: "GET" }));
+    expect(get.status).toBe(404);
+    process.env.MCP_ENABLED = "true";
   });
 });

@@ -701,9 +701,17 @@ except the IndMoney provider (already an injected boundary).
 3. LLM API keys live server-side only (`ANTHROPIC_API_KEY` env) — never shipped to the browser.
 4. `simulate_plan` never writes; `plan_snapshot` reads only the caller's own plan.
 5. Token revocation: delete → `status: deleted` → all future calls 401.
-6. **Origin/host validation on the MCP endpoint** — the spec *requires* it (DNS-rebinding protection). Enforced by the Next.js route middleware, not the transport (`allowedOrigins` transport options are deprecated in 1.30). The chat route needs no Origin rules (cookie session + same-origin fetch).
+6. **Origin/host validation on the MCP endpoint** — the spec *requires* it (DNS-rebinding protection). Enforced in `app/api/mcp/route.ts` (not the transport — `allowedOrigins` transport options are deprecated in 1.30): requests carrying an `Origin` header must match the origin of `CLIENT_APPLICATION` or an entry in `MCP_ALLOWED_ORIGINS` (comma-separated) → otherwise HTTP 403. Server-to-server clients (Claude Code, Copilot, ChatGPT, curl) send no `Origin` and are always allowed. The chat route needs no Origin rules (cookie session + same-origin fetch).
 7. In-app assistant writes are user-initiated but agent-executed → destructive tools (`delete_plan`, `delete_income`, …) ask for explicit confirmation in the chat UI before the agent may call them.
 8. v1.1+: per-token scopes (read-only vs write), per-token rate limits, token TTL.
+
+> **Implemented on `feat/ai-mcp-auth` (2026-08-18)** — hardening of the merged MCP layer
+> (`docs/ai-mcp-auth-fix-plan.md`): the `/api/mcp` endpoint now (a) returns **HTTP 401 +
+> `WWW-Authenticate: Bearer`** for missing/invalid/revoked tokens (spec-compliant — GitHub
+> Copilot, ChatGPT and Claude Desktop surface the auth failure instead of failing silently
+> inside tool envelopes), (b) is gated by **`MCP_ENABLED`** (false → 404), and (c) enforces
+> the **Origin allowlist** above. External-assistant connection guides (Claude Code/Desktop,
+> GitHub Copilot, ChatGPT, Cursor, Windsurf, OpenCode, curl) live in `docs/mcp-usage.md`.
 
 ---
 

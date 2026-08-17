@@ -51,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     // load once at startup (original App.vue behavior) — re-running on route change
     // would clobber unsynced local plan edits made in the editor
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     bootstrap();
   }, []);
 

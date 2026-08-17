@@ -142,7 +142,7 @@ export function GetMonthlyIncomeList(
   for (let current_month = 1; current_month <= plan_duration; current_month++) {
     let cashflow_change: (CashFlowChangeLike & { month: number }) | undefined;
     const active_income_list = GetActiveList(income_list, current_month);
-    let monthly_income_object: MonthlyStatement = {
+    const monthly_income_object: MonthlyStatement = {
       month: current_month,
       total_income: 0,
       income_breakdown: [],
@@ -162,7 +162,7 @@ export function GetMonthlyIncomeList(
           if (active_income.start_month === current_month)
             SetRecentIncomeValue(active_income._id, active_income.amount);
 
-          let current_income = GetRecentIncomeValue(active_income._id) || 0;
+          const current_income = GetRecentIncomeValue(active_income._id) || 0;
           cashflow_change = GetCashFlowChangeFor(current_month, active_income._id, "i", cashflow_change_list_by_month);
           let updated_income = current_income;
 
@@ -182,7 +182,7 @@ export function GetMonthlyIncomeList(
         if (active_income.start_month === current_month)
           SetRecentIncomeValue(active_income._id, active_income.amount);
 
-        let current_income = GetRecentIncomeValue(active_income._id);
+        const current_income = GetRecentIncomeValue(active_income._id);
         cashflow_change = GetCashFlowChangeFor(current_month, active_income._id, "i", cashflow_change_list_by_month);
         let updated_income = current_income;
 
@@ -231,7 +231,7 @@ export function GetMonthlyExpenseList(
   for (let current_month = 1; current_month <= plan_duration; current_month++) {
     let cashflow_change: (CashFlowChangeLike & { month: number }) | undefined;
     const active_expense_list = GetActiveList(expense_list, current_month);
-    let monthly_expense_object: MonthlyStatement = {
+    const monthly_expense_object: MonthlyStatement = {
       month: current_month,
       total_expense: 0,
       expense_breakdown: [],
@@ -251,7 +251,7 @@ export function GetMonthlyExpenseList(
           if (active_expense.start_month === current_month)
             SetRecentExpenseValue(active_expense._id, active_expense.amount);
 
-          let current_expense = GetRecentExpenseValue(active_expense._id);
+          const current_expense = GetRecentExpenseValue(active_expense._id);
           cashflow_change = GetCashFlowChangeFor(current_month, active_expense._id, "e", cashflow_change_list_by_month);
           let updated_expense = current_expense;
 
@@ -271,7 +271,7 @@ export function GetMonthlyExpenseList(
         if (active_expense.start_month === current_month)
           SetRecentExpenseValue(active_expense._id, active_expense.amount);
 
-        let current_expense = GetRecentExpenseValue(active_expense._id);
+        const current_expense = GetRecentExpenseValue(active_expense._id);
         cashflow_change = GetCashFlowChangeFor(current_month, active_expense._id, "e", cashflow_change_list_by_month);
         let updated_expense = current_expense;
 

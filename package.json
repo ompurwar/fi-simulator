@@ -9,6 +9,7 @@
     "lint": "eslint",
     "standalone": "tsx standalone/server.ts",
     "mcp:stdio": "tsx standalone/mcp-stdio.ts",
+    "mcp:auth": "tsx standalone/mcp-auth.ts",
     "test": "vitest run --maxWorkers=3",
     "test:watch": "vitest --maxWorkers=3",
     "test:e2e": "cypress run",

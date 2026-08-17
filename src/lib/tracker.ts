@@ -39,7 +39,7 @@ export function InitiateTracker(NODE_ENV: string) {
         const v = "https://connect.facebook.net/en_US/fbevents.js";
         if (!f.fbq) {
           const n: any = (f.fbq = function (...args: any[]) {
-            n.callMethod ? n.callMethod.apply(n, args) : n.queue.push(args);
+            n.callMethod ? n.callMethod(...args) : n.queue.push(args);
           });
           if (!f._fbq) f._fbq = n;
           n.push = n;
