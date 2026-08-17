@@ -3,7 +3,14 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { createHash } from "crypto";
 import { buildContainer } from "@/server/di/container";
 import { NextRequest } from "next/server";
-import { oauthGet, oauthPost } from "@/server/mcp/oauth/handlers";
+import {
+  handleMetadata,
+  handleRegister,
+  handleAuthorizeGet,
+  handleAuthorizePost,
+  handleToken,
+  handleRevoke,
+} from "@/server/mcp/oauth/handlers";
 
 const mongo = await MongoMemoryServer.create();
 process.env.DB_URL = mongo.getUri();
@@ -21,14 +28,14 @@ function s256(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
-async function get(path: string, searchParams: Record<string, string> = {}, cookie?: string) {
-  const url = new URL(`${ORIGIN}${path}`);
+async function getAuthorize(searchParams: Record<string, string> = {}, cookie?: string) {
+  const url = new URL(`${ORIGIN}/api/mcp/oauth/authorize`);
   for (const [k, v] of Object.entries(searchParams)) url.searchParams.set(k, v);
   const req = new NextRequest(url.toString(), {
     method: "GET",
     headers: cookie ? { Cookie: `session_id=${cookie}` } : {},
   });
-  return oauthGet(req, container);
+  return handleAuthorizeGet(req, container);
 }
 
 async function post(path: string, body: Record<string, string>, cookie?: string, contentType = "application/json") {
@@ -37,7 +44,12 @@ async function post(path: string, body: Record<string, string>, cookie?: string,
     headers: { "Content-Type": contentType, ...(cookie ? { Cookie: `session_id=${cookie}` } : {}) },
     body: contentType.includes("form") ? new URLSearchParams(body).toString() : JSON.stringify(body),
   });
-  return oauthPost(req, container);
+  const endpoint = path.split("/").filter(Boolean).slice(3)[0];
+  if (endpoint === "register") return handleRegister(req, container);
+  if (endpoint === "authorize") return handleAuthorizePost(req, container);
+  if (endpoint === "token") return handleToken(req, container);
+  if (endpoint === "revoke") return handleRevoke(req, container);
+  return handleMetadata(req, container);
 }
 
 describe("OAuth 2.1 MCP authorization server", () => {
@@ -56,7 +68,8 @@ describe("OAuth 2.1 MCP authorization server", () => {
   });
 
   it("serves OAuth metadata at /.well-known/oauth-authorization-server", async () => {
-    const res = await get("/api/mcp/.well-known/oauth-authorization-server");
+    const req = new NextRequest(`${ORIGIN}/api/mcp/.well-known/oauth-authorization-server`);
+    const res = await handleMetadata(req, container);
     expect(res.status).toBe(200);
     const meta = await res.json();
     expect(meta.authorization_endpoint).toContain("/api/mcp/oauth/authorize");
@@ -70,7 +83,7 @@ describe("OAuth 2.1 MCP authorization server", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_name: "claude-desktop", redirect_uris: [REDIRECT_URI] }),
     });
-    const direct = await oauthPost(req, container);
+    const direct = await handleRegister(req, container);
     expect(direct.status).toBe(200);
     const client = await direct.json();
     expect(client.client_id).toMatch(/^fp_oc_/);
@@ -85,12 +98,24 @@ describe("OAuth 2.1 MCP authorization server", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_name: "x", redirect_uris: ["not-a-url"] }),
     });
-    const res = await oauthPost(req, container);
+    const res = await handleRegister(req, container);
     expect(res.status).toBe(400);
   });
 
+  it("accepts custom-scheme redirect URIs (chatgpt://, claude-desktop://)", async () => {
+    const req = new NextRequest(`${ORIGIN}/api/mcp/oauth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "ChatGPT", redirect_uris: ["chatgpt://mcp/oauth/callback"] }),
+    });
+    const res = await handleRegister(req, container);
+    expect(res.status).toBe(200);
+    const client = await res.json();
+    expect(client.client_id).toMatch(/^fp_oc_/);
+  });
+
   it("redirects unauthenticated /authorize to the app login (oauth flow param)", async () => {
-    const res = await get("/api/mcp/oauth/authorize", {
+    const res = await getAuthorize({
       client_id,
       redirect_uri: REDIRECT_URI,
       code_challenge: s256("verifier-1"),
@@ -103,8 +128,7 @@ describe("OAuth 2.1 MCP authorization server", () => {
   });
 
   it("completes the flow with a valid session and issues a code (IndMoney-style)", async () => {
-    const res = await get(
-      "/api/mcp/oauth/authorize",
+    const res = await getAuthorize(
       {
         client_id,
         redirect_uri: REDIRECT_URI,
