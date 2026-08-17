@@ -28,12 +28,20 @@ npm run mcp:auth -- --email me@example.com --password xxx
 The server exposes a full OAuth 2.1 authorization server (PKCE S256) at the MCP
 endpoint — the same experience as IndMoney's MCP:
 
+- **Claude (claude.ai web)**: avatar → **Customize** → **Connectors** →
+  **Add custom connector** → paste the MCP URL
+  (`https://<app>/api/mcp`) → **Add** → **Sign in with Fi-Plan** → browser
+  email/password login → enable the connector in chat via the **"+"** menu.
+  Team/Enterprise: Organization settings → Connectors → Add → Custom → type **Web**.
 - **Claude Desktop**: File → Settings → Developer → Edit Config →
   `"mcpServers": { "fi-plan": { "url": "http://localhost:3001/api/mcp" } }` → the
   app shows a "Sign in with Fi-Plan" button → browser opens → log in with
   email/password → the client stores the token automatically.
 - **ChatGPT / GitHub Copilot / Cursor / Windsurf**: same — connect to the MCP URL
   and complete the browser sign-in when prompted (no header to configure).
+
+There is also an in-app guide: **Profile → AI Assistants** (link in the profile
+menu) — copy-ready MCP URL + step-by-step instructions for every client.
 
 Flow under the hood (all endpoints discovered from the metadata doc):
 

@@ -246,6 +246,17 @@ export function TopNav() {
                     </div>
                   </button>
                 </div>
+                <div className="flex p-2 px-3 bg-dark-50">
+                  <button
+                    onClick={() => router.push("/assistants")}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                  >
+                    <div className="flex gap-2">
+                      <FontAwesomeIcon icon={faRobot} />
+                      AI Assistants
+                    </div>
+                  </button>
+                </div>
                 <div className="flex p-2 px-3 bg-dark-50 rounded-b-md">
                   <button
                     onClick={handleLogout}
