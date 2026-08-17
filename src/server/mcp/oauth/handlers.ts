@@ -31,6 +31,17 @@ export function handleMetadata(req: NextRequest, container: Container): NextResp
   });
 }
 
+/** Protected-resource metadata (RFC 9728) — served at /.well-known/oauth-protected-resource. */
+export function handleProtectedResource(req: NextRequest, container: Container): NextResponse {
+  const origin = req.nextUrl.origin;
+  return NextResponse.json({
+    resource: `${origin}/api/mcp`,
+    authorization_servers: [`${origin}/api/mcp/oauth/metadata`],
+    scopes_supported: ["fiplan"],
+    bearer_methods_supported: ["header"],
+  });
+}
+
 /** Dynamic client registration (RFC 7591). */
 export async function handleRegister(req: NextRequest, container: Container): Promise<NextResponse> {
   try {

@@ -5,6 +5,7 @@ import { buildContainer } from "@/server/di/container";
 import { NextRequest } from "next/server";
 import {
   handleMetadata,
+  handleProtectedResource,
   handleRegister,
   handleAuthorizeGet,
   handleAuthorizePost,
@@ -75,6 +76,16 @@ describe("OAuth 2.1 MCP authorization server", () => {
     expect(meta.authorization_endpoint).toContain("/api/mcp/oauth/authorize");
     expect(meta.token_endpoint).toContain("/api/mcp/oauth/token");
     expect(meta.code_challenge_methods_supported).toContain("S256");
+  });
+
+  it("serves protected-resource metadata (RFC 9728) at /.well-known/oauth-protected-resource", async () => {
+    const req = new NextRequest(`${ORIGIN}/.well-known/oauth-protected-resource`);
+    const res = await handleProtectedResource(req, container);
+    expect(res.status).toBe(200);
+    const meta = await res.json();
+    expect(meta.resource).toContain("/api/mcp");
+    expect(meta.authorization_servers[0]).toContain("/api/mcp/oauth/metadata");
+    expect(meta.scopes_supported).toContain("fiplan");
   });
 
   it("registers a dynamic MCP client (RFC 7591)", async () => {
