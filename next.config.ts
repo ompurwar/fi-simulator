@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
         source: "/api/mcp/.well-known/oauth-authorization-server",
         destination: "/api/mcp/oauth/metadata",
       },
+      {
+        source: "/api/mcp/.well-known/oauth-protected-resource",
+        destination: "/api/mcp/oauth/protected-resource",
+      },
       // Origin-relative discovery (Claude Code checks these BEFORE the path-relative
       // metadata): RFC 8414 authorization-server metadata + RFC 9728 protected-resource.
       {
