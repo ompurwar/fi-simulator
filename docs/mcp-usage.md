@@ -181,11 +181,13 @@ Claude Code: `claude mcp add fi-plan-local -- node_modules/.bin/tsx standalone/m
 
 ## 4. Tools
 
-35 tools across 8 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
+39 tools across 9 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
 `create_plan`, `update_plan`, `delete_plan`, `fork_plan`, `set_default_plan`),
 engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`), cashflows
 (income/expense list/add/update/delete), changes (`*_cashflow_change`), **loans
-(`list_loans`, `add_loan`, `update_loan`, `delete_loan`)**, net worth
+(`list_loans`, `add_loan`, `update_loan`, `delete_loan`)**, **accounts
+(`list_accounts`, `add_account`, `update_account`, `delete_account` — incl.
+`roi` annual interest % and persistent `init_balance`)**, net worth
 (`networth_status|sync|connect_url`), indstocks (`indstocks_positions`), sharing
 (`*_share_object`).
 
