@@ -129,13 +129,11 @@ export function makeOAuthService(deps: OAuthServiceDeps): OAuthService {
         throw new Error("client_name and at least one redirect_uri are required");
       }
       for (const uri of redirect_uris) {
+        // Accept any absolute URI with a scheme (http(s), loopback, or custom
+        // schemes like chatgpt:// / claude-desktop:// used by MCP connectors).
         try {
-          // allow absolute http(s), loopback, and custom schemes (claude-desktop:// etc.)
-          if (/^https?:\/\//.test(uri) || /^claude-desktop:\/\//.test(uri) || /^http:\/\/127\.0\.0\.1/.test(uri)) {
-            void new URL(uri);
-            continue;
-          }
-          throw new Error("invalid");
+          const parsed = new URL(uri);
+          if (!parsed.protocol || /\s/.test(uri)) throw new Error("invalid");
         } catch {
           throw new Error(`invalid redirect_uri: ${uri}`);
         }

@@ -136,14 +136,21 @@ Token TTL · per-token scopes (read/write) · rate limiting · OAuth 2.1 MCP ser
 
 ### 9.2 Endpoints (discovered from metadata)
 
+Served as **static routes** (a catch-all under `/api/mcp` would be shadowed by the
+app's `/api/:path* → /api/[[...path]]` rewrite); the metadata path is rewritten in
+`next.config.ts` because the App Router ignores dot-prefixed folders:
+
 ```
-GET  /api/mcp/.well-known/oauth-authorization-server   metadata (RFC 8414)
+GET  /api/mcp/.well-known/oauth-authorization-server   metadata (RFC 8414) — rewritten → /api/mcp/oauth/metadata
 POST /api/mcp/oauth/register                            dynamic client registration (RFC 7591)
 GET  /api/mcp/oauth/authorize                           start → /login?oauth=<id> (auto-completes when already signed in)
 POST /api/mcp/oauth/authorize                           session → authorization code → redirect to client
 POST /api/mcp/oauth/token                               authorization_code / refresh_token (PKCE S256)
 POST /api/mcp/oauth/revoke                              RFC 7009
 ```
+
+Redirect-URI registration accepts any absolute URI with a scheme — including the
+custom schemes MCP connectors use (`chatgpt://`, `claude-desktop://`).
 
 ### 9.3 Security notes
 
