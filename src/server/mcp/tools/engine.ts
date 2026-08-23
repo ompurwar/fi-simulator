@@ -7,6 +7,8 @@ import {
   ComputeLoanAmortizationScheduleWithPrepayments,
   ComputeRefinanceAnalysis,
 } from "../../engine/loan";
+import { ProjectAssetMonths } from "../../engine/assets";
+import { MonthToAssessmentYear } from "../../tax/engine";
 import { InvalidOperationError } from "../../domain/errors";
 import { ApplyScenarioToPlan } from "../simulate";
 import { callUseCase, fail, ok, requireFields, isRecord } from "./envelope";
@@ -79,7 +81,7 @@ function toSummary(snapshot: any, milestones = false) {
 }
 
 export function makeEngineTools(container: Container): ToolDefinition[] {
-  const { app, plan_list } = container;
+  const { app, plan_list, tax_service } = container;
 
   return [
     {
@@ -217,6 +219,123 @@ export function makeEngineTools(container: Container): ToolDefinition[] {
             foreclosure_charge: args.foreclosure_charge ?? 0,
           })
         );
+      },
+    },
+    {
+      name: "compare_scenarios",
+      title: "Compare two what-if scenarios head-to-head",
+      description:
+        "Projects the plan twice — baseline (current plan, or plan + optional baseline_patches) and scenario (plan + scenario_patches) — using the exact same engine as simulate_plan, and returns a month-by-month net-worth comparison plus yearly totals. net_worth is buckets + asset holdings, matching the app's Net Worth card. Never persists. Great for 'what if I switch to old regime?' or 'what if I sell gold at month 24?' vs today.",
+      inputSchema: {
+        plan_id: z.string(),
+        baseline_patches: z.array(z.record(z.string(), z.any())).optional(),
+        scenario_patches: z.array(z.record(z.string(), z.any())).min(1),
+        duration: z.number().int().min(1).optional(),
+      },
+      async handler(_ctx, args) {
+        const missing = requireFields(args, ["plan_id", "scenario_patches"]);
+        if (missing) return missing;
+        return callUseCase(async () => {
+          const plan: any = await plan_list.FindById(args.plan_id);
+          if (!plan) throw new InvalidOperationError(`plan not found: ${args.plan_id}`);
+          const duration = args.duration ?? 120;
+          const baseline_plan = ApplyScenarioToPlan(plan, args.baseline_patches || []);
+          const scenario_plan = ApplyScenarioToPlan(plan, args.scenario_patches);
+          const [baseline_snap, scenario_snap] = await Promise.all([
+            app.PlanSnapshot({ plan: baseline_plan, duration }),
+            app.PlanSnapshot({ plan: scenario_plan, duration }),
+          ]);
+
+          const nw = (snap: any, month: number) => {
+            const buckets = (snap.account_balances_and_transactions?.account_balances || [])
+              .filter((b: any) => b.month === month)
+              .reduce((s: number, b: any) => s + (b.balance || 0), 0);
+            const assets = (snap.asset_month_map?.[month] || []).reduce((s: number, a: any) => s + (a.value || 0), 0);
+            return { month, net_worth: Math.round((buckets + assets) * 100) / 100 };
+          };
+          const tax_total = (snap: any) =>
+            (snap.tax_expense_cashflow || []).reduce((s: number, r: any) => s + (r.amount || 0), 0);
+
+          const month_points: number[] = [1];
+          for (let m = 13; m <= duration; m += 12) month_points.push(m);
+
+          return {
+            baseline_patches: args.baseline_patches || [],
+            scenario_patches: args.scenario_patches,
+            net_worth: month_points.map((m) => {
+              const b = nw(baseline_snap, m);
+              const s = nw(scenario_snap, m);
+              return { month: m, baseline: b.net_worth, scenario: s.net_worth, delta: Math.round((s.net_worth - b.net_worth) * 100) / 100 };
+            }),
+            totals: {
+              baseline: { net_worth_at_end: nw(baseline_snap, duration).net_worth, tax_total: Math.round(tax_total(baseline_snap) * 100) / 100 },
+              scenario: { net_worth_at_end: nw(scenario_snap, duration).net_worth, tax_total: Math.round(tax_total(scenario_snap) * 100) / 100 },
+            },
+          };
+        });
+      },
+    },
+    {
+      name: "asset_projection",
+      title: "Project a single asset month-by-month",
+      description:
+        "Pure calculator for one asset (no plan needed): monthly value, invested, growth, income and TDS over duration months. Pass asset parameters (principal, growth_rate, yield_rate, income_frequency, income_mode, maturity_month, sale_month, sip) — class presets are NOT applied automatically, so pass explicit rates. TDS on FD interest follows the stored rules for the assessment_year. Returns rows plus closing value and totals.",
+      inputSchema: {
+        title: z.string().optional(),
+        asset_class: z.enum(["fd", "bond", "savings", "gold", "ppf", "equity", "equity_foreign", "mf", "real_estate", "vda"]).optional(),
+        category: z.enum(["s", "e", "i"]).optional(),
+        principal: z.number().min(0),
+        purchase_month: z.number().int().min(1).optional(),
+        growth_rate: z.number().min(0),
+        yield_rate: z.number().min(0).optional(),
+        income_frequency: z.enum(["m", "q", "h", "y"]).optional(),
+        income_mode: z.enum(["credit", "reinvest"]).optional(),
+        compounding: z.enum(["none", "simple", "monthly", "quarterly", "yearly"]).optional(),
+        maturity_month: z.number().int().min(1).optional(),
+        sale_month: z.number().int().min(1).optional(),
+        rent: z.object({ monthly_rent: z.number().positive(), step_pct: z.number().min(0).optional(), expense_ratio: z.number().min(0).max(100).optional() }).optional(),
+        sip: z.object({ amount: z.number().positive(), frequency: z.enum(["m", "q", "y"]), start_month: z.number().int().min(1), end_month: z.number().int().min(1).optional(), step_pct: z.number().min(0).optional() }).optional(),
+        duration: z.number().int().min(1).optional(),
+        assessment_year: z.string().optional(),
+      },
+      async handler(_ctx, args) {
+        const missing = requireFields(args, ["principal", "growth_rate"]);
+        if (missing) return missing;
+        return callUseCase(async () => {
+          const rules = await tax_service.getRules(args.assessment_year || (await tax_service.rulesForTimestamp(Date.now())).assessment_year);
+          const duration = args.duration ?? 120;
+          const rows = ProjectAssetMonths(
+            {
+              _id: "calc",
+              title: args.title || "Asset",
+              asset_class: args.asset_class || "fd",
+              category: args.category || "i",
+              principal: args.principal,
+              purchase_month: args.purchase_month || 1,
+              growth_rate: args.growth_rate,
+              yield_rate: args.yield_rate,
+              income_frequency: args.income_frequency,
+              income_mode: args.income_mode,
+              compounding: args.compounding,
+              maturity_month: args.maturity_month,
+              sale_month: args.sale_month,
+              rent: args.rent,
+              sip: args.sip,
+              active: true,
+            } as any,
+            1,
+            duration,
+            rules,
+            Date.now(),
+            "below60"
+          );
+          return {
+            rows: rows.map((r) => ({ ...r })),
+            closing_value: rows.length ? rows[rows.length - 1].closing_value : args.principal,
+            total_income_gross: Math.round(rows.reduce((s, r) => s + r.income_gross, 0) * 100) / 100,
+            total_tds: Math.round(rows.reduce((s, r) => s + r.tds, 0) * 100) / 100,
+          };
+        });
       },
     },
   ];

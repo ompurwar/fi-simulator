@@ -48,13 +48,15 @@ describe("BucketsByMonth / AssetsByMonth", () => {
 });
 
 describe("BuildWealthChartData", () => {
-  it("builds e/s/i bars + an ASSETS line; net_worth_series = buckets + assets", () => {
+  it("builds e/s/i bars + an ASSETS stacked segment; net_worth_series = buckets + assets", () => {
     const labels = ["M1", "M2"];
     const data = BuildWealthChartData(snapshot(), { window_start: 0, window_size: 2 }, cssVar, labels);
-    expect(data.datasets.map((d) => d.label)).toEqual(["EMERGENCY", "SAVINGS", "INVESTMENT", "ASSETS"]);
-    const assets = data.datasets.find((d) => d.label === "ASSETS");
-    expect(assets.type).toBe("line");
+    expect(data.datasets.map((d) => d.label)).toEqual(["EMERGENCY", "SAVINGS", "INVESTMENT", "ASSETS (invested)"]);
+    const assets = data.datasets.find((d) => d.label === "ASSETS (invested)");
+    // stacked segment (NOT a line) so the bar top = net worth
+    expect(assets.type).toBeUndefined();
     expect(assets.data).toEqual([500, 600]);
+    expect(assets.order).toBe(0); // drawn on top
     // net worth series = buckets + assets per month
     expect(data.net_worth_series).toEqual([1100, 1230]); // (100+200+300+500), (110+210+310+600)
   });

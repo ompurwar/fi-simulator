@@ -85,18 +85,16 @@ export function BuildWealthChartData(
     bar("i", "INVESTMENT", 1, { bg: cssVar("--color-primary-400"), border: cssVar("--color-primary-500") }),
   ];
   if (has_assets) {
+    // ASSETS is a STACKED segment (top) so the bar top = Net Worth = annotation
+    // = the Runway card figure — one consistent number everywhere.
     datasets.push({
-      label: "ASSETS",
-      type: "line",
+      label: "ASSETS (invested)",
       data: assets_series,
-      borderColor: cssVar("--color-warning-500") || "#f59e0b",
-      backgroundColor: "rgba(245,158,11,0.08)",
-      borderWidth: 2,
+      backgroundColor: cssVar("--color-warning-500") || "#f59e0b",
+      borderColor: cssVar("--color-warning-600") || "#d97706",
       pointStyle: "circle",
       pointRadius: 0,
       pointHoverRadius: 15,
-      fill: true,
-      tension: 0.3,
       order: 0,
     });
   }

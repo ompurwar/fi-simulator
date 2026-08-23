@@ -181,9 +181,10 @@ Claude Code: `claude mcp add fi-plan-local -- node_modules/.bin/tsx standalone/m
 
 ## 4. Tools
 
-56 tools across 12 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
+58 tools across 12 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
 `create_plan`, `update_plan`, `delete_plan`, `fork_plan`, `set_default_plan`),
-engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`, `loan_refinance`), cashflows
+engine (`plan_snapshot`, `simulate_plan`, `compare_scenarios`, `loan_amortization`,
+`loan_refinance`, `asset_projection`), cashflows
 (income/expense list/add/update/delete), changes (`*_cashflow_change`), **loans
 (`list_loans`, `add_loan`, `update_loan`, `delete_loan`)**, **fdp
 (`list_fdp`, `add_fdp`, `update_fdp`, `delete_fdp` — persisted allocation
@@ -217,7 +218,12 @@ and `update_presets`; all other tools work for any authenticated user.
 `update_asset` / `sell_asset` (asset-class what-ifs — sales realize LTCG/STCG
 per the stored rules), `set_salary` (hikes flow through the income-tax slabs
 when the plan's auto-tax is on), `update_tax_settings` and `set_account_balance`.
-Pure — never writes to the database.
+Pure — never writes to the database. `compare_scenarios` projects the plan
+twice (baseline vs scenario) with the same engine and returns month-by-month
+net-worth points (buckets + assets — the app's Net Worth number) plus totals.
+`asset_projection` is a standalone per-asset calculator (FD/SIP/TDS, no plan
+needed). `plan_snapshot` summary mode carries `net_worth_by_month` and
+`assets_by_month` so agent numbers always match the app.
 
 Cashflow-change frequency semantics: one-time = `end_month` equal to `start_month`; recurring annual =
 `frequency: "y"`; default `frequency: "m"` with an open end compounds monthly.

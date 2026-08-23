@@ -316,7 +316,7 @@ function BalanceAndTxn({
                   <FontAwesomeIcon icon={faMoneyBillTrendUp} className="text-xs" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-dark-700">Asset Mix</span>
-                <span className="text-[10px] font-medium text-dark-400">(now)</span>
+                <span className="text-[10px] font-medium text-dark-400">(now · chart's top segment)</span>
               </div>
               <DisplayAmount className="text-xs font-bold text-primary-600 whitespace-nowrap" notation="compact" amount={asset_total_now} />
             </div>
