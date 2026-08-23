@@ -19,13 +19,18 @@ import {
   faWallet,
   faHouse,
   faRobot,
+  faSun,
+  faMoon,
+  faCircleHalfStroke,
 } from "@fortawesome/free-solid-svg-icons";
 import { OpenAssistant } from "@/components/assistant/ChatPanel";
+import { useTheme } from "@/lib/theme";
 
 /** Port of the App.vue top navigation bar (fixed, bg-dark-50, px-2 py-3). */
 export function TopNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, resolvedTheme, setTheme, toggleTheme, mounted } = useTheme();
   const profile = useFiPlanStore((s) => s.profile);
   const plans = useFiPlanStore((s) => s.plans);
   const selected_plan_id = useFiPlanStore((s) => s.selected_plan_id);
@@ -140,6 +145,21 @@ export function TopNav() {
           </Listbox>
         )}
 
+        {/* Quick Theme Toggle Button */}
+        <button
+          type="button"
+          aria-label="Toggle dark/light theme"
+          title={`Theme: ${theme} (Click to toggle)`}
+          onClick={toggleTheme}
+          className="flex h-[40px] w-[40px] self-center items-center justify-center rounded-md border-2 border-dark-100 bg-dark-50 text-dark-500 hover:text-primary-600 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
+        >
+          {mounted && resolvedTheme === "dark" ? (
+            <FontAwesomeIcon icon={faSun} className="text-amber-400 text-base" />
+          ) : (
+            <FontAwesomeIcon icon={faMoon} className="text-slate-600 text-base" />
+          )}
+        </button>
+
         {/* Assistant launcher (mobile only — desktop uses the floating FAB) */}
         <button
           type="button"
@@ -171,9 +191,9 @@ export function TopNav() {
           </Popover.Button>
 
           <Popover.Panel className="absolute z-10 w-screen max-w-sm px-4 mt-3 top-11 transform -translate-x-[84%] sm:-translate-x-[88%] md:-translate-x-[92%]">
-            <div className="border rounded-md shadow-lg bg-dark-50">
-              <div className="relative flex flex-col gap-2 rounded-md bg-slate-200 cursor-pointer">
-                <div className="flex gap-2 p-4 pt-5 rounded-t-md grow" onClick={() => router.push("/profile")}>
+            <div className="border border-dark-100 rounded-xl shadow-xl bg-dark-50 overflow-hidden">
+              <div className="relative flex flex-col gap-1 bg-dark-50 cursor-pointer">
+                <div className="flex gap-2 p-4 pt-5 bg-dark-100/50 hover:bg-dark-100 transition-colors rounded-t-xl" onClick={() => router.push("/profile")}>
                   <div className="flex">
                     <div className="w-[40px] self-center h-[40px] overflow-hidden rounded-full border-2 border-dark-200 bg-dark-50">
                       {profile?.photos?.length ? (
@@ -187,12 +207,60 @@ export function TopNav() {
                   </div>
                   <div className="flex self-center justify-between mr-auto w-fit overflow-clip grow">
                     <div className="flex flex-col">
-                      <div className="font-medium text-left">{username}</div>
-                      <div className="font-normal truncate text-dark-500 w-[15ch] sm:w-[25ch] mr-auto text-left">
+                      <div className="font-semibold text-left text-dark-800">{username}</div>
+                      <div className="font-normal truncate text-dark-400 text-xs w-[15ch] sm:w-[25ch] mr-auto text-left">
                         {email}
                       </div>
                     </div>
-                    <FontAwesomeIcon className="self-center" icon={faChevronRight} />
+                    <FontAwesomeIcon className="self-center text-dark-400" icon={faChevronRight} />
+                  </div>
+                </div>
+
+                {/* Theme Switcher Options in Profile Dropdown */}
+                <div className="flex flex-col gap-1.5 p-3 border-t border-b border-dark-100">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-dark-400 px-1 uppercase tracking-wider">
+                    <span>Appearance</span>
+                    <span className="text-primary-600 font-semibold lowercase">
+                      {theme} mode
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 bg-dark-100/60 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setTheme("light")}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        theme === "light"
+                          ? "bg-white text-primary-700 shadow-2xs"
+                          : "text-dark-400 hover:text-dark-700"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faSun} className="text-xs text-amber-500" />
+                      <span>Light</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTheme("dark")}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        theme === "dark"
+                          ? "bg-dark-200 text-primary-400 shadow-2xs"
+                          : "text-dark-400 hover:text-dark-700"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faMoon} className="text-xs text-indigo-400" />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTheme("system")}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        theme === "system"
+                          ? "bg-white text-primary-700 shadow-2xs"
+                          : "text-dark-400 hover:text-dark-700"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faCircleHalfStroke} className="text-xs text-slate-400" />
+                      <span>Auto</span>
+                    </button>
                   </div>
                 </div>
 
@@ -213,58 +281,58 @@ export function TopNav() {
                   </div>
                 )}
 
-                <div className="flex p-2 px-3 bg-dark-50 md:hidden">
+                <div className="flex p-1.5 px-2 bg-dark-50 md:hidden">
                   <button
                     onClick={() => router.push("/")}
-                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-500 bg-dark-50 hover:bg-dark-100 rounded-lg`}
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faHouse} className="self-center" />
-                      Home
+                    <div className="flex gap-2.5 items-center">
+                      <FontAwesomeIcon icon={faHouse} className="text-sm" />
+                      <span>Home</span>
                     </div>
                   </button>
                 </div>
-                <div className="flex p-2 px-3 bg-dark-50 md:hidden">
+                <div className="flex p-1.5 px-2 bg-dark-50 md:hidden">
                   <button
                     onClick={() => router.push("/networth")}
-                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-500 bg-dark-50 hover:bg-dark-100 rounded-lg`}
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faWallet} className="self-center" />
-                      Net Worth
+                    <div className="flex gap-2.5 items-center">
+                      <FontAwesomeIcon icon={faWallet} className="text-sm" />
+                      <span>Net Worth</span>
                     </div>
                   </button>
                 </div>
-                <div className="flex p-2 px-3 bg-dark-50">
+                <div className="flex p-1.5 px-2 bg-dark-50">
                   <button
                     onClick={() => router.push("/shared_templates")}
-                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-500 bg-dark-50 hover:bg-dark-100 rounded-lg`}
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faSwatchbook} />
-                      My Templates
+                    <div className="flex gap-2.5 items-center">
+                      <FontAwesomeIcon icon={faSwatchbook} className="text-sm" />
+                      <span>My Templates</span>
                     </div>
                   </button>
                 </div>
-                <div className="flex p-2 px-3 bg-dark-50">
+                <div className="flex p-1.5 px-2 bg-dark-50">
                   <button
                     onClick={() => router.push("/assistants")}
-                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-500 bg-dark-50 hover:bg-dark-100 rounded-lg`}
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faRobot} />
-                      AI Assistants
+                    <div className="flex gap-2.5 items-center">
+                      <FontAwesomeIcon icon={faRobot} className="text-sm" />
+                      <span>AI Assistants</span>
                     </div>
                   </button>
                 </div>
-                <div className="flex p-2 px-3 bg-dark-50 rounded-b-md">
+                <div className="flex p-1.5 px-2 bg-dark-50 pb-2">
                   <button
                     onClick={handleLogout}
-                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-dark-400 bg-dark-50`}
+                    className={`${btnClass} h-[2.2rem] px-2 border-0 w-full justify-start border-dark-100 text-rose-600 bg-dark-50 hover:bg-rose-50 rounded-lg`}
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faArrowRightToBracket} className="self-center" />
-                      Log Out
+                    <div className="flex gap-2.5 items-center">
+                      <FontAwesomeIcon icon={faArrowRightToBracket} className="text-sm" />
+                      <span>Log Out</span>
                     </div>
                   </button>
                 </div>
