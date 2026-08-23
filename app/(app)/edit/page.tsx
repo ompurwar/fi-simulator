@@ -14,6 +14,8 @@ import { GetCurrencySymbol } from "@/lib/country";
 import { FDPEditor } from "@/components/edit/FDPEditor";
 import { LoanEditor } from "@/components/edit/LoanEditor";
 import { AccountEditor } from "@/components/edit/AccountEditor";
+import { AssetEditor } from "@/components/edit/AssetEditor";
+import { TaxManager } from "@/components/edit/TaxManager";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -1528,6 +1530,32 @@ export default function EditPage() {
         <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
           <div className="flex justify-between gap-5">
             <AccountEditor plan_id={plan._id} selected_account_id={god_plan_entity.entity_id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Asset editor (FD/bonds/gold/PPF/equity/real-estate/crypto holdings)
+  if (entity_type === "asset") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex justify-between gap-5">
+            <AssetEditor plan_id={plan._id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Tax Manager (regime, auto income tax, salary negotiation)
+  if (entity_type === "tax") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex justify-between gap-5">
+            <TaxManager plan_id={plan._id} />
           </div>
         </div>
       </div>

@@ -51,6 +51,6 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 3.2 | Tax engine (pure) — `ComputeIncomeTax` (regimes/senior/HRA/deductions/87A+marginal relief/surcharge/cess), `ComputeCapitalGains` (112A/foreign/indexation/VDA), `ComputeSalaryNegotiation`, `MonthToAssessmentYear` | DONE | — | Verified against ClearTax worked examples; tests/tax.test.ts |
 | 3.3 | RBAC — user `role`, `make-admin.ts`, `ToolContext.role`, `ToolDefinition.requiresRole` enforced in `callRegistryTool` | DONE | — | System-level MCP mutations admin-only (`upsert_tax_rules`, `update_presets`) |
 | 3.4 | Tax MCP tools — `list/get_tax_rules`, `tax_calculation`, `salary_negotiation` + admin `upsert_tax_rules`, `update_presets` | DONE | — | tests/mcp/tax.test.ts, tests/mcp/rbac.test.ts |
-| 3.5 | Asset engine — `MakeAsset` + presets + `engine/assets.ts` projection + snapshot wiring (`asset_*`, `tax_summary`, `bucket_growth`) + auto income-tax expense | TODO | — | Plan P2 |
-| 3.6 | Asset MCP tools + simulate patches + AI prompt | TODO | — | Plan P3 |
-| 3.7 | UI — AssetEditor, plan-page panels, Tax Manager, Salary Negotiation | TODO | — | Plan P4 |
+| 3.5 | Asset engine — `MakeAsset` + presets + `engine/assets.ts` projection + snapshot wiring (`asset_*`, `tax_summary`, `bucket_growth`) + auto income-tax expense | DONE | — | Plan P2; tests/assets.test.ts (15) |
+| 3.6 | Asset MCP tools + simulate patches + AI prompt | DONE | — | Plan P3; tests/mcp/assets.test.ts (9) |
+| 3.7 | UI — AssetEditor, plan-page panels, Tax Manager, Salary Negotiation | DONE | — | Plan P4; `/api/tax/negotiation` + `next build` green |
