@@ -910,7 +910,11 @@ function PlanPageInner() {
             <div className="flex justify-between items-start gap-2">
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
-                <DisplayAmount className="text-lg font-extrabold text-dark-800 dark:text-white truncate" amount={aggregated_balance_for_month} />
+                <DisplayAmount
+                  className="text-lg font-extrabold text-dark-800 dark:text-white truncate"
+                  notation={Math.abs(aggregated_balance_for_month || 0) >= 100000000 ? "compact" : "standard"}
+                  amount={aggregated_balance_for_month}
+                />
               </div>
               <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
                 <span className="rounded-md bg-dark-50 dark:bg-slate-800 border border-dark-100 dark:border-slate-700 px-2 py-0.5 text-xs font-bold text-dark-700 dark:text-slate-200">
@@ -1035,15 +1039,21 @@ function PlanPageInner() {
         <div className="flex flex-col justify-between gap-4 mb-20 md:mb-0 md:flex-row md:items-start">
           <div className="flex-col hidden h-fit p-4 border border-dark-200 rounded-2xl bg-white shadow-xs md:flex md:flex-1 w-full overflow-hidden self-start md:sticky md:top-2">
             <div className="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3 pb-2.5 border-b border-dark-100 dark:border-slate-800">
-              <div className="flex flex-col min-w-0">
+              <div
+                className="flex flex-col min-w-0"
+                title={
+                  Math.abs(aggregated_balance_for_month || 0) >= 100000000
+                    ? `Exact Net Worth: ${Intl.NumberFormat("en-IN", { style: "currency", currency: useFiPlanStore.getState().currency || "INR" }).format(aggregated_balance_for_month)}`
+                    : undefined
+                }
+              >
                 <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
                 <div className="flex items-center gap-2">
-                  <DisplayAmount className="text-xl font-extrabold text-dark-800 dark:text-white whitespace-nowrap" amount={aggregated_balance_for_month} />
-                  {aggregated_balance_for_month >= 10000000 && (
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                      {ToDisplayableMoney(aggregated_balance_for_month)}
-                    </span>
-                  )}
+                  <DisplayAmount
+                    className="text-xl font-extrabold text-dark-800 dark:text-white whitespace-nowrap"
+                    notation={Math.abs(aggregated_balance_for_month || 0) >= 100000000 ? "compact" : "standard"}
+                    amount={aggregated_balance_for_month}
+                  />
                 </div>
               </div>
 
