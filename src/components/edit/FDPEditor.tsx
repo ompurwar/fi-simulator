@@ -10,7 +10,26 @@ import { api } from "@/lib/api";
 import { GetRandomString } from "@/lib/utils";
 import { FireNotification } from "@/store/notifications";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faXmark, faPlus, faArrowUpRightFromSquare, faCloudArrowUp, faPen, faChevronRight, faChevronLeft, faMoneyCheckDollar, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowLeft,
+  faXmark,
+  faPlus,
+  faArrowUpRightFromSquare,
+  faCloudArrowUp,
+  faPen,
+  faChevronRight,
+  faChevronLeft,
+  faMoneyCheckDollar,
+  faTrashCan,
+  faSackDollar,
+  faVault,
+  faPiggyBank,
+  faChartLine,
+  faCheck,
+  faArrowsRotate,
+  faCircleCheck,
+  faCircleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb, faFileLines } from "@fortawesome/free-regular-svg-icons";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -21,42 +40,81 @@ function GetMMYYYY(month: number, plan_timestamp?: string | number) {
   return `${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
-/** Port of fund_distribution_percentage/FDPCard.vue */
-function FDPCard({ plan, fdp, children, dimmed }: { plan: any; fdp: any; children?: React.ReactNode; dimmed?: boolean }) {
+/** Port of fund_distribution_percentage/FDPCard.vue — Lucid Card Standard */
+function FDPCard({
+  plan,
+  fdp,
+  children,
+  dimmed,
+  selected = false,
+  onClick,
+}: {
+  plan: any;
+  fdp: any;
+  children?: React.ReactNode;
+  dimmed?: boolean;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
   const start_date = GetMMYYYY(fdp.start_month, plan?.timestamp);
   const end_date = GetMMYYYY(fdp.end_month, plan?.timestamp);
+
   return (
-    <div className={`flex w-full flex-col rounded-lg border bg-white p-2 shadow-sm hover:shadow-md md:max-w-[450px] md:min-w-[440px] ${dimmed ? "opacity-50" : ""}`}>
-      <div className="flex justify-between">
-        <div className="mt-1 flex flex-col justify-between">
-          <p className="w-full truncate text-[12px] font-medium text-dark-600 first-letter:uppercase sm:text-base md:w-[15rem]">
-            {fdp.strategy}
-          </p>
-          <div className="flex w-fit gap-1 rounded-md py-1 text-[9px] uppercase text-dark-200 sm:text-[10px] md:text-xs">
-            <div className="font-bold">{start_date}</div>
-            {start_date !== end_date && (
-              <div className="flex gap-1">
-                <span> to </span>
-                <div className="font-bold">{end_date}</div>
+    <div
+      onClick={onClick}
+      className={`group flex flex-col rounded-xl border bg-white p-4 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md md:max-w-[460px] ${
+        selected
+          ? "border-primary-400 border-l-4 border-l-primary-500 ring-2 ring-primary-400/20"
+          : "border-dark-200 border-l-4 border-l-blue-500"
+      } ${dimmed ? "opacity-50" : ""} ${onClick ? "cursor-pointer" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faSackDollar} className="text-sm" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <p className="truncate text-sm font-bold text-dark-800 first-letter:uppercase sm:text-base">
+                {fdp.strategy || "Surplus Allocation Strategy"}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-dark-400">
+                <span className="rounded-md bg-dark-100/80 px-1.5 py-0.5 text-dark-600">
+                  {start_date}
+                  {start_date !== end_date && ` → ${end_date}`}
+                </span>
               </div>
-            )}
+            </div>
           </div>
         </div>
-        <div className="ml-auto flex gap-2">
-          <div className="flex w-fit content-center self-center rounded-md text-lg">
-            <div className="ml-1 self-end py-1 text-xs text-slate-400">E: {fdp.e}%</div>
-            <div className="ml-1 self-end py-1 text-xs text-slate-400">S: {fdp.s}%</div>
-            <div className="ml-1 self-end py-1 text-xs text-slate-400">I: {fdp.i}%</div>
-            <span className="flex w-[2em] justify-center self-center text-dark-300">{children}</span>
+
+        {children && (
+          <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {children}
           </div>
+        )}
+      </div>
+
+      {/* Distribution visual chips */}
+      <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-dark-100/80 pt-3">
+        <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/80 px-2 py-1 text-xs font-bold text-blue-700">
+          <FontAwesomeIcon icon={faVault} className="text-[10px] text-blue-500" />
+          <span>Emergency: {fdp.e}%</span>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-2 py-1 text-xs font-bold text-amber-700">
+          <FontAwesomeIcon icon={faPiggyBank} className="text-[10px] text-amber-500" />
+          <span>Savings: {fdp.s}%</span>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/80 px-2 py-1 text-xs font-bold text-emerald-700">
+          <FontAwesomeIcon icon={faChartLine} className="text-[10px] text-emerald-500" />
+          <span>Investment: {fdp.i}%</span>
         </div>
       </div>
-      <div className="flex"></div>
     </div>
   );
 }
 
-/** Port of fund_distribution_percentage/FundDistributionPercentageCommand.vue */
+/** Port of fund_distribution_percentage/FundDistributionPercentageCommand.vue — Lucid Form Standard */
 function FDPCommand({
   plan,
   fdp,
@@ -98,22 +156,18 @@ function FDPCommand({
     }
   }, [fdp]);
 
-  const distribution_valid = (() => {
-    const sum = state.e + state.s + state.i;
-    return {
-      msg: "Sum of Emergency, Savings and Investment should be 100",
-      valid: sum === 100,
-    };
-  })();
+  const total_percentage = Number(state.e || 0) + Number(state.s || 0) + Number(state.i || 0);
+  const is_valid = total_percentage === 100;
 
   async function SaveChanges() {
+    if (!is_valid) return;
     const fdp_obj: any = {
       _id: mode === "add" ? GetRandomString(6) : fdp?._id,
       start_month: state.start_month,
       end_month: state.end_month,
-      e: state.e,
-      s: state.s,
-      i: state.i,
+      e: Number(state.e),
+      s: Number(state.s),
+      i: Number(state.i),
       active: state.active,
     };
     setState((s: any) => ({ ...s, loading: true }));
@@ -137,96 +191,180 @@ function FDPCommand({
   }
 
   const inputClass =
-    "relative border-[1.6px] rounded-[.5rem] px-3 py-2 w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
+    "w-full rounded-xl border border-dark-200 bg-dark-50/50 px-3.5 py-2 text-sm font-bold text-dark-800 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20";
 
   return (
-    <div className="w-full rounded-lg">
-      <div className="mb-2 flex flex-col gap-2 rounded-lg p-2">
-        <div className="flex gap-3 font-medium text-dark-600">
-          <div className="flex gap-3 self-center">
-            <FontAwesomeIcon icon={faMoneyCheckDollar} className="self-center text-2xl" />
-            <span className="self-center"> Cashflow Allocation Percentage</span>
+    <div className="flex flex-col gap-4 rounded-2xl border border-dark-200 bg-white p-5 shadow-xs">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-dark-100 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <FontAwesomeIcon icon={faMoneyCheckDollar} className="text-sm" />
           </div>
-          {mode === "edit" && (
-            <div className="ml-auto flex px-2 py-1 text-danger-500" onClick={DeleteFdp}>
-              {state.deleting ? (
-                <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-dark-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <FontAwesomeIcon icon={faTrashCan} className="self-center" />
-              )}
-            </div>
-          )}
+          <div>
+            <h3 className="text-sm font-bold text-dark-800">
+              {mode === "add" ? "Add Allocation Strategy" : "Edit Allocation Strategy"}
+            </h3>
+            <p className="text-[11px] font-medium text-dark-400">
+              Split monthly cashflow surplus between buckets
+            </p>
+          </div>
         </div>
+
+        {mode === "edit" && (
+          <button
+            type="button"
+            onClick={DeleteFdp}
+            disabled={state.deleting}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-50 transition-colors"
+          >
+            {state.deleting ? (
+              <FontAwesomeIcon icon={faArrowsRotate} className="animate-spin text-xs" />
+            ) : (
+              <FontAwesomeIcon icon={faTrashCan} className="text-xs" />
+            )}
+          </button>
+        )}
       </div>
-      <div className="mb-3 flex w-full flex-col gap-3">
-        <div>
-          <span className="text-sm text-dark-300">Savings </span>
-          <input type="number" value={state.s} onChange={(e) => setState((s: any) => ({ ...s, s: Number(e.target.value) }))} required style={{ fontSize: "1.25rem" }} className={inputClass} />
+
+      {/* Visual Allocation Split Progress Bar */}
+      <div className="flex flex-col gap-1.5 rounded-xl border border-dark-100 bg-dark-50/60 p-3">
+        <div className="flex items-center justify-between text-xs font-bold">
+          <span className="text-dark-600">Allocation Split</span>
+          <span
+            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-extrabold ${
+              is_valid
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-rose-100 text-rose-800"
+            }`}
+          >
+            <FontAwesomeIcon icon={is_valid ? faCircleCheck : faCircleExclamation} className="text-[10px]" />
+            {total_percentage}% {is_valid ? "(100% Total)" : "(Must equal 100%)"}
+          </span>
         </div>
-        <div>
-          <span className="text-sm text-dark-300">Emergency</span>
-          <input type="number" value={state.e} onChange={(e) => setState((s: any) => ({ ...s, e: Number(e.target.value) }))} required style={{ fontSize: "1.25rem" }} className={inputClass} />
-        </div>
-        <div>
-          <span className="text-sm text-dark-300">Investment</span>
-          <input type="number" value={state.i} onChange={(e) => setState((s: any) => ({ ...s, i: Number(e.target.value) }))} required style={{ fontSize: "1.25rem" }} className={inputClass} />
+
+        <div className="flex h-3 w-full overflow-hidden rounded-full bg-dark-200">
+          <div
+            style={{ width: `${Math.min(Math.max(state.e || 0, 0), 100)}%` }}
+            className="bg-blue-500 transition-all duration-300"
+            title={`Emergency: ${state.e}%`}
+          />
+          <div
+            style={{ width: `${Math.min(Math.max(state.s || 0, 0), 100)}%` }}
+            className="bg-amber-500 transition-all duration-300"
+            title={`Savings: ${state.s}%`}
+          />
+          <div
+            style={{ width: `${Math.min(Math.max(state.i || 0, 0), 100)}%` }}
+            className="bg-emerald-500 transition-all duration-300"
+            title={`Investment: ${state.i}%`}
+          />
         </div>
       </div>
 
-      <div className="mt-3 flex w-full gap-3">
-        <div className="w-[50%]">
-          <span className="text-sm text-dark-300">Start Month</span>
-          <div className="relative mt-1">
-            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-              <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
-            </div>
-            <MonthPicker
-              plan_timestamp={plan.timestamp}
-              duration={plan?.duration || 600}
-              month={state.start_month}
-              onChange={(m) => setState((s: any) => ({ ...s, start_month: m }))}
+      {/* 3 Allocation Inputs */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+            <FontAwesomeIcon icon={faVault} className="text-[11px]" />
+            <span>Emergency %</span>
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={state.e}
+              onChange={(e) => setState((s: any) => ({ ...s, e: Number(e.target.value) }))}
+              required
+              className={inputClass}
             />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-dark-400">
+              %
+            </span>
           </div>
         </div>
-        <div className="w-[50%]">
-          <span className="text-sm text-dark-300">End Month</span>
-          <div className="relative mt-1">
-            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-              <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
-            </div>
-            <MonthPicker
-              plan_timestamp={plan.timestamp}
-              duration={plan?.duration || 600}
-              month={state.end_month}
-              min_month={state.start_month}
-              onChange={(m) => setState((s: any) => ({ ...s, end_month: m }))}
+
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
+            <FontAwesomeIcon icon={faPiggyBank} className="text-[11px]" />
+            <span>Savings %</span>
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={state.s}
+              onChange={(e) => setState((s: any) => ({ ...s, s: Number(e.target.value) }))}
+              required
+              className={inputClass}
             />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-dark-400">
+              %
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+            <FontAwesomeIcon icon={faChartLine} className="text-[11px]" />
+            <span>Investment %</span>
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={state.i}
+              onChange={(e) => setState((s: any) => ({ ...s, i: Number(e.target.value) }))}
+              required
+              className={inputClass}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-dark-400">
+              %
+            </span>
           </div>
         </div>
       </div>
-      {!distribution_valid.valid && (
-        <div className="mt-3 flex">
-          <div className="p-2 text-red-500">{distribution_valid.msg}</div>
+
+      {/* Date Range Selection */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-dark-700">Start Month</label>
+          <MonthPicker
+            plan_timestamp={plan.timestamp}
+            duration={plan?.duration || 600}
+            month={state.start_month}
+            onChange={(m) => setState((s: any) => ({ ...s, start_month: m }))}
+          />
         </div>
-      )}
-      <div className="mt-3 flex">
-        <div className="w-full">
-          <Button variant="primary" sub_variant="solid" className="w-full px-4 py-2" size="md" onClick={SaveChanges}>
-            {state.loading ? (
-              <svg className="-ml-1 mr-3 h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
-            )}
-            <div className="self-center">{mode === "add" ? "Add" : "Update"}</div>
-          </Button>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-dark-700">End Month</label>
+          <MonthPicker
+            plan_timestamp={plan.timestamp}
+            duration={plan?.duration || 600}
+            month={state.end_month}
+            min_month={state.start_month}
+            onChange={(m) => setState((s: any) => ({ ...s, end_month: m }))}
+          />
         </div>
       </div>
+
+      {/* Submit button */}
+      <button
+        type="button"
+        disabled={!is_valid || state.loading}
+        onClick={SaveChanges}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-primary-600 active:scale-[0.99] disabled:opacity-50"
+      >
+        {state.loading ? (
+          <FontAwesomeIcon icon={faArrowsRotate} className="animate-spin text-sm" />
+        ) : (
+          <FontAwesomeIcon icon={faCheck} className="text-sm" />
+        )}
+        <span>{mode === "add" ? "Add Allocation Strategy" : "Save Strategy"}</span>
+      </button>
     </div>
   );
 }
@@ -260,8 +398,6 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
   }, [plan, duration]);
 
   const fdp_list = useMemo(() => {
-    // The original derives strategy ranges from the engine's FDP_month_map
-    // (plan.fund_distribution_percentage is empty in the DB — see FDPEditor.vue fdp_list computed)
     if (!snapshot) return [];
     const fdp_month_map = snapshot.account_balances_and_transactions?.FDP_month_map || {};
     const principle: any[] = [];
@@ -277,7 +413,6 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
       const { e, s, i, month } = fdp;
       const current_esi_string = `${e}-${s}-${i}`;
       if (current_esi_string !== prev_esi) {
-        // strategy changed
         if (prev_fdp) final_list.push(prev_fdp);
         prev_fdp = { ...fdp, start_month: month, end_month: month };
         prev_esi = current_esi_string;
@@ -297,18 +432,18 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
   const show_fdp_meta = ["view_fdp", "edit_fdp"].includes(stage) && !!selected_fdp;
   const show_command = ["add_fdp", "edit_fdp"].includes(stage);
 
-  // chart: FDP month map percentages (stacked e/s/i)
+  // Chart data: stacked Emergency / Savings / Investment %
   const fdp_chart_data = useMemo(() => {
     const labels: string[] = [];
     const datasets: any[] = [];
     if (!plan || !snapshot) return { labels, datasets };
     const fdp_month_map = snapshot.account_balances_and_transactions?.FDP_month_map || {};
-    const cats: Array<[string, string, number]> = [
-      ["e", "EMERGENCY", 3],
-      ["s", "SAVINGS", 2],
-      ["i", "INVESTMENT", 1],
+    const cats: Array<[string, string, string, number]> = [
+      ["e", "Emergency", "#3b82f6", 3],
+      ["s", "Savings", "#f59e0b", 2],
+      ["i", "Investment", "#10b981", 1],
     ];
-    for (const [key, label, order] of cats) {
+    for (const [key, label, color, order] of cats) {
       const data: number[] = [];
       for (let month = 1; month <= Math.min(duration, 600); month++) {
         const fdp = fdp_month_map[month];
@@ -317,14 +452,8 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
       datasets.push({
         data,
         label,
-        backgroundColor:
-          typeof document !== "undefined"
-            ? getComputedStyle(document.body).getPropertyValue(key === "e" ? "--color-dark-300" : key === "s" ? "--color-accent-600" : "--color-primary-400")
-            : "",
-        borderColor:
-          typeof document !== "undefined"
-            ? getComputedStyle(document.body).getPropertyValue(key === "e" ? "--color-dark-300" : key === "s" ? "--color-accent-600" : "--color-primary-400")
-            : "",
+        backgroundColor: color,
+        borderColor: color,
         pointStyle: "circle",
         pointRadius: 0,
         pointHoverRadius: 5,
@@ -393,7 +522,7 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
     setPlanSyncInprogress(false);
     FireNotification({
       title: "Success",
-      desc: " All changes saved successfully!",
+      desc: "All changes saved successfully!",
       variant: "success",
       active: true,
       dismissal: "true",
@@ -404,10 +533,10 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
   }
 
   const PANEL_STAGES_LABELS: Record<string, string> = {
-    fdp_list: "Allocation Strategies ",
-    view_fdp: selected_fdp ? selected_fdp.strategy : "",
-    add_fdp: "Add ",
-    edit_fdp: "Edit",
+    fdp_list: "Money Manager",
+    view_fdp: selected_fdp ? selected_fdp.strategy || "Strategy" : "Strategy",
+    add_fdp: "Add Strategy",
+    edit_fdp: "Edit Strategy",
   };
   const breadcrumb_data = stack.map((s) => PANEL_STAGES_LABELS[s] || s);
 
@@ -420,79 +549,103 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
   }
 
   return (
-    <div className="flex w-full flex-col justify-between gap-3 md:min-h-[570px] md:w-[99vw]">
-      {/* breadcrumb bar */}
-      <div className="fixed bottom-0 z-20 flex w-full gap-2 border-b-2 border-t-2 bg-dark-50 p-1 pb-2 pt-2 md:relative md:z-0 md:mt-0 md:border-t-0 md:bg-transparent md:pb-2 md:pt-0">
-        <div className="flex w-fit cursor-pointer gap-2 px-3 py-1 text-primary-600" onClick={() => SetState(stage, "back")}>
-          <FontAwesomeIcon className="self-center text-xl font-bold" icon={faArrowLeft} />
+    <div className="flex w-full flex-col justify-between gap-4 md:min-h-[570px] md:w-[99vw]">
+      {/* Breadcrumb Navigation Bar */}
+      <div className="flex items-center gap-2 rounded-2xl border border-dark-200 bg-white px-4 py-2.5 shadow-xs">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
+          onClick={() => SetState(stage, "back")}
+        >
+          <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
+        </button>
+
+        <div className="h-4 w-px bg-dark-200 mx-1" />
+
+        <div className="flex items-center gap-1.5 overflow-hidden text-xs font-bold text-dark-700">
+          {breadcrumb_data.map((btext: string, index: number) => (
+            <div key={index} className="flex items-center gap-1.5">
+              {index > 0 && <span className="text-dark-300">/</span>}
+              <span className={index === breadcrumb_data.length - 1 ? "text-primary-600" : "text-dark-500"}>
+                {btext}
+              </span>
+            </div>
+          ))}
         </div>
-        {breadcrumb_data.map((btext: string, index: number) => (
-          <div
-            key={index}
-            className="self-center font-medium text-dark-400 first-letter:uppercase after:ml-2 after:font-medium after:text-dark-200 after:content-['/'] last:after:content-[''] text-[9px] sm:text-xs md:text-xl"
-          >
-            {btext.substring(0, 20)} {btext?.length > 20 ? "..." : ""}
-          </div>
-        ))}
-        <div className="ml-auto flex w-fit cursor-pointer gap-2 px-3 py-1 text-dark-600" onClick={() => router.back()}>
-          <FontAwesomeIcon className="self-center text-xl font-bold" icon={faXmark} />
-        </div>
+
+        <button
+          type="button"
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
+          onClick={() => router.back()}
+        >
+          <FontAwesomeIcon icon={faXmark} className="text-xs" />
+        </button>
       </div>
 
-      <div className="mb-10 flex h-full flex-col-reverse gap-3 md:mb-0 md:mt-0 md:flex-row md:gap-0">
-        {/* fdp list */}
+      <div className="mb-10 flex h-full flex-col-reverse gap-4 md:mb-0 md:mt-0 md:flex-row">
+        {/* Strategy list column */}
         {show_fdp_list && (
-          <div className="flex w-full snap-y flex-col md:h-[580px] md:w-1/3 md:shrink-0">
-            <div className="overflow-x-hidden overflow-y-scroll px-0 md:pl-2">
+          <div className="flex w-full snap-y flex-col gap-3 md:h-[580px] md:w-1/3 md:shrink-0">
+            <div className="flex flex-col gap-3 overflow-y-auto pr-1">
               {fdp_list.map((entity: any) => (
-                <div key={entity._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
-                  <FDPCard plan={plan} fdp={entity} dimmed={stage !== "fdp_list"}>
-                    <div className="self-center" onClick={() => SetState(stage, "view", entity._id)}>
-                      <FontAwesomeIcon
-                        className={`self-center ${stage !== "fdp_list" ? "text-dark-200 opacity-25" : ""}`}
-                        icon={faChevronRight}
-                      />
-                    </div>
-                  </FDPCard>
-                </div>
+                <FDPCard
+                  key={entity._id}
+                  plan={plan}
+                  fdp={entity}
+                  dimmed={stage !== "fdp_list"}
+                  selected={selected_fdp_id === entity._id}
+                  onClick={() => SetState(stage, "view", entity._id)}
+                >
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-dark-100 text-dark-500 hover:bg-dark-200 hover:text-dark-800 transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
+                  </button>
+                </FDPCard>
               ))}
-              {fdp_list.length <= 5 && (
-                <div className="mt-auto flex justify-center rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
-                  <Button variant="neutral" sub_variant="outline" size="lg" className="w-full px-3 py-1 text-success-400 hover:border-success-400" onClick={() => SetState(stage, "add")}>
-                    <FontAwesomeIcon className="self-center" icon={faPlus} />
-                    Add
-                  </Button>
-                </div>
-              )}
-              <hr className="md:max-w-[450px] md:min-w-[440px]" />
-              {fdp_list.length <= 5 && !is_plan_synced && (
-                <div className="mt-auto flex flex-col justify-between gap-3 rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
-                  <div className="flex justify-between">
-                    <span className="flex rounded-md bg-dark-100 p-2 text-dark-500">
-                      <div className="mr-2">
-                        <FontAwesomeIcon icon={faLightbulb} />
-                      </div>
-                      <span className="text-xs text-dark-300">
-                        Changes are not synced automatically, you can either save them directly or view its impact on you Fi-Plan and save it later.
-                      </span>
+
+              {/* Add button */}
+              <button
+                type="button"
+                onClick={() => SetState(stage, "add")}
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-dark-200 py-3 text-xs font-bold text-dark-600 hover:border-primary-400 hover:bg-primary-50/40 hover:text-primary-600 transition-all"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                <span>Add Allocation Strategy</span>
+              </button>
+
+              {/* Unsynced notification */}
+              {!is_plan_synced && (
+                <div className="flex flex-col gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <FontAwesomeIcon icon={faLightbulb} className="mt-0.5 text-amber-600" />
+                    <span className="font-medium text-amber-800">
+                      Changes are not synced automatically. You can review the simulation or save them now.
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <Button variant="neutral" sub_variant="outline" size="lg" className="flex w-fit gap-2 px-3 py-1 text-success-400 hover:border-success-400" onClick={() => router.back()}>
-                      View changes
-                      <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="self-center" />
-                    </Button>
-                    <Button variant="primary" sub_variant="solid" size="lg" className="flex w-fit gap-2 px-3 py-1 text-success-400 hover:border-success-400" onClick={SavePlan}>
-                      Save changes
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => router.back()}
+                      className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-bold text-amber-800 shadow-2xs hover:bg-amber-50"
+                    >
+                      <span>View impact</span>
+                      <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="text-[10px]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={SavePlan}
+                      disabled={plan_sync_inprogress}
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50"
+                    >
                       {plan_sync_inprogress ? (
-                        <svg className="h-5 w-5 animate-spin self-center text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <FontAwesomeIcon icon={faArrowsRotate} className="animate-spin text-xs" />
                       ) : (
-                        <FontAwesomeIcon icon={faCloudArrowUp} className={`self-center font-bold md:text-lg ${!is_plan_synced ? "animate-pulse" : ""}`} />
+                        <FontAwesomeIcon icon={faCloudArrowUp} className="text-xs" />
                       )}
-                    </Button>
+                      <span>Save changes</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -500,32 +653,34 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
           </div>
         )}
 
-        {/* selected fdp meta */}
+        {/* Selected strategy preview */}
         {show_fdp_meta && selected_fdp && (
-          <div className={`w-full flex-col gap-2 rounded-md border-dashed md:w-[470px] md:px-2 ${show_command ? "hidden md:flex" : "flex"}`}>
-            <FDPCard plan={plan} fdp={selected_fdp}>
+          <div className={`w-full flex-col gap-2 md:w-[460px] ${show_command ? "hidden md:flex" : "flex"}`}>
+            <FDPCard plan={plan} fdp={selected_fdp} selected>
               <button
+                type="button"
                 disabled={stage !== "view_fdp"}
-                className="ml-auto self-center pl-3 text-dark-300 disabled:opacity-0"
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
                 onClick={() => SetState(stage, "edit", selected_fdp._id)}
               >
-                <FontAwesomeIcon icon={faPen} className="self-center text-sm" />
+                <FontAwesomeIcon icon={faPen} className="text-xs" />
               </button>
             </FDPCard>
-            <div></div>
           </div>
         )}
 
-        {/* divider */}
+        {/* Green divider arrow */}
         {show_command && (
-          <div className="mx-4 hidden md:flex md:shrink-0">
-            <FontAwesomeIcon className="mt-5 self-center text-3xl text-primary-300" icon={faChevronRight} />
+          <div className="hidden md:flex md:items-center md:justify-center md:px-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
+            </div>
           </div>
         )}
 
-        {/* command column */}
+        {/* Command column */}
         {show_command && (
-          <div className="flex h-full w-full flex-col md:h-[580px] md:w-[470px] md:min-w-0">
+          <div className="flex h-full w-full flex-col md:h-[580px] md:w-[460px] md:min-w-0">
             <FDPCommand
               plan={plan}
               fdp={mode === "edit" ? selected_fdp : undefined}
@@ -538,61 +693,90 @@ export function FDPEditor({ plan_id }: { plan_id: string }) {
           </div>
         )}
 
-        {/* chart column */}
-        <div className={`flex h-full flex-col gap-3 transition-all duration-300 md:ml-auto md:pl-3 md:shrink-0 ${show_command ? "md:w-1/3" : "md:w-2/3"}`}>
-          <div className="flex flex-col justify-end rounded-xl border-2 bg-dark-800 pb-3 sm:h-[380px] md:h-[420px]">
-            <div className="h-full w-full px-1 opacity-70 md:h-[400px]">
+        {/* Chart column */}
+        <div className={`flex h-full flex-col gap-3 transition-all duration-300 md:ml-auto md:shrink-0 ${show_command ? "md:w-1/3" : "md:w-2/3"}`}>
+          <div className="flex flex-col rounded-2xl border border-dark-200 bg-white p-4 shadow-xs">
+            <div className="flex items-center justify-between border-b border-dark-100 pb-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <FontAwesomeIcon icon={faChartLine} className="text-xs" />
+                </div>
+                <span className="text-xs font-bold text-dark-800">Allocation Horizon Projection</span>
+              </div>
+              <div className="flex items-center gap-3 text-[11px] font-bold">
+                <span className="flex items-center gap-1 text-blue-600">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  Emergency
+                </span>
+                <span className="flex items-center gap-1 text-amber-600">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  Savings
+                </span>
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Investment
+                </span>
+              </div>
+            </div>
+
+            <div className="h-[320px] w-full md:h-[360px]">
               <MyChart
                 labels={fdp_chart_data.labels}
                 dataset={fdp_chart_data.datasets}
                 chart_type="bar"
                 stacked
-                height={400}
+                height={360}
                 formatter={(val: any) => `${val}%`}
                 annotation={annotation}
               />
             </div>
           </div>
-          <div className="flex justify-end rounded-0 pb-2">
-            <div className="mr-auto flex flex-col gap-1 md:flex-row">
-              <div className="w-[4rem] self-center rounded-md text-xs font-bold text-primary-500 sm:text-[14px] md:w-[5.8rem] md:text-lg">
-                {fdp_chart_data.labels[current_hover_month - 1]}
+
+          {/* Timeframe & Month navigator */}
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-dark-200 bg-white p-2.5 shadow-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 rounded-lg bg-dark-100 px-2 py-1 text-xs font-bold text-dark-700">
+                <span>{fdp_chart_data.labels[current_hover_month - 1] || "Month 1"}</span>
               </div>
-              <div className="flex md:rotate-0">
-                <div className="flex">
-                  <button
-                    className="h-[1.5rem] w-[1.5rem] self-center rounded-md bg-primary-300 p-1 text-[10px] text-primary-50 transition-color duration-200 hover:bg-dark-100 disabled:opacity-50 sm:w-[2rem] sm:text-xs md:h-[25px] md:w-[25px] md:bg-transparent md:text-dark-300"
-                    disabled={current_hover_month === 1}
-                    onClick={() => setCurrentHoverMonth((m) => m - 1)}
-                  >
-                    <FontAwesomeIcon className="self-center" icon={faChevronLeft} />
-                  </button>
-                </div>
-                <div className="flex">
-                  <button
-                    className="ml-1 h-[1.5rem] w-[1.5rem] self-center rounded-md bg-primary-300 p-1 text-[10px] text-primary-50 transition-color duration-200 hover:bg-dark-100 disabled:opacity-50 sm:w-[2rem] sm:text-xs md:ml-0 md:h-[25px] md:w-[25px] md:bg-transparent md:text-dark-300"
-                    disabled={current_hover_month === duration}
-                    onClick={() => setCurrentHoverMonth((m) => m + 1)}
-                  >
-                    <FontAwesomeIcon className="self-center" icon={faChevronRight} />
-                  </button>
-                </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-md bg-dark-100 text-dark-600 hover:bg-dark-200 disabled:opacity-30"
+                  disabled={current_hover_month === 1}
+                  onClick={() => setCurrentHoverMonth((m) => m - 1)}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-md bg-dark-100 text-dark-600 hover:bg-dark-200 disabled:opacity-30"
+                  disabled={current_hover_month === duration}
+                  onClick={() => setCurrentHoverMonth((m) => m + 1)}
+                >
+                  <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
+                </button>
               </div>
             </div>
-            {duration_view_list.map(({ text, value }) => (
-              <div
-                key={value}
-                className={`flex w-[5rem] justify-center rounded-lg p-1 text-center text-[10px] font-medium sm:text-xs md:w-[5em] md:p-2 ${
-                  duration === value ? "bg-primary-100 text-primary-400 border-primary-300" : "border-dark-100 text-dark-300"
-                }`}
-                onClick={() => {
-                  setDuration(value);
-                  if (current_hover_month > value) setCurrentHoverMonth(1);
-                }}
-              >
-                <span className="w-fit self-center">{text}</span>
-              </div>
-            ))}
+
+            <div className="flex items-center gap-1">
+              {duration_view_list.map(({ text, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    duration === value
+                      ? "bg-primary-50 text-primary-700 border border-primary-300"
+                      : "text-dark-500 hover:bg-dark-100"
+                  }`}
+                  onClick={() => {
+                    setDuration(value);
+                    if (current_hover_month > value) setCurrentHoverMonth(1);
+                  }}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
