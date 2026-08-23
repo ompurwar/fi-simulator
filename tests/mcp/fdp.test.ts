@@ -87,6 +87,14 @@ describe("fdp tools", () => {
     expect(bad.ok).toBe(false);
     expect((bad as any).error.message).toContain("should be 100");
 
+    const inverted = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_fdp", {
+      plan_id,
+      fdp_id: fdp._id,
+      start_month: 40, // after the current end_month (30)
+    });
+    expect(inverted.ok).toBe(false);
+    expect((inverted as any).error.message).toContain("end_month should be >= start_month");
+
     const after = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_fdp", {
       plan_id,
     });
@@ -105,6 +113,17 @@ describe("fdp tools", () => {
     });
     expect(bad.ok).toBe(false);
     expect((bad as any).error.message).toContain("should be 100");
+
+    const inverted = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_fdp", {
+      plan_id,
+      start_month: 12,
+      end_month: 5, // end before start
+      s: 20,
+      e: 30,
+      i: 50,
+    });
+    expect(inverted.ok).toBe(false);
+    expect((inverted as any).error.message).toContain("end_month should be >= start_month");
 
     const missing = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_fdp", {
       plan_id,

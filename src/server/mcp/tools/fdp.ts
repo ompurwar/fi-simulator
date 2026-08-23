@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import type { Container } from "../../di/container";
-import { InvalidOperationError } from "../../domain/errors";
+import { InvalidOperationError, InvalidPropertyError } from "../../domain/errors";
 import { MakeFundDistributionPercentage } from "../../domain/entities";
 import { callUseCase, ok, requireFields } from "./envelope";
 import type { ToolDefinition } from "../types";
@@ -59,7 +59,7 @@ export function makeFdpTools(container: Container): ToolDefinition[] {
       name: "add_fdp",
       title: "Add an allocation strategy to a plan",
       description:
-        "Persists a new fund-distribution strategy on the plan: start_month and end_month bound the months it applies to, and s + e + i (savings/emergency/investment percentages) must sum to exactly 100. active is optional (default true). Overlapping ranges are allowed but only the FIRST strategy covering a month wins in the engine. Persists immediately.",
+        "Persists a new fund-distribution strategy on the plan: start_month and end_month (end_month >= start_month) bound the months it applies to, and s + e + i (savings/emergency/investment percentages) must sum to exactly 100. active is optional (default true). Overlapping ranges are allowed but only the FIRST strategy covering a month wins in the engine. Persists immediately.",
       inputSchema: {
         plan_id: z.string(),
         start_month: z.number().int().min(1),
@@ -81,6 +81,8 @@ export function makeFdpTools(container: Container): ToolDefinition[] {
         if (missing) return missing;
         return callUseCase(async () => {
           const plan = await getPlan(args.plan_id);
+          if (args.end_month < args.start_month)
+            throw new InvalidPropertyError("invalid: fdp end_month should be >= start_month");
           const fdp = MakeFundDistributionPercentage({
             start_month: args.start_month,
             end_month: args.end_month,
@@ -105,7 +107,7 @@ export function makeFdpTools(container: Container): ToolDefinition[] {
       name: "update_fdp",
       title: "Update a plan's allocation strategy",
       description:
-        "Patches the strategy with fdp_id on the plan. changes may include start_month, end_month, s, e, i or active; omitted fields keep their current values. After merging, s + e + i must still sum to exactly 100 — patch percentages as a consistent triple. Persists immediately.",
+        "Patches the strategy with fdp_id on the plan. changes may include start_month, end_month, s, e, i or active; omitted fields keep their current values. After merging, s + e + i must still sum to exactly 100 — patch percentages as a consistent triple — and end_month must stay >= start_month. Persists immediately.",
       inputSchema: {
         plan_id: z.string(),
         fdp_id: z.string(),
@@ -128,6 +130,8 @@ export function makeFdpTools(container: Container): ToolDefinition[] {
             const value = (args as any)[key];
             if (value !== undefined) target[key] = value;
           }
+          if (target.end_month < target.start_month)
+            throw new InvalidPropertyError("invalid: fdp end_month should be >= start_month");
           // Re-validate the merged strategy exactly like the web app does.
           const validated = MakeFundDistributionPercentage(target);
           return app.UpdatePlan({
