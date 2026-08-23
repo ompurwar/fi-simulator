@@ -124,12 +124,18 @@ export function MyChart({
         ? {
             x: {
               stacked,
-              ticks: { callback: () => "" }, // original: x labels hidden
+              ticks: {
+                callback: () => "",
+                color: "#94a3b8",
+              },
               grid: { display: false },
             },
             y: {
               stacked,
-              ticks: { callback: (value: any) => (Math.abs(value) > 0.05 ? formatter?.(value) ?? value : "") },
+              ticks: {
+                callback: (value: any) => (Math.abs(value) > 0.05 ? formatter?.(value) ?? value : ""),
+                color: "#94a3b8",
+              },
               grid: { display: false },
             },
           }

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --breakpoint-xs: 320px;
   --breakpoint-sm: 390px;
@@ -94,6 +96,29 @@
   }
 }
 
+/* Dark theme CSS variables */
+.dark {
+  --color-dark-50: #0f172a;
+  --color-dark-100: #1e293b;
+  --color-dark-200: #334155;
+  --color-dark-300: #475569;
+  --color-dark-400: #94a3b8;
+  --color-dark-500: #cbd5e1;
+  --color-dark-600: #e2e8f0;
+  --color-dark-700: #f1f5f9;
+  --color-dark-800: #f8fafc;
+  --color-dark-900: #ffffff;
+
+  --color-primary-50: rgba(16, 185, 129, 0.15);
+  --color-primary-100: rgba(16, 185, 129, 0.25);
+  --color-primary-200: rgba(16, 185, 129, 0.35);
+
+  --color-success-50: rgba(16, 185, 129, 0.15);
+  --color-danger-50: rgba(239, 68, 68, 0.15);
+  --color-warning-50: rgba(245, 158, 11, 0.15);
+  --color-accent-50: rgba(6, 182, 212, 0.15);
+}
+
 /* Tailwind v3 preflight default border color (#e5e7eb); v4 defaults to currentColor */
 @layer base {
   *,
@@ -101,15 +126,46 @@
   ::after {
     border-color: #e5e7eb;
   }
+  .dark *,
+  .dark ::before,
+  .dark ::after {
+    border-color: #334155;
+  }
 }
 
 @layer components {
   .card {
-    @apply rounded-lg bg-white p-6 shadow-xl;
+    @apply rounded-lg bg-white p-6 shadow-xl dark:bg-slate-900;
   }
   .input-filed {
-    @apply w-full rounded-lg border border-dark-200 bg-white px-4 py-2 text-sm text-dark-800 placeholder-dark-300 focus:border-primary-400 focus:outline-none;
+    @apply w-full rounded-lg border border-dark-200 bg-white px-4 py-2 text-sm text-dark-800 placeholder-dark-300 focus:border-primary-400 focus:outline-none dark:bg-slate-900 dark:border-dark-200 dark:text-dark-800;
   }
+}
+
+/* Dark mode card and surface elevation overrides */
+.dark .bg-white {
+  background-color: #1e293b !important;
+  color: #f8fafc;
+}
+.dark .border-dark-100 {
+  border-color: #334155 !important;
+}
+.dark .border-dark-200 {
+  border-color: #334155 !important;
+}
+.dark .bg-dark-50 {
+  background-color: #0f172a !important;
+}
+.dark .bg-dark-100 {
+  background-color: #1e293b !important;
+}
+.dark .shadow-xs,
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.55);
 }
 
 /* custom scrollbar matching the original index.css */
