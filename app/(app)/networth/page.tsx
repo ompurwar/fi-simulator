@@ -184,19 +184,45 @@ function NetWorthDashboard() {
     },
   ];
 
-  const history_dataset = [
-    {
-      label: "Net worth",
-      data: history.map((h) => h.value),
-      borderColor: "#10b981",
-      backgroundColor: "rgba(16,185,129,0.10)",
-      fill: true,
-      tension: 0.4,
-      pointRadius: history.length <= 6 ? 3 : 0,
-      pointHoverRadius: 5,
-      borderWidth: 2,
-    },
-  ];
+  const history_classes = Array.from(
+    new Set(history.flatMap((h) => Object.keys(h.allocation || {})))
+  );
+
+  const history_dataset = history_classes.length > 0 
+    ? history_classes.map((cls) => {
+        const color = ASSET_COLORS[cls] || "#64748b";
+        // Convert hex to rgb to add opacity
+        let r = 100, g = 116, b = 139;
+        if (color.startsWith("#")) {
+          r = parseInt(color.slice(1, 3), 16) || r;
+          g = parseInt(color.slice(3, 5), 16) || g;
+          b = parseInt(color.slice(5, 7), 16) || b;
+        }
+        return {
+          label: cls,
+          data: history.map((h) => (h.allocation?.[cls] || 0)),
+          borderColor: color,
+          backgroundColor: `rgba(${r},${g},${b},0.3)`,
+          fill: true,
+          tension: 0.4,
+          pointRadius: history.length <= 6 ? 2 : 0,
+          pointHoverRadius: 4,
+          borderWidth: 1,
+        };
+      })
+    : [
+        {
+          label: "Net worth",
+          data: history.map((h) => h.value),
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16,185,129,0.10)",
+          fill: true,
+          tension: 0.4,
+          pointRadius: history.length <= 6 ? 3 : 0,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+        },
+      ];
 
   if (loading) {
     return (
@@ -508,9 +534,10 @@ function NetWorthDashboard() {
         <div className="h-64 md:h-72">
           <MyChart
             chart_type="line"
+            stacked={history_classes.length > 0}
             labels={history.map((h) => h.month)}
             dataset={history_dataset}
-            show_legend={false}
+            show_legend={history_classes.length > 0}
             formatter={(v) => `₹${fmtCompact(v)}`}
           />
         </div>

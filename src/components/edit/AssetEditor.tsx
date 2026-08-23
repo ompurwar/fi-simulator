@@ -18,17 +18,17 @@ function monthToLabel(month: number, plan_timestamp?: string | number) {
   return `${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
-const CLASS_META: Record<string, { label: string; icon: any; growth: number; yield_rate: number; compounding: string; income_frequency: string; income_mode: string; maturity_years?: number }> = {
-  fd: { label: "Fixed Deposit", icon: faVault, growth: 0, yield_rate: 6.75, compounding: "quarterly", income_frequency: "q", income_mode: "reinvest", maturity_years: 3 },
-  bond: { label: "Bond", icon: faFileInvoiceDollar, growth: 1, yield_rate: 7.5, compounding: "yearly", income_frequency: "y", income_mode: "credit", maturity_years: 5 },
-  savings: { label: "Savings Account", icon: faPiggyBank, growth: 0, yield_rate: 3.5, compounding: "monthly", income_frequency: "m", income_mode: "credit" },
-  gold: { label: "Gold / SGB", icon: faCoins, growth: 8.5, yield_rate: 2.5, compounding: "none", income_frequency: "y", income_mode: "credit" },
-  ppf: { label: "PPF", icon: faFileShield, growth: 0, yield_rate: 7.1, compounding: "yearly", income_frequency: "y", income_mode: "reinvest", maturity_years: 15 },
-  equity: { label: "Equity (India)", icon: faChartLine, growth: 12, yield_rate: 1.5, compounding: "none", income_frequency: "y", income_mode: "credit" },
-  equity_foreign: { label: "Equity (Foreign)", icon: faGlobe, growth: 12, yield_rate: 1.5, compounding: "none", income_frequency: "y", income_mode: "credit" },
-  mf: { label: "Mutual Fund", icon: faChartPie, growth: 12, yield_rate: 0, compounding: "none", income_frequency: "y", income_mode: "credit" },
-  real_estate: { label: "Real Estate", icon: faHouseChimney, growth: 8, yield_rate: 2.75, compounding: "none", income_frequency: "m", income_mode: "credit" },
-  vda: { label: "Crypto / VDA", icon: faCoins, growth: 20, yield_rate: 0, compounding: "none", income_frequency: "m", income_mode: "credit" },
+const CLASS_META: Record<string, { label: string; icon: any; growth: number; yield_rate: number; volatility: number; compounding: string; income_frequency: string; income_mode: string; maturity_years?: number }> = {
+  fd: { label: "Fixed Deposit", icon: faVault, growth: 0, yield_rate: 6.75, volatility: 0, compounding: "quarterly", income_frequency: "q", income_mode: "reinvest", maturity_years: 3 },
+  bond: { label: "Bond", icon: faFileInvoiceDollar, growth: 1, yield_rate: 7.5, volatility: 4, compounding: "yearly", income_frequency: "y", income_mode: "credit", maturity_years: 5 },
+  savings: { label: "Savings Account", icon: faPiggyBank, growth: 0, yield_rate: 3.5, volatility: 0, compounding: "monthly", income_frequency: "m", income_mode: "credit" },
+  gold: { label: "Gold / SGB", icon: faCoins, growth: 8.5, yield_rate: 2.5, volatility: 14, compounding: "none", income_frequency: "y", income_mode: "credit" },
+  ppf: { label: "PPF", icon: faFileShield, growth: 0, yield_rate: 7.1, volatility: 0, compounding: "yearly", income_frequency: "y", income_mode: "reinvest", maturity_years: 15 },
+  equity: { label: "Equity (India)", icon: faChartLine, growth: 12, yield_rate: 1.5, volatility: 18, compounding: "none", income_frequency: "y", income_mode: "credit" },
+  equity_foreign: { label: "Equity (Foreign)", icon: faGlobe, growth: 12, yield_rate: 1.5, volatility: 20, compounding: "none", income_frequency: "y", income_mode: "credit" },
+  mf: { label: "Mutual Fund", icon: faChartPie, growth: 12, yield_rate: 0, volatility: 16, compounding: "none", income_frequency: "y", income_mode: "credit" },
+  real_estate: { label: "Real Estate", icon: faHouseChimney, growth: 8, yield_rate: 2.75, volatility: 6, compounding: "none", income_frequency: "m", income_mode: "credit" },
+  vda: { label: "Crypto / VDA", icon: faCoins, growth: 20, yield_rate: 0, volatility: 40, compounding: "none", income_frequency: "m", income_mode: "credit" },
 };
 
 function AssetCard({ plan, asset, children }: { plan: any; asset: any; children?: React.ReactNode }) {
@@ -111,6 +111,7 @@ function AssetCommand({
       purchase_month: 1,
       growth_rate: meta.growth,
       yield_rate: meta.yield_rate,
+      volatility: meta.volatility,
       income_frequency: meta.income_frequency,
       income_mode: meta.income_mode,
       compounding: meta.compounding,
@@ -138,11 +139,13 @@ function AssetCommand({
       purchase_month: state.purchase_month,
       growth_rate: state.growth_rate,
       yield_rate: state.yield_rate,
+      volatility: state.volatility,
       income_frequency: state.income_frequency,
       income_mode: state.income_mode,
       compounding: state.compounding,
       maturity_month: state.maturity_month,
       sale_month: state.sale_month,
+      purchase_date: state.purchase_date,
       active: state.active ?? true,
       ...(state.rent?.monthly_rent > 0 ? { rent: { monthly_rent: state.rent.monthly_rent, step_pct: state.rent.step_pct || 0, expense_ratio: state.rent.expense_ratio ?? 20 } } : {}),
       ...(state.sip?.amount > 0
@@ -220,13 +223,29 @@ function AssetCommand({
         <div className="flex w-full gap-3">
           <div className="w-full">
             <span className={labelClass}>Growth %/yr</span>
-            <input type="number" min={0} value={state.growth_rate} onChange={(e) => setState((s: any) => ({ ...s, growth_rate: Number(e.target.value) }))} required className={inputClass} />
+            <input type="number" step="0.1" min={0} value={state.growth_rate} onChange={(e) => setState((s: any) => ({ ...s, growth_rate: Number(e.target.value) }))} required className={inputClass} />
           </div>
           <div className="w-full">
             <span className={labelClass}>Yield %/yr</span>
-            <input type="number" min={0} value={state.yield_rate} onChange={(e) => setState((s: any) => ({ ...s, yield_rate: Number(e.target.value) }))} required className={inputClass} />
+            <input type="number" step="0.1" min={0} value={state.yield_rate} onChange={(e) => setState((s: any) => ({ ...s, yield_rate: Number(e.target.value) }))} required className={inputClass} />
           </div>
+          {!["fd", "savings", "ppf"].includes(state.asset_class) && (
+            <div className="w-full">
+              <span className={labelClass}>Volatility %</span>
+              <input type="number" step="0.1" min={0} value={state.volatility ?? 0} onChange={(e) => setState((s: any) => ({ ...s, volatility: Number(e.target.value) }))} required className={inputClass} />
+            </div>
+          )}
         </div>
+        {state.asset_class === "gold" && (
+          <div className="flex w-full gap-2 rounded-md bg-dark-100 p-3 items-center">
+            <input type="checkbox" id="sgb_toggle" className="h-4 w-4 rounded bg-dark-200 border-transparent text-primary-500 focus:ring-0"
+                   checked={state.yield_rate > 0}
+                   onChange={(e) => setState((s: any) => ({ ...s, yield_rate: e.target.checked ? 2.5 : 0, income_frequency: e.target.checked ? "y" : s.income_frequency }))} />
+            <label htmlFor="sgb_toggle" className="text-xs font-medium text-dark-300">
+              Is this a Sovereign Gold Bond (SGB)? (Enables 2.5% yield)
+            </label>
+          </div>
+        )}
         <div className="flex w-full gap-3">
           <div className="w-full">
             <span className={labelClass}>Income Frequency</span>
@@ -247,25 +266,35 @@ function AssetCommand({
         </div>
 
         {state.asset_class === "real_estate" && (
-          <div className="flex w-full flex-col gap-2 rounded-md bg-dark-100 p-2">
-            <div className="text-xs font-medium text-dark-300">Rental Income</div>
-            <div className="flex w-full gap-3">
-              <div className="w-full">
-                <span className={labelClass}>Monthly Rent (₹)</span>
-                <input type="number" min={0} value={state.rent?.monthly_rent || ""} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), monthly_rent: Number(e.target.value) } }))} className={inputClass} />
+          <>
+            <div className="flex w-full gap-2 rounded-md bg-dark-100 p-3 items-center">
+              <input type="checkbox" id="indexation_gate" className="h-4 w-4 rounded bg-dark-200 border-transparent text-primary-500 focus:ring-0"
+                     checked={state.purchase_date ? state.purchase_date < "2024-07-23" : false}
+                     onChange={(e) => setState((s: any) => ({ ...s, purchase_date: e.target.checked ? "2024-07-22" : undefined }))} />
+              <label htmlFor="indexation_gate" className="text-xs font-medium text-dark-300">
+                Purchased before Jul 2024 (Qualifies for 20% Indexation tax)
+              </label>
+            </div>
+            <div className="flex w-full flex-col gap-2 rounded-md bg-dark-100 p-2">
+              <div className="text-xs font-medium text-dark-300">Rental Income</div>
+              <div className="flex w-full gap-3">
+                <div className="w-full">
+                  <span className={labelClass}>Monthly Rent (₹)</span>
+                  <input type="number" min={0} value={state.rent?.monthly_rent || ""} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), monthly_rent: Number(e.target.value) } }))} className={inputClass} />
+                </div>
+                <div className="w-full">
+                  <span className={labelClass}>Rent Step %/yr</span>
+                  <input type="number" min={0} value={state.rent?.step_pct || 0} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), step_pct: Number(e.target.value) } }))} className={inputClass} />
+                </div>
               </div>
-              <div className="w-full">
-                <span className={labelClass}>Rent Step %/yr</span>
-                <input type="number" min={0} value={state.rent?.step_pct || 0} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), step_pct: Number(e.target.value) } }))} className={inputClass} />
+              <div className="flex w-full gap-3">
+                <div className="w-full">
+                  <span className={labelClass}>Expense Ratio %</span>
+                  <input type="number" min={0} max={100} value={state.rent?.expense_ratio ?? 20} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), expense_ratio: Number(e.target.value) } }))} className={inputClass} />
+                </div>
               </div>
             </div>
-            <div className="flex w-full gap-3">
-              <div className="w-full">
-                <span className={labelClass}>Expense Ratio %</span>
-                <input type="number" min={0} max={100} value={state.rent?.expense_ratio ?? 20} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), expense_ratio: Number(e.target.value) } }))} className={inputClass} />
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         <div className="flex w-full flex-col gap-2 rounded-md bg-dark-100 p-2">
@@ -455,7 +484,7 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
   };
   const breadcrumb_data = stack.map((s) => PANEL_STAGES_LABELS[s] || s);
 
-  async function ImportFromNetWorth() {
+  async function ImportFromNetWorth(mode: "refresh" | "rebuild") {
     setImporting(true);
     setImportMsg("");
     try {
@@ -463,15 +492,18 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ plan_id }),
+        body: JSON.stringify({ plan_id, mode }),
       });
       const json = await res.json();
       if (!res.ok) {
         setImportMsg(json?.error?.message || "import failed");
       } else {
-        const { added, skipped } = json.data || {};
-        const labels = added.map((a: any) => a.asset_class).join(", ");
-        setImportMsg(added.length > 0 ? `Imported: ${labels}${skipped.length ? ` (skipped existing: ${skipped.join(", ")})` : ""}` : "No new asset classes to import");
+        const { added, skipped, refreshed } = json.data || {};
+        const msg = [];
+        if (added?.length) msg.push(`Added: ${added.length}`);
+        if (refreshed?.length) msg.push(`Refreshed: ${refreshed.length}`);
+        if (skipped?.length) msg.push(`Skipped: ${skipped.length}`);
+        setImportMsg(msg.length > 0 ? msg.join(" | ") : "No classes to import");
       }
     } catch (e: any) {
       setImportMsg(e?.message || "import failed");
@@ -515,13 +547,25 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
         {show_asset_list && (
           <div className={`flex-col snap-y md:h-[580px] md:w-1/3 md:shrink-0 ${stage !== "asset_list" ? "hidden md:flex" : "flex"}`}>
             <div className="overflow-y-scroll pl-2 pr-1">
-              <div className="mb-2 flex items-center justify-between gap-2 rounded-md bg-dark-100 p-2">
+              <div className="mb-2 flex flex-col gap-2 rounded-md bg-dark-100 p-2">
                 <span className="text-[11px] text-dark-300">Import your holdings from Net Worth (IndMoney)</span>
-                <Button variant="neutral" sub_variant="outline" size="md" className="px-2 py-0.5 text-[11px]" onClick={ImportFromNetWorth} disabled={importing}>
-                  {importing ? "…" : "Import"}
-                </Button>
+                <div className="flex w-full gap-2 justify-between">
+                  <Button variant="neutral" sub_variant="outline" size="md" className="flex-1 px-2 py-0.5 text-[11px]" onClick={() => ImportFromNetWorth("refresh")} disabled={importing}>
+                    {importing ? "…" : "Refresh"}
+                  </Button>
+                  <Button variant="neutral" sub_variant="outline" size="md" className="flex-1 px-2 py-0.5 text-[11px]" onClick={() => ImportFromNetWorth("rebuild")} disabled={importing}>
+                    {importing ? "…" : "Rebuild"}
+                  </Button>
+                </div>
               </div>
               {import_msg && <div className="mb-2 rounded-md bg-warning-100 p-2 text-[11px] text-dark-400">{import_msg}</div>}
+              {asset_list.length === 0 && (
+                <div className="flex h-32 flex-col items-center justify-center rounded-md bg-dark-100 p-4 text-center text-dark-400">
+                  <FontAwesomeIcon icon={faVault} className="mb-2 h-6 w-6 opacity-30" />
+                  <p className="text-xs">No assets yet.</p>
+                  <p className="mt-1 text-[10px]">Add one manually or import from your Net Worth.</p>
+                </div>
+              )}
               {asset_list.map((asset: any) => (
                 <div key={asset._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
                   <AssetCard plan={plan} asset={asset}>

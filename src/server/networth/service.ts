@@ -96,9 +96,14 @@ export function makeNetWorthService(deps: {
           .slice(0, 10);
         if (seen_days.has(day)) continue;
         seen_days.add(day);
+        const alloc_map: Record<string, number> = {};
+        if (s.snapshot?.allocation) {
+          for (const a of s.snapshot.allocation) alloc_map[a.asset_class] = a.value;
+        }
         history.push({
           month: ToMonthLabel(s.as_of || new Date(s.timestamp).toISOString()),
           value: Number(s.snapshot?.total_net_worth ?? 0),
+          allocation: alloc_map,
         });
         if (history.length >= 12) break;
       }

@@ -35,6 +35,7 @@ export interface NetWorthHolding {
 export interface NetWorthHistoryPoint {
   month: string;
   value: number;
+  allocation?: Record<string, number>;
 }
 
 export interface NetWorthAnalysisItem {

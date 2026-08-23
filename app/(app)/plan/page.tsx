@@ -217,8 +217,8 @@ function BalanceAndTxn({
   }
 
   return (
-    <div className={`flex h-full flex-col justify-between gap-4 ${alignment === "h" ? "md:flex-row" : ""}`}>
-      <div className={`flex flex-col gap-4 ${alignment === "h" ? "md:flex-row" : ""}`}>
+    <div className={`flex h-fit flex-col justify-between gap-4 ${alignment === "h" ? "md:flex-row" : ""}`}>
+      <div className={`flex flex-col gap-4 shrink-0 md:min-w-[15.5rem] ${alignment === "h" ? "md:flex-row" : ""}`}>
         <div className={`flex flex-col justify-center gap-1 divide-y divide-dark-400 rounded-2xl bg-dark-900 p-4 px-3 ${alignment === "v" ? "w-full" : "md:w-[14.5rem]"}`}>
           <div className="relative flex justify-between">
             <div className="flex flex-col self-center gap-1- grow">
@@ -286,8 +286,15 @@ function BalanceAndTxn({
 
         {asset_by_class.length > 0 && (
           <div className={`flex flex-col gap-2 rounded-2xl bg-dark-900 p-3 ${alignment === "h" ? "" : "w-full"}`}>
-            <div className="flex justify-between">
-              <div className="text-sm font-medium">Asset Mix</div>
+            <div className="flex justify-between items-baseline">
+              <div className="text-sm font-medium flex gap-1 items-baseline">
+                Asset Mix
+                {assetSummary.total_invested > 0 && (
+                  <span className="text-[9px] text-dark-300 hidden sm:inline-block">
+                    (inv: <DisplayAmount amount={assetSummary.total_invested} notation="compact" />)
+                  </span>
+                )}
+              </div>
               <DisplayAmount className="text-sm font-bold text-primary-300" notation="compact" amount={assetSummary.total_value} />
             </div>
             <div className="flex items-center gap-3">
@@ -308,9 +315,12 @@ function BalanceAndTxn({
               </div>
               <div className="flex w-full flex-col gap-1">
                 {asset_by_class.map(([k, c]: any) => (
-                  <div key={k} className="flex items-center gap-2 text-[11px] sm:text-xs">
-                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: ASSET_CLASS_COLORS[k] || "#64748b" }} />
-                    <span className="w-[6.5rem] truncate text-dark-200">{ASSET_CLASS_LABELS[k] || k}</span>
+                  <div key={k} className="flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: ASSET_CLASS_COLORS[k] || "#64748b" }} />
+                    <span className="w-[5.5rem] truncate text-dark-200">{ASSET_CLASS_LABELS[k] || k}</span>
+                    <span className="text-[9px] text-dark-400 font-mono w-[1.5rem] text-right">
+                      {Math.round((c.value / assetSummary.total_value) * 100)}%
+                    </span>
                     <DisplayAmount className="ml-auto font-medium" notation="compact" amount={c.value} />
                   </div>
                 ))}
@@ -344,12 +354,12 @@ function BalanceAndTxn({
                     {!["s", "savings", "e", "emergency", "i", "investment"].includes(b.category) && (
                       <span className="text-xs font-bold text-dark-400">{b.category?.[0]?.toUpperCase()}</span>
                     )}
-                    {currentFdp && (blendedRoi(b.category) ?? getRoi(b.category)) && (
+                    {currentFdp && (blendedRoi(b.category) !== undefined || getRoi(b.category)) && (
                       <div
-                        className="absolute -right-1 -top-2 grid w-[1.6rem] place-content-center rounded-md border border-dark-200 bg-dark-50 px-4 text-[10px] font-semibold sm:w-[3em] sm:px-0 sm:text-xs sm:leading-[1.2rem]"
-                        title={blendedRoi(b.category) !== undefined ? "Blended asset growth" : "ROI"}
+                        className={`absolute -right-1 -top-2 grid w-[1.6rem] place-content-center rounded-md border bg-dark-50 px-4 text-[10px] font-semibold sm:w-[3.2rem] sm:px-0 sm:text-xs sm:leading-[1.2rem] ${blendedRoi(b.category) !== undefined ? "border-primary-400/50 text-primary-300" : "border-dark-200"}`}
+                        title={blendedRoi(b.category) !== undefined ? "Blended asset growth (weighted average of bucket holdings)" : "Default bucket ROI"}
                       >
-                        {blendedRoi(b.category) !== undefined ? `${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}
+                        {blendedRoi(b.category) !== undefined ? `~${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}
                       </div>
                     )}
                   </div>
@@ -610,9 +620,9 @@ function PlanPageInner() {
   const chart_annotations = [...purchase_annotations, ...annotation];
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:gap-10">
+    <div className="flex flex-col gap-3 md:flex-row md:gap-4">
       {/* Left manager sidebar (desktop) */}
-      <div className="flex-wrap justify-between hidden w-56 gap-3 px-4 mt-24 bg-transparent md:flex md:mt-0 md:flex-col md:border-r md:px-0 md:p-4">
+      <div className="flex-wrap justify-between hidden w-56 gap-3 px-2 mt-24 bg-transparent md:flex md:mt-0 md:flex-col md:border-r md:px-0 md:p-2">
         <div className="fixed">
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => router.push("/networth")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
@@ -627,7 +637,7 @@ function PlanPageInner() {
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("cashflow", "income")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-success-100 p-2 text-success-300">
               <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-success-200 bg-dark-50 text-primary-300">{income_list.length}</div>
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-success-200 bg-dark-50 text-primary-300">{income_list.length}</div>
             </div>
             <div className="self-center w-full">
               <div className="flex justify-between grow text-dark-300">
@@ -638,7 +648,7 @@ function PlanPageInner() {
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-danger-100" onClick={() => HandleEdit("cashflow", "expense")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-danger-100 p-2 text-danger-300">
               <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-danger-200 bg-dark-50 text-danger-300">{engine.expense_list.length}</div>
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-danger-200 bg-dark-50 text-danger-300">{engine.expense_list.length}</div>
             </div>
             <div className="self-center w-full">
               <div className="flex justify-between grow text-dark-300">
@@ -649,7 +659,7 @@ function PlanPageInner() {
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-dark-100" onClick={() => HandleEdit("loan", "")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-dark-100 p-2 text-dark-300">
               <FontAwesomeIcon icon={faLandmarkFlag} className="text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-dark-200 bg-dark-50 text-dark-300">{loan_account_list.length}</div>
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-dark-200 bg-dark-50 text-dark-300">{loan_account_list.length}</div>
             </div>
             <div className="self-center w-full">
               <div className="flex justify-between grow text-dark-300">
@@ -670,7 +680,7 @@ function PlanPageInner() {
           <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("asset", "")}>
             <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
               <FontAwesomeIcon icon={faVault} className="text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-primary-200 bg-dark-50 text-primary-300">{(plan?.asset_list || []).length}</div>
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-primary-200 bg-dark-50 text-primary-300">{(plan?.asset_list || []).length}</div>
             </div>
             <div className="self-center w-full">
               <div className="flex justify-between grow text-dark-300">
@@ -692,7 +702,7 @@ function PlanPageInner() {
       </div>
 
       {/* Center column */}
-      <div className="flex w-full flex-col gap-4 p-2 md:mt-2 md:w-[50%] md:gap-2">
+      <div className="flex w-full flex-col gap-4 p-2 md:mt-2 md:w-[55%] xl:w-[60%] md:gap-2">
         {/* Month slider + cockpit popover */}
         <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:bottom-2 md:flex md:w-full md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-xl md:bg-dark-900 md:m-1 mb-3 shadow-warning-200 shadow-lg md:shadow-dark-400 md:shadow-md border md:border-0 transition-all duration-250">
           <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
@@ -814,8 +824,8 @@ function PlanPageInner() {
         </div>
 
         {/* Net worth chart + BalanceAndTxn (desktop) */}
-        <div className="flex flex-col justify-between gap-4 mb-20 md:mb-0 md:flex-row">
-          <div className="flex-col hidden h-full p-4 border rounded-2xl bg-dark-900 md:flex">
+        <div className="flex flex-col justify-between gap-4 mb-20 md:mb-0 md:flex-row md:items-start">
+          <div className="flex-col hidden h-full p-4 border rounded-2xl bg-dark-900 md:flex md:flex-1 w-full overflow-hidden">
             <div className="flex flex-row-reverse justify-between gap-5">
               <div className="flex">
                 <button className="p-1 transition-colors duration-200 bg-transparent rounded-md text-warning-300 hover:bg-dark-600 disabled:opacity-50" disabled={current_month === 1} onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}>
@@ -832,7 +842,7 @@ function PlanPageInner() {
               </div>
             </div>
             {/* matches original: chart_height=500, chart sits directly below the header */}
-            <div className="h-[500px] w-[28rem]">
+            <div className="h-[500px] w-full">
               <MyChart
                 labels={balance_chart_labels}
                 dataset={balance_chart_datasets}
@@ -896,28 +906,28 @@ function PlanPageInner() {
                 }`}
                 onClick={() => setCurrentMonth(d.month)}
               >
-                <div className="flex flex-col md:flex-row">
-                  <div className="w-full md:w-1/4">
-                    <div className={`w-[70px] py-2 text-center text-dark-500 ${d.month === current_month ? "font-bold" : ""}`}>
+                <div className="flex flex-col md:flex-row justify-between w-full md:items-center">
+                  <div className="w-full md:w-auto shrink-0">
+                    <div className={`w-[70px] py-1 text-center text-dark-500 ${d.month === current_month ? "font-bold" : ""}`}>
                       {GetMonthAndYear(plan, d.month)}
                     </div>
                   </div>
-                  <div className="w-full md:w-1/4">
+                  <div className="w-full md:w-auto">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 md:text-xs">Income </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-400" amount={d.income?.total_income || 0} />
+                      <span className="text-dark-300 text-[10px] xl:text-xs">Income </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-400 text-sm xl:text-base" amount={d.income?.total_income || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-1/4">
+                  <div className="w-full md:w-auto">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 md:text-xs">Expense </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-400" amount={d.expense?.total_expense || 0} />
+                      <span className="text-dark-300 text-[10px] xl:text-xs">Expense </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-400 text-sm xl:text-base" amount={d.expense?.total_expense || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-1/4">
+                  <div className="w-full md:w-auto">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 md:text-xs">Net </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-600" amount={d.net_cashflow?.total || 0} />
+                      <span className="text-dark-300 text-[10px] xl:text-xs">Net </span>
+                      <DisplayAmount className="mr-2 font-bold text-dark-600 text-sm xl:text-base" amount={d.net_cashflow?.total || 0} />
                     </div>
                   </div>
                 </div>

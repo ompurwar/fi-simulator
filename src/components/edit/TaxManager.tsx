@@ -43,8 +43,10 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
   const [negotiation, setNegotiation] = useState<any>(null);
   const [loading_negotiation, setLoadingNegotiation] = useState(false);
   const [negotiation_error, setNegotiationError] = useState("");
+  const [custom_offer, setCustomOffer] = useState<number | "">("");
 
   const [tax_summary, setTaxSummary] = useState<Record<string, any> | null>(null);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
     if (plan) {
@@ -61,9 +63,15 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
   useEffect(() => {
     let cancelled = false;
     if (plan && (plan.asset_list?.length > 0 || plan.tax_settings?.income_tax_enabled)) {
+      setFetching(true);
       api.PlanSnapshot(plan, plan.duration || 600).then((s: any) => {
-        if (!cancelled) setTaxSummary(s?.tax_summary || null);
-      }).catch(() => {});
+        if (!cancelled) {
+          setTaxSummary(s?.tax_summary || null);
+          setFetching(false);
+        }
+      }).catch(() => {
+        if (!cancelled) setFetching(false);
+      });
     } else {
       setTaxSummary(null);
     }
@@ -115,6 +123,7 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
           deductions: Object.fromEntries(Object.entries(deductions).filter(([, v]) => Number(v) > 0)),
           salary_structure: salary_structure || undefined,
           scenarios: [
+            ...(custom_offer ? [{ label: "Custom Offer", new_gross: Number(custom_offer) }] : []),
             { label: "Current +10%", new_gross: Math.round(current * 1.1) },
             { label: "Current +20%", new_gross: Math.round(current * 1.2) },
             { label: "Current +30%", new_gross: Math.round(current * 1.3) },
@@ -264,13 +273,19 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
             <span className="self-center font-medium">Salary Negotiation</span>
           </div>
 
-          <div className="flex w-full items-center justify-between gap-3">
+          <div className="flex w-full flex-wrap items-end justify-between gap-2">
             <div>
-              <div className="text-xs uppercase text-dark-300">Current gross (annual)</div>
+              <div className="text-xs uppercase text-dark-300">Current gross</div>
               <DisplayAmount className="text-xl font-medium text-dark-600" notation="standard" amount={current} />
             </div>
-            <Button variant="neutral" sub_variant="outline" size="md" className="px-3 py-1" onClick={RunNegotiation}>
-              {loading_negotiation ? "…" : "Compare offers"}
+            <div className="w-[110px]">
+              <span className="text-[10px] uppercase text-dark-300">Custom Offer</span>
+              <input type="number" min={0} value={custom_offer} placeholder="Optional"
+                onChange={(e) => setCustomOffer(e.target.value ? Number(e.target.value) : "")}
+                className={inputClass} />
+            </div>
+            <Button variant="neutral" sub_variant="outline" size="md" className="px-3 py-1 mb-[1px]" onClick={RunNegotiation}>
+              {loading_negotiation ? "…" : "Compare"}
             </Button>
           </div>
 
@@ -330,7 +345,7 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
             </div>
           )}
           {tax_years.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className={`overflow-x-auto transition-opacity duration-300 ${fetching ? "opacity-50" : "opacity-100"}`}>
               <table className="w-full text-left text-[11px] sm:text-xs">
                 <thead>
                   <tr className="border-b border-dark-200 text-dark-300">
