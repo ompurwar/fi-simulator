@@ -58,7 +58,7 @@ export function makeEngineTools(container: Container): ToolDefinition[] {
       name: "simulate_plan",
       title: "Run a what-if scenario on a plan",
       description:
-        "Applies an ordered list of scenario patches to a DEEP COPY of the plan (never persisted) and returns the resulting snapshot plus applied_patches. Pass plan_id to load the plan server-side (preferred — never paste plan_json); plan_json is accepted for portability. Pass summary=true for the compact view. Patches support add_income, add_expense, add_cashflow_change, add_loan, add_fdp and set_account_balance.",
+        "Applies an ordered list of scenario patches to a DEEP COPY of the plan (never persisted) and returns the resulting snapshot plus applied_patches. Pass plan_id to load the plan server-side (preferred — never paste plan_json); plan_json is accepted for portability. Pass summary=true for the compact view. Patches support add_income, add_expense, add_cashflow_change, add_loan, add_fdp (fdp: { start_month, end_month, s, e, i } with s + e + i = 100 — or the legacy { amount, interest_rate, tenure } fixed-deposit shape) and set_account_balance.",
       inputSchema: {
         plan_id: z.string().optional(),
         plan_json: z.record(z.string(), z.any()).optional(),
