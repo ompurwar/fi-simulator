@@ -63,25 +63,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { message: "no net-worth snapshot — connect and sync a provider first" } }, { status: 400 });
   }
 
+  const mode = body?.mode || "add_only"; // "refresh" | "rebuild" | "add_only"
   const presets = await container.tax_service.getPresets();
   const mapped = BuildAssetsFromNetWorth(snapshot.allocation, presets);
 
-  const existing_classes = new Set((plan.asset_list || []).map((a: any) => a.asset_class));
+  let asset_list = [...(plan.asset_list || [])];
   const added: any[] = [];
   const skipped: string[] = [];
-  const asset_list = [...(plan.asset_list || [])];
-  for (const asset of mapped) {
-    if (existing_classes.has(asset.asset_class)) {
-      skipped.push(asset.asset_class);
-      continue;
+  const refreshed: string[] = [];
+
+  if (mode === "rebuild") {
+    const imported_classes = new Set(mapped.map((m) => m.asset_class));
+    asset_list = asset_list.filter((a: any) => !imported_classes.has(a.asset_class));
+    for (const asset of mapped) {
+      asset_list.push(asset);
+      added.push({ asset_class: asset.asset_class, principal: asset.principal });
     }
-    asset_list.push(asset);
-    existing_classes.add(asset.asset_class);
-    added.push({ asset_class: asset.asset_class, principal: asset.principal });
+  } else if (mode === "refresh") {
+    for (const imported of mapped) {
+      const existing = asset_list.find((a: any) => a.asset_class === imported.asset_class);
+      if (existing) {
+        existing.principal = imported.principal;
+        refreshed.push(imported.asset_class);
+      } else {
+        asset_list.push(imported);
+        added.push({ asset_class: imported.asset_class, principal: imported.principal });
+      }
+    }
+  } else {
+    // add_only (default/legacy)
+    const existing_classes = new Set(asset_list.map((a: any) => a.asset_class));
+    for (const asset of mapped) {
+      if (existing_classes.has(asset.asset_class)) {
+        skipped.push(asset.asset_class);
+        continue;
+      }
+      asset_list.push(asset);
+      added.push({ asset_class: asset.asset_class, principal: asset.principal });
+    }
   }
 
-  if (added.length > 0) {
+  if (added.length > 0 || refreshed.length > 0 || mode === "rebuild") {
     await container.app.UpdatePlan({ _id: plan_id, user_id, ...plan, asset_list });
   }
-  return NextResponse.json({ status: "success", data: { added, skipped } });
+  return NextResponse.json({ status: "success", data: { added, skipped, refreshed, mode } });
 }

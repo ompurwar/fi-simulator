@@ -31,6 +31,8 @@ import {
   faArrowTrendDown,
   faMoneyCheckDollar,
   faTrashCan,
+  faArrowsRotate,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb, faFileLines } from "@fortawesome/free-regular-svg-icons";
 
@@ -66,67 +68,99 @@ function FrequencyToInterval(frequency: string | null) {
   }
 }
 
-/** Port of cashflow/CashflowCard.vue */
+/** Lucid Cashflow Card styled identically to LoanCard & AssetCard */
 function CashflowCard({
   plan,
   cashflow,
   children,
   dimmed,
+  selected = false,
+  onClick,
 }: {
   plan: any;
   cashflow: any;
   children?: React.ReactNode;
   dimmed?: boolean;
+  selected?: boolean;
+  onClick?: () => void;
 }) {
+  const is_income = cashflow.category === "i";
   const start_date = GetMonthAndYear(plan, cashflow.start_month);
   const end_date = cashflow.type === "p" ? GetMonthAndYear(plan, cashflow.end_month) : "";
+
   return (
     <div
-      className={`flex w-full flex-col rounded-lg border bg-white p-2 shadow-sm hover:shadow-md md:max-w-[450px] md:min-w-[440px] ${
-        cashflow.category === "i" ? "border-l-2 border-l-primary-300" : "border-l-2 border-l-danger-300"
-      } ${dimmed ? "opacity-50" : ""}`}
+      onClick={onClick}
+      className={`flex flex-col rounded-xl border bg-white p-3 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md ${
+        selected
+          ? is_income
+            ? "border-primary-400 border-l-4 border-l-primary-500 ring-2 ring-primary-400/20"
+            : "border-danger-400 border-l-4 border-l-danger-500 ring-2 ring-danger-400/20"
+          : is_income
+          ? "border-dark-200 border-l-4 border-l-primary-400"
+          : "border-dark-200 border-l-4 border-l-danger-400"
+      } ${dimmed ? "opacity-60" : ""} ${onClick ? "cursor-pointer" : ""}`}
     >
-      <div className="flex justify-between gap-1">
-        <div className="mt-1 flex flex-col justify-between">
-          <p className="w-[10rem] truncate text-[12px] font-medium text-dark-600 first-letter:uppercase sm:w-[13rem] sm:text-base md:w-[15rem]">
-            {cashflow.desc}
-          </p>
-          <div className="flex w-fit gap-1 rounded-md py-1 text-[9px] uppercase text-dark-200 sm:text-[10px]">
-            <div className="font-bold">{start_date}</div>
-            {end_date ? (
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                is_income ? "bg-primary-50 text-primary-600" : "bg-danger-50 text-danger-600"
+              }`}
+            >
+              <FontAwesomeIcon icon={faMoneyCheckDollar} className="text-xs" />
+            </div>
+            <p className="truncate text-sm font-bold text-dark-800 first-letter:uppercase sm:text-base">
+              {cashflow.desc}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-dark-500 sm:text-sm font-medium">
+            <span className="rounded-md bg-dark-100/70 px-1.5 py-0.5 text-[11px] font-semibold text-dark-700">
+              {FrequencyToInterval(cashflow.frequency)}
+            </span>
+            <span className="text-dark-300">·</span>
+            <DisplayAmount className="self-center font-bold text-dark-800" amount={cashflow.amount} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-dark-500 sm:text-xs">
+            <span className="text-dark-400">from</span>
+            <span className="font-bold text-dark-700">{start_date}</span>
+            {end_date && (
               <>
-                <span> to </span>
-                <div className="font-bold">{end_date}</div>
+                <span className="text-dark-400">to</span>
+                <span className="font-bold text-dark-700">{end_date}</span>
               </>
-            ) : null}
+            )}
           </div>
         </div>
-        <div className="flex w-[7rem] justify-end gap-2 sm:w-[12rem]">
-          <div className="flex grow justify-between self-center rounded-md text-lg">
-            <div className="flex">
-              <DisplayAmount
-                notation="compact"
-                className="self-center text-sm text-dark-300 sm:text-xl"
-                amount={cashflow.amount}
-              />
-              <div className="ml-1 self-end py-1 text-[9px] text-slate-400 sm:text-xs">
-                {FrequencyToInterval(cashflow.frequency)}
-              </div>
-            </div>
-            <span
-              className={`flex justify-center self-center sm:w-[2rem] ${cashflow.category === "i" ? "text-success-300" : "text-danger-300"}`}
-            >
-              {children}
-            </span>
+
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div
+            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold ${
+              is_income ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+            }`}
+          >
+            <span>{is_income ? "INFLOW" : "OUTFLOW"}</span>
           </div>
+
+          {children && (
+            <div className="mt-1 flex items-center justify-end text-sm text-dark-400" onClick={(e) => e.stopPropagation()}>
+              {children}
+            </div>
+          )}
         </div>
       </div>
-      <div className="flex"></div>
     </div>
   );
 }
 
-/** Port of cashflow/CashflowCommand.vue (vuepic DatePicker replaced by styled month inputs). */
+const inputClass =
+  "relative border border-dark-200 rounded-lg px-3 py-2 w-full shadow-xs placeholder-dark-400 text-dark-800 text-left focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 bg-white transition-all duration-200 text-sm appearance-none";
+const labelClass = "text-xs font-semibold text-dark-600 uppercase tracking-wider";
+
+/** Port of cashflow/CashflowCommand.vue */
 function CashflowCommand({
   plan,
   cashflow,
@@ -160,8 +194,6 @@ function CashflowCommand({
     active: true,
     primary: false,
   });
-  const [start_month, setStartMonth] = useState(1);
-  const [end_month, setEndMonth] = useState(60);
 
   useEffect(() => {
     if (cashflow) {
@@ -178,15 +210,13 @@ function CashflowCommand({
         loading: false,
         deleting: false,
       });
-      setStartMonth(cashflow.start_month);
-      setEndMonth(cashflow.end_month);
     } else {
       setState((s: any) => ({
         ...s,
         type: "p",
         frequency: "m",
         amount: 0,
-        desc: category === "e" ? "Expense" : "salary",
+        desc: category === "e" ? "Living Expenses" : "Primary Salary",
         start_month: 1,
         end_month: 60,
         category,
@@ -195,35 +225,19 @@ function CashflowCommand({
         active: true,
         primary: false,
       }));
-      setStartMonth(1);
-      setEndMonth(60);
     }
   }, [cashflow, category]);
 
-  const start_month_label = state.type === "p" ? "Start Month" : "Select Month";
-  const MAX_LENGTH = 40;
-  const description_length = (state.desc || "").length;
-  const category_text = state.category === "i" ? "income" : "expense";
-
-  const monthToValue = (m: number) => {
-    const start = new Date(plan.timestamp);
-    const d = new Date(start.getFullYear(), start.getMonth() + (m - 1), 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  };
-  const valueToMonth = (v: string) => {
-    const [y, m] = v.split("-").map(Number);
-    const start = new Date(plan.timestamp);
-    return (y - start.getFullYear()) * 12 + (m - 1 - start.getMonth()) + 1;
-  };
+  const category_text = state.category === "i" ? "Income" : "Expense";
 
   function ValidateCashflow(c: any) {
     const error_messages: string[] = [];
-    if (!c.desc) error_messages.push("description is required");
-    if (!c.amount) error_messages.push("amount is required");
-    if (!c.type) error_messages.push("type is required");
-    if (!c.category) error_messages.push("category is required");
-    if (!c.frequency && c.start_month !== c.end_month) error_messages.push("frequency is required");
-    if (!c.start_month) error_messages.push("start month is required");
+    if (!c.desc) error_messages.push("Description is required");
+    if (!c.amount) error_messages.push("Amount is required");
+    if (!c.type) error_messages.push("Type is required");
+    if (!c.category) error_messages.push("Category is required");
+    if (!c.frequency && c.start_month !== c.end_month) error_messages.push("Frequency is required");
+    if (!c.start_month) error_messages.push("Start month is required");
     return { valid: error_messages.length === 0, error_messages };
   }
 
@@ -274,206 +288,225 @@ function CashflowCommand({
     onDone({ action: "deleted" });
   }
 
-  const inputClass =
-    "relative border-[1.6px] rounded-[.5rem] px-3 py-2 w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
+  const is_income = state.category === "i";
 
   return (
-    <div className="flex w-full flex-col gap-3 md:p-3">
-      <div className="flex gap-3 font-medium text-dark-600">
-        <div className="flex gap-3 self-center">
-          <FontAwesomeIcon
-            icon={faMoneyCheckDollar}
-            className={`self-center text-2xl ${state.category === "i" ? "text-primary-500" : "text-danger-500"}`}
-          />
-          <span className="self-center"> Configure {category_text} parameters </span>
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center gap-2.5 border-b border-dark-100 pb-3">
+          <div
+            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+              is_income ? "bg-primary-50 text-primary-600" : "bg-danger-50 text-danger-600"
+            }`}
+          >
+            <FontAwesomeIcon icon={faMoneyCheckDollar} className="text-sm" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-dark-800">
+              {mode === "add" ? `Add ${category_text}` : `Configure ${state.desc}`}
+            </h3>
+            <p className="text-xs text-dark-400">Define {category_text.toLowerCase()} schedule, intervals, and amounts</p>
+          </div>
         </div>
-        {mode === "edit" && !state.primary && (
-          <div className="ml-auto flex px-2 py-1 text-danger-500" onClick={DeleteCashflow}>
-            {state.deleting ? (
-              <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-dark-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <FontAwesomeIcon icon={faTrashCan} className="self-center" />
-            )}
-          </div>
-        )}
-      </div>
-      <div className="flex">
-        <div className="w-full">
-          <div className="mb-2 flex justify-between text-dark-300">
-            <span className="text-sm">Description</span>
-            <div className="flex justify-end text-sm">
-              <div className="self-center">
-                {description_length}/{MAX_LENGTH}
-              </div>
-            </div>
-          </div>
+
+        <div className="flex flex-col gap-1">
+          <span className={labelClass}>Description / Label</span>
           <input
             name="Description"
             id="description"
-            maxLength={MAX_LENGTH}
+            maxLength={40}
             value={state.desc}
             onChange={(e) => setState((s: any) => ({ ...s, desc: e.target.value }))}
+            placeholder="e.g. Base Salary, Rent, Groceries"
             type="text"
             className={inputClass}
           />
         </div>
-      </div>
 
-      <div>
-        <span className="text-sm text-dark-300">
-          Amount in <span className="font-bold text-dark-400">{currency_symbol}</span>
-        </span>
-        <input
-          type="number"
-          value={state.amount}
-          onChange={(e) => setState((s: any) => ({ ...s, amount: Number(e.target.value) }))}
-          required
-          min={0}
-          placeholder="Amount"
-          className={`${inputClass} py-[.25rem]`}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-dark-300">Type</span>
-        <div className="flex">
-          {(cashflow_type_options as any[]).map((option, index) => (
-            <button
-              key={index}
-              disabled={mode === "edit"}
-              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
-                state.type === option.value ? "bg-dark-300 text-dark-50" : ""
-              }`}
-              onClick={() => setState((s: any) => ({ ...s, type: option.value }))}
-            >
-              {option.text}
-            </button>
-          ))}
-        </div>
-      </div>
-      {state.type === "p" && (
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-dark-300">Frequency</span>
-          <div className="flex">
-            {(cashflow_frequency_options as any[]).map((option, index) => (
-              <button
-                key={index}
-                disabled={mode === "edit"}
-                className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 disabled:opacity-50 ${
-                  state.frequency === option.value ? "bg-dark-300 text-dark-50" : ""
-                }`}
-                onClick={() => setState((s: any) => ({ ...s, frequency: option.value }))}
-              >
-                {option.text}
-              </button>
-            ))}
-          </div>
+          <span className={labelClass}>Amount ({currency_symbol})</span>
+          <input
+            type="number"
+            value={state.amount}
+            onChange={(e) => setState((s: any) => ({ ...s, amount: Number(e.target.value) }))}
+            required
+            min={0}
+            placeholder="e.g. 150000"
+            className={inputClass}
+          />
         </div>
-      )}
 
-      <div className="mt-3 flex gap-4">
-        <div className="flex min-w-0 grow flex-col gap-1 transition-all duration-200">
-          <span className="text-sm text-dark-300">{start_month_label}</span>
-          {/* month picker styled like the original @vuepic/vue-datepicker (monthPicker) */}
-          <div className="relative">
-            <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-              <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className={labelClass}>Type</span>
+            <div className="flex gap-1.5">
+              {(cashflow_type_options as any[]).map((option, index) => {
+                const active = state.type === option.value;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    disabled={mode === "edit"}
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                      active
+                        ? "bg-primary-500 text-white shadow-xs"
+                        : "bg-dark-50 text-dark-600 border border-dark-200 hover:bg-dark-100 disabled:opacity-50"
+                    }`}
+                    onClick={() => setState((s: any) => ({ ...s, type: option.value }))}
+                  >
+                    {option.text}
+                  </button>
+                );
+              })}
             </div>
+          </div>
+
+          {state.type === "p" && (
+            <div className="flex flex-col gap-1.5">
+              <span className={labelClass}>Frequency</span>
+              <div className="flex gap-1.5">
+                {(cashflow_frequency_options as any[]).map((option, index) => {
+                  const active = state.frequency === option.value;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      disabled={mode === "edit"}
+                      className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        active
+                          ? "bg-primary-500 text-white shadow-xs"
+                          : "bg-dark-50 text-dark-600 border border-dark-200 hover:bg-dark-100 disabled:opacity-50"
+                      }`}
+                      onClick={() => setState((s: any) => ({ ...s, frequency: option.value }))}
+                    >
+                      {option.text}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="flex flex-col gap-1">
+            <span className={labelClass}>{state.type === "p" ? "Start Month" : "Event Month"}</span>
             <MonthPicker
               plan_timestamp={plan.timestamp}
               duration={plan?.duration || 600}
               month={state.start_month}
-              onChange={(m) => {
-                setState((s: any) => ({ ...s, start_month: m }));
-                setStartMonth(m);
-              }}
+              onChange={(m) => setState((s: any) => ({ ...s, start_month: m }))}
             />
           </div>
-        </div>
-        {state.type === "p" && (
-          <div className="flex min-w-0 grow flex-col gap-1 transition-all duration-200">
-            <span className="text-sm text-dark-300">End Month</span>
-            <div className="relative">
-              <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-                <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
-              </div>
+
+          {state.type === "p" && (
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>End Month</span>
               <MonthPicker
                 plan_timestamp={plan.timestamp}
                 duration={plan?.duration || 600}
                 month={state.end_month}
                 min_month={state.start_month}
-                onChange={(m) => {
-                  setState((s: any) => ({ ...s, end_month: m }));
-                  setEndMonth(m);
-                }}
+                onChange={(m) => setState((s: any) => ({ ...s, end_month: m }))}
               />
             </div>
-          </div>
-        )}
-      </div>
-      <div className="mt-3 flex justify-between gap-4">
-        <Button variant="primary" sub_variant="solid" className="flex grow py-2 capitalize" onClick={SaveChanges}>
-          {state.loading ? (
-            <svg className="h-[20px] w-[20px] animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
           )}
-          <div className="self-center">{mode === "add" ? "Add" : "Update"}</div>
+        </div>
+      </div>
+
+      {/* Action Footer */}
+      <div className="flex items-center gap-3 pt-1">
+        <Button
+          variant="primary"
+          sub_variant="solid"
+          size="lg"
+          className="flex-1 justify-center gap-2 py-2.5 font-bold shadow-xs"
+          onClick={SaveChanges}
+        >
+          {state.loading ? (
+            <FontAwesomeIcon icon={faArrowsRotate} className="animate-spin text-sm" />
+          ) : (
+            <FontAwesomeIcon icon={faCheck} className="text-sm" />
+          )}
+          <span>{mode === "add" ? `Add ${category_text}` : "Save Changes"}</span>
         </Button>
+
+        {mode === "edit" && !state.primary && (
+          <Button
+            variant="danger"
+            sub_variant="outline"
+            size="lg"
+            className="px-4 py-2.5 font-bold text-danger-600 hover:bg-danger-50"
+            onClick={DeleteCashflow}
+            title={`Delete ${category_text}`}
+          >
+            <FontAwesomeIcon icon={faTrashCan} />
+          </Button>
+        )}
       </div>
     </div>
   );
 }
 
 /** Port of cashflow_change/CashflowChangeCard.vue */
-function CashflowChangeCard({ plan, cashflow_change, children }: { plan: any; cashflow_change: any; children?: React.ReactNode }) {
+function CashflowChangeCard({
+  plan,
+  cashflow_change,
+  children,
+  onClick,
+}: {
+  plan: any;
+  cashflow_change: any;
+  children?: React.ReactNode;
+  onClick?: () => void;
+}) {
   const start_date = GetMonthAndYear(plan, cashflow_change.start_month);
   const end_date = GetMonthAndYear(plan, cashflow_change.end_month);
-  const icon = cashflow_change.value > 0 ? faArrowTrendUp : faArrowTrendDown;
-  let icon_class = "";
-  if (cashflow_change.category === "i") {
-    icon_class = cashflow_change.value > 0 ? "text-success-300 border-success-300 bg-success-50" : "text-danger-300 border-danger-300 bg-danger-50";
+  const is_positive = cashflow_change.value > 0;
+  const is_income = cashflow_change.category === "i";
+
+  let badge_color = "";
+  if (is_income) {
+    badge_color = is_positive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700";
   } else {
-    icon_class = cashflow_change.value > 0 ? "text-danger-300 border-danger-300 bg-danger-50" : "text-success-300 border-success-300 bg-success-50";
+    badge_color = is_positive ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700";
   }
-  let frequency = cashflow_change.frequency;
-  if (start_date === end_date && frequency === "m") frequency = "o";
 
   return (
-    <div className="flex w-full rounded-lg border p-2 shadow-sm sm:gap-2 md:w-[23rem]">
-      <div className={`grid h-[20px] w-[20px] place-content-center self-center rounded-full border-2 text-[10px] sm:h-[27px] sm:w-[27px] sm:text-xs ${icon_class}`}>
-        <FontAwesomeIcon icon={icon} className="self-center" />
-      </div>
-      <div className="flex flex-col justify-between">
-        <div className="mt-1 flex w-[7.1rem] translate-x-0 justify-between truncate sm:w-[8rem]">
-          <p className="w-full text-ellipsis text-[12px] font-medium text-dark-400 first-letter:uppercase sm:text-base">
-            {cashflow_change.title}
-          </p>
-        </div>
-        <div className="flex">
-          <div className="flex self-center gap-2 rounded-md py-1 text-[9px] text-dark-200 sm:text-[10px]">
-            <div className="font-bold">{start_date}</div>
-            to
-            <div className="font-bold">{end_date}</div>
+    <div
+      onClick={onClick}
+      className={`flex flex-col rounded-xl border border-dark-200 bg-white p-3 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md border-l-4 ${
+        is_positive ? "border-l-primary-400" : "border-l-amber-400"
+      } ${onClick ? "cursor-pointer" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${badge_color}`}>
+              <FontAwesomeIcon icon={is_positive ? faArrowTrendUp : faArrowTrendDown} className="text-xs" />
+            </div>
+            <p className="truncate text-xs font-bold text-dark-800 first-letter:uppercase sm:text-sm">
+              {cashflow_change.title}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1 text-[10px] text-dark-500 sm:text-xs">
+            <span className="font-semibold">{start_date}</span>
+            <span className="text-dark-300">to</span>
+            <span className="font-semibold">{end_date}</span>
           </div>
         </div>
-      </div>
-      <div className="flex w-[7rem] justify-end sm:w-[12rem]">
-        <div className="flex w-fit content-center gap-1 self-center rounded-md text-lg text-dark-300">
-          {cashflow_change.change_type === "f" ? (
-            <DisplayAmount notation="compact" className="self-center text-sm text-dark-300 sm:text-xl" amount={cashflow_change.value} />
-          ) : (
-            <div className="self-center text-sm text-dark-300 sm:text-xl">{cashflow_change.value}</div>
-          )}
-          {cashflow_change.change_type === "p" && <div className="self-center rounded-lg text-sm text-dark-300 sm:text-xl">%</div>}
-          <div className="self-end rounded-md py-1 text-[9px] text-dark-400 sm:text-xs">{FrequencyToInterval(frequency)}</div>
+
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-bold ${badge_color}`}>
+            <span>
+              {is_positive ? "+" : ""}
+              {cashflow_change.value}
+              {cashflow_change.change_type === "p" ? "%" : ""}
+            </span>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );
@@ -505,10 +538,9 @@ function CashflowChangeCommand({
   const cashflow = (plan?.cashflow_list || []).find((c: any) => c._id === cashflow_id);
   const cashflow_frequency = cashflow?.frequency;
 
-  // Step Up / Step Down direction (local list, matches original change_type ref)
   const change_type = [
-    { text: "Step Up", value: 1 },
-    { text: "Step Down", value: -1 },
+    { text: "Step Up (+)", value: 1 },
+    { text: "Step Down (-)", value: -1 },
   ];
   const [selected_change_type, setSelectedChangeType] = useState(1);
   const [state, setState] = useState<any>({
@@ -581,7 +613,6 @@ function CashflowChangeCommand({
       }));
       setSelectedChangeType(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cashflow_change, cashflow_id]);
 
   const start_from_options = cashflow
@@ -593,15 +624,6 @@ function CashflowChangeCommand({
   const end_from_options = start_from_options.filter((o) => o.value >= state.start_month);
   const end_month_value =
     end_from_options.length && state.end_month < end_from_options[0].value ? end_from_options[0].value : state.end_month;
-
-  const interval = state.end_month - state.start_month;
-  const MonthsToYear = (m: number) => parseFloat((m / 12).toFixed(2));
-  const change_in_words = `${change_type.find((_) => _.value === selected_change_type)?.text} of ${state.value}  ${state.change_type === "f" ? currency_symbol : "%"} ${
-    cashflow_change_frequency_options.find((o: any) => o.value === state.frequency)?.text || ""
-  } for  ${interval > 11 ? MonthsToYear(interval) : interval} ${interval > 11 ? "Yrs" : "Months"}`;
-
-  const MAX_LENGTH = 40;
-  const title_length = (state.title || "").length;
 
   async function SaveChanges() {
     const change_obj: any = {
@@ -624,11 +646,11 @@ function CashflowChangeCommand({
     change_obj.value = selected_change_type * change_obj.value;
 
     const error_messages: string[] = [];
-    if (!change_obj.title) error_messages.push("title is required");
-    if (!change_obj.category) error_messages.push("category is required");
-    if (!change_obj.frequency) error_messages.push("frequency is required");
-    if (!change_obj.change_type) error_messages.push("type is required");
-    if (!change_obj.start_month) error_messages.push("start month is required");
+    if (!change_obj.title) error_messages.push("Title is required");
+    if (!change_obj.category) error_messages.push("Category is required");
+    if (!change_obj.frequency) error_messages.push("Frequency is required");
+    if (!change_obj.change_type) error_messages.push("Type is required");
+    if (!change_obj.start_month) error_messages.push("Start month is required");
     if (error_messages.length) {
       alert(error_messages.join("\n"));
       return;
@@ -656,180 +678,175 @@ function CashflowChangeCommand({
     onDone({ action: "deleted" });
   }
 
-  const selectClass =
-    "px-3 py-[.35rem] border-[1.6px] rounded-[.5rem] shadow-sm w-full placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
-
   return (
-    <div className="flex w-full flex-col gap-3 md:px-3">
-      <div className="flex gap-3 font-medium text-dark-600">
-        <div className="flex gap-3 self-center">
-          <FontAwesomeIcon
-            icon={faShuffle}
-            className={`self-center text-2xl ${state.category === "i" ? "text-primary-500" : "text-danger-500"}`}
-          />
-          <span className="self-center"> Simulate changes </span>
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center gap-2.5 border-b border-dark-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+            <FontAwesomeIcon icon={faShuffle} className="text-sm" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-dark-800">
+              {mode === "add" ? "Simulate Growth / Variation" : `Edit ${state.title}`}
+            </h3>
+            <p className="text-xs text-dark-400">Add periodic salary increments, inflation, or lifestyle changes</p>
+          </div>
         </div>
-        {mode === "edit" && (
-          <div className="ml-auto flex px-2 py-1 text-danger-500" onClick={DeleteChange}>
-            {state.deleting ? (
-              <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-dark-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <FontAwesomeIcon icon={faTrashCan} className="self-center" />
-            )}
-          </div>
-        )}
-      </div>
-      <div className="flex">
-        <div className="w-full">
-          <div className="mb-2 flex justify-between text-dark-300">
-            <span className="text-sm text-dark-300">Title</span>
-            <div className="flex justify-end text-sm">
-              <div className="self-center">
-                {title_length}/{MAX_LENGTH}
-              </div>
-            </div>
-          </div>
+
+        <div className="flex flex-col gap-1">
+          <span className={labelClass}>Event Title</span>
           <input
             type="text"
             value={state.title}
             onChange={(e) => setState((s: any) => ({ ...s, title: e.target.value }))}
-            maxLength={MAX_LENGTH}
+            placeholder="e.g. Annual Promotion 15%"
             required
-            placeholder=""
-            style={{ fontSize: "1.25rem" }}
-            className="w-full rounded-[.5rem] border-[1.6px] bg-dark-50 px-3 py-[.25rem] text-left text-dark-400 shadow-sm transition-all duration-200 placeholder-dark-500 focus:border-primary-300 focus:shadow-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 appearance-none"
+            className={inputClass}
           />
         </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-dark-300">Change Type</span>
-        <div className="flex">
-          {change_type.map((option) => (
-            <button
-              key={option.value}
-              disabled={mode === "edit"}
-              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
-                selected_change_type === option.value ? "bg-dark-200 text-dark-50" : ""
-              }`}
-              onClick={() => setSelectedChangeType(option.value)}
-            >
-              {option.text}
-              {option.value === 1 && <FontAwesomeIcon icon={faArrowTrendUp} className="self-center text-[10px]" />}
-              {option.value === -1 && <FontAwesomeIcon icon={faArrowTrendDown} className="self-center text-[10px]" />}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex gap-1 text-sm text-dark-300">
-          {selected_change_type === 1 && <FontAwesomeIcon icon={faArrowTrendUp} className="self-center" />}
-          {selected_change_type === -1 && <FontAwesomeIcon icon={faArrowTrendDown} className="self-center" />}
-          <span> Type of</span>
-          {selected_change_type === 1 ? <span>Step-Up</span> : <span>Step-Down</span>}
-        </div>
-        <div className="flex">
-          {(cashflow_change_type_options as any[]).map((option, index) => (
-            <button
-              key={index}
-              disabled={mode === "edit"}
-              className={`border-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-r-0 last:rounded-r-md disabled:opacity-50 ${
-                state.change_type === option.value ? "bg-dark-200 text-dark-50" : ""
-              }`}
-              onClick={() => setState((s: any) => ({ ...s, change_type: option.value }))}
-            >
-              {option.value === "f" ? option.text + " " + currency_symbol : option.text + " %"}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex w-full flex-row gap-3">
-        <div className="w-full">
-          <span className="text-sm text-dark-300">{state.change_type === "f" ? `Amount in ${currency_symbol}` : "% Value"}</span>
-          <input
-            type="number"
-            value={state.value}
-            onChange={(e) => setState((s: any) => ({ ...s, value: Number(e.target.value) }))}
-            min={1}
-            required
-            style={{ fontSize: "1.25rem" }}
-            className="w-full rounded-[.5rem] border-[1.6px] bg-dark-50 px-3 py-[.25rem] text-left text-dark-400 shadow-sm transition-all duration-200 placeholder-dark-500 focus:border-primary-300 focus:shadow-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 appearance-none"
-          />
-        </div>
-      </div>
 
-      <div className="flex justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-dark-300">Frequency</span>
-          <div className="flex">
-            {(cashflow_change_frequency_options as any[]).map((option, index) => (
-              <button
-                key={index}
-                disabled={cashflow_frequency !== "m" || mode === "edit"}
-                className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 disabled:opacity-50 ${
-                  state.frequency === option.value ? "bg-dark-200 text-dark-50" : ""
-                }`}
-                onClick={() => setState((s: any) => ({ ...s, frequency: option.value }))}
-              >
-                {option.text}
-              </button>
-            ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className={labelClass}>Direction</span>
+            <div className="flex gap-1.5">
+              {change_type.map((option, index) => {
+                const active = selected_change_type === option.value;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                      active
+                        ? "bg-primary-500 text-white shadow-xs"
+                        : "bg-dark-50 text-dark-600 border border-dark-200 hover:bg-dark-100"
+                    }`}
+                    onClick={() => setSelectedChangeType(option.value)}
+                  >
+                    {option.text}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className={labelClass}>Unit</span>
+            <div className="flex gap-1.5">
+              {(cashflow_change_type_options as any[]).map((option, index) => {
+                const active = state.change_type === option.value;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    disabled={mode === "edit"}
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                      active
+                        ? "bg-primary-500 text-white shadow-xs"
+                        : "bg-dark-50 text-dark-600 border border-dark-200 hover:bg-dark-100 disabled:opacity-50"
+                    }`}
+                    onClick={() => setState((s: any) => ({ ...s, change_type: option.value }))}
+                  >
+                    {option.value === "f" ? `${currency_symbol} Value` : "% Percentage"}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex gap-3">
-        <div className="flex grow flex-col">
-          <span className="text-sm text-dark-300">Start month</span>
-          <select
-            style={{ fontSize: "1.1rem" }}
-            className={selectClass}
-            value={state.start_month}
-            onChange={(e) => setState((s: any) => ({ ...s, start_month: Number(e.target.value) }))}
-          >
-            {start_from_options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.text}
-              </option>
-            ))}
-          </select>
-        </div>
-        {state.frequency !== "o" && (
-          <div className="flex grow flex-col">
-            <span className="text-sm text-dark-300">End month</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <span className={labelClass}>Rate / Value ({state.change_type === "f" ? currency_symbol : "%"})</span>
+            <input
+              type="number"
+              min={0}
+              value={state.value}
+              onChange={(e) => setState((s: any) => ({ ...s, value: Number(e.target.value) }))}
+              required
+              className={inputClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className={labelClass}>Frequency</span>
             <select
-              style={{ fontSize: "1.1rem" }}
-              className={selectClass}
-              value={end_month_value}
-              onChange={(e) => setState((s: any) => ({ ...s, end_month: Number(e.target.value) }))}
+              value={state.frequency}
+              onChange={(e) => setState((s: any) => ({ ...s, frequency: e.target.value }))}
+              className={inputClass}
             >
-              {end_from_options.map((o) => (
+              {(cashflow_change_frequency_options as any[]).map((option, index) => (
+                <option key={index} value={option.value}>
+                  {option.text}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="flex flex-col gap-1">
+            <span className={labelClass}>Start Month</span>
+            <select
+              className={inputClass}
+              value={state.start_month}
+              onChange={(e) => setState((s: any) => ({ ...s, start_month: Number(e.target.value) }))}
+            >
+              {start_from_options.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.text}
                 </option>
               ))}
             </select>
           </div>
-        )}
-      </div>
-      <div className="flex text-sm text-dark-300">
-        <div>{change_in_words}</div>
+
+          {state.frequency !== "o" && (
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>End Month</span>
+              <select
+                className={inputClass}
+                value={end_month_value}
+                onChange={(e) => setState((s: any) => ({ ...s, end_month: Number(e.target.value) }))}
+              >
+                {end_from_options.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.text}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mt-3 flex gap-3">
-        <Button variant="primary" sub_variant="solid" className="flex grow py-2 capitalize" onClick={SaveChanges}>
+      {/* Action Footer */}
+      <div className="flex items-center gap-3 pt-1">
+        <Button
+          variant="primary"
+          sub_variant="solid"
+          size="lg"
+          className="flex-1 justify-center gap-2 py-2.5 font-bold shadow-xs"
+          onClick={SaveChanges}
+        >
           {state.loading ? (
-            <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <FontAwesomeIcon icon={faArrowsRotate} className="animate-spin text-sm" />
           ) : (
-            <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
+            <FontAwesomeIcon icon={faCheck} className="text-sm" />
           )}
-          <div className="self-center">{mode === "add" ? "Add" : "Update"}</div>
+          <span>{mode === "add" ? "Add Variation" : "Save Changes"}</span>
         </Button>
+
+        {mode === "edit" && (
+          <Button
+            variant="danger"
+            sub_variant="outline"
+            size="lg"
+            className="px-4 py-2.5 font-bold text-danger-600 hover:bg-danger-50"
+            onClick={DeleteChange}
+            title="Delete Variation"
+          >
+            <FontAwesomeIcon icon={faTrashCan} />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -1111,9 +1128,14 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
   }
 
   const backBtn = (
-    <div className="flex w-fit cursor-pointer gap-2 px-3 py-1 text-primary-600" onClick={() => SetState(stage, "back")}>
-      <FontAwesomeIcon className="self-center font-bold sm:text-xl" icon={faArrowLeft} />
-    </div>
+    <button
+      type="button"
+      className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-600 transition-colors hover:bg-primary-50"
+      onClick={() => SetState(stage, "back")}
+      title="Back"
+    >
+      <FontAwesomeIcon className="text-base font-bold" icon={faArrowLeft} />
+    </button>
   );
 
   const statementRow = (b: any, i: number) => (
@@ -1150,63 +1172,94 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
 
   return (
     <div className="flex w-full flex-col justify-between gap-3 md:min-h-[570px] md:w-[99vw]">
-      {/* breadcrumb bar */}
-      <div className="fixed bottom-0 z-20 flex w-full gap-1 border-b-2 border-t-2 bg-dark-50 p-1 pt-2 md:relative md:z-0 md:mt-0 md:gap-2 md:border-t-0 md:bg-transparent md:pb-2 md:pt-0">
+      {/* Breadcrumb Bar (Styled identically to LoanEditor & AssetEditor) */}
+      <div className="fixed bottom-0 z-20 flex w-full items-center gap-2 border-b border-t bg-white px-3 py-2 shadow-xs md:relative md:z-0 md:mt-0 md:border-b md:border-t-0 md:bg-transparent md:px-0 md:py-1 md:shadow-none">
         {backBtn}
-        {breadcrumb_data.map((btext: string, index: number) => (
-          <div
-            key={index}
-            className="self-center font-medium text-dark-400 first-letter:uppercase after:ml-2 after:font-medium after:text-dark-200 after:content-['/'] last:after:content-[''] text-[9px] sm:text-xs md:text-xl"
-          >
-            {btext.substring(0, 20)} {btext?.length > 20 ? "..." : ""}
-          </div>
-        ))}
-        <div className="ml-auto flex w-fit cursor-pointer gap-2 px-3 py-1 text-dark-600" onClick={() => router.back()}>
-          <FontAwesomeIcon className="self-center text-xl font-bold" icon={faXmark} />
+        <div className="h-5 w-[2px] rounded-full bg-primary-400" />
+        <div className="flex items-center gap-1 overflow-hidden">
+          {breadcrumb_data.map((btext: string, index: number) => (
+            <div key={index} className="flex items-center">
+              <span className="truncate max-w-[150px] text-xs font-semibold text-dark-600 first-letter:uppercase sm:max-w-[220px] sm:text-sm md:text-lg">
+                {btext}
+              </span>
+              {index < breadcrumb_data.length - 1 && (
+                <span className="mx-1.5 font-medium text-dark-300 text-xs sm:text-sm md:text-base">/</span>
+              )}
+            </div>
+          ))}
         </div>
+        <button
+          type="button"
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
+          onClick={() => router.back()}
+          title="Close"
+        >
+          <FontAwesomeIcon className="text-lg font-bold" icon={faXmark} />
+        </button>
       </div>
 
-      <div className="mb-12 flex h-full flex-col-reverse gap-3 md:mb-0 md:mt-0 md:flex-row md:gap-0">
-        {/* cashflow list */}
+      <div className="mb-16 flex h-full flex-col gap-4 md:mb-0 md:mt-0 md:flex-row md:gap-6">
+        {/* Left Column: Cashflow List */}
         {show_cashflow_list && (
-          <div className="flex w-full snap-y flex-col md:h-[580px] md:w-1/3 md:shrink-0">
-            {/* list header — title + add button (top right, only when the list is long) */}
-            {cashflow_list.length > 3 && (
-              <div className="flex items-center justify-between gap-2 px-1 pb-1 md:pl-2">
-                <span className="text-sm font-bold capitalize text-dark-500 md:text-base">{cashflow_category}</span>
+          <div
+            className={`flex w-full flex-col md:w-[380px] lg:w-[420px] md:shrink-0 ${
+              stage !== "cashflow_list" ? "hidden md:flex" : "flex"
+            }`}
+          >
+            <div className="flex flex-col gap-3 overflow-x-hidden overflow-y-auto px-0 md:pl-2 md:pr-2 max-h-[calc(100vh-140px)] md:max-h-[640px]">
+              {cashflow_list.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-6 text-center shadow-2xs">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dark-100 text-dark-400 mb-2">
+                    <FontAwesomeIcon icon={faMoneyCheckDollar} className="text-xl" />
+                  </div>
+                  <h4 className="text-sm font-bold text-dark-700">No {cashflow_category}s Added</h4>
+                  <p className="mt-1 text-xs text-dark-400 max-w-[240px]">
+                    Add your first {cashflow_category.toLowerCase()} to project cashflows.
+                  </p>
+                </div>
+              )}
+
+              {cashflow_list.map((entity: any) => (
+                <CashflowCard
+                  key={entity._id}
+                  plan={plan}
+                  cashflow={entity}
+                  selected={selected_cashflow_id === entity._id}
+                  onClick={() => SetState(stage, "view", entity._id)}
+                >
+                  <button
+                    type="button"
+                    className="p-1 text-dark-400 hover:text-primary-600 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      SetState(stage, "view", entity._id);
+                    }}
+                    title="View Details"
+                  >
+                    <FontAwesomeIcon
+                      className={selected_cashflow_id === entity._id ? "text-primary-500" : "text-dark-400"}
+                      icon={faChevronRight}
+                    />
+                  </button>
+                </CashflowCard>
+              ))}
+
+              <div className="pt-1 pb-4">
                 <Button
                   variant="neutral"
                   sub_variant="outline"
-                  size="sm"
-                  className="px-3 py-1 text-success-400 hover:border-success-400"
+                  size="lg"
+                  className={`w-full justify-center gap-2 py-2 font-semibold ${
+                    cashflow_category_id === "i"
+                      ? "text-primary-600 hover:border-primary-500 hover:bg-primary-50/50"
+                      : "text-danger-600 hover:border-danger-500 hover:bg-danger-50/50"
+                  }`}
                   onClick={() => SetState(stage, "add")}
                 >
-                  <FontAwesomeIcon className="self-center" icon={faPlus} />
-                  Add {cashflow_category}
+                  <FontAwesomeIcon icon={faPlus} />
+                  <span>Add {cashflow_category}</span>
                 </Button>
               </div>
-            )}
-            <div className="max-h-[45vh] overflow-x-hidden overflow-y-scroll px-0 md:max-h-none md:pl-2">
-              {cashflow_list.map((entity: any) => (
-                <div key={entity._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
-                  <CashflowCard plan={plan} cashflow={entity} dimmed={stage !== "cashflow_list"}>
-                    <div className="self-center" onClick={() => SetState(stage, "view", entity._id)}>
-                      <FontAwesomeIcon
-                        className={`self-center text-sm sm:text-base ${stage !== "cashflow_list" ? "text-dark-200 opacity-25" : ""}`}
-                        icon={faChevronRight}
-                      />
-                    </div>
-                  </CashflowCard>
-                </div>
-              ))}
-              {cashflow_list.length <= 3 && (
-                <div className="mt-auto flex justify-center rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
-                  <Button variant="neutral" sub_variant="outline" size="lg" className="w-full px-3 py-1 text-success-400 hover:border-success-400" onClick={() => SetState(stage, "add")}>
-                    <FontAwesomeIcon className="self-center" icon={faPlus} />
-                    Add {cashflow_category}
-                  </Button>
-                </div>
-              )}
               <hr className="md:max-w-[450px] md:min-w-[440px]" />
               {!is_plan_synced && (
                 <div className="mt-auto flex flex-col justify-between gap-3 rounded-b-md py-3 md:max-w-[450px] md:min-w-[440px]">
