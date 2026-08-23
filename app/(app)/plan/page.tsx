@@ -58,20 +58,20 @@ function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any;
   const count = breakdown?.length || 0;
 
   return (
-    <div className="flex h-min-[8rem] w-[48.2%] flex-col gap-2 rounded-2xl border border-dark-200 bg-white p-4 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md md:h-[9rem] md:w-[14.5rem] md:gap-1.5 md:p-5">
+    <div className="flex flex-1 min-w-0 flex-col justify-between gap-1.5 rounded-2xl border border-dark-200 bg-white p-3.5 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md md:h-[8.5rem] md:p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
-            className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${
+            className={`relative flex h-7 w-7 items-center justify-center rounded-lg ${
               is_income ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
             }`}
           >
             <FontAwesomeIcon
               icon={is_income ? faArrowRightToBracket : faArrowRightFromBracket}
-              className={`text-sm ${is_income ? "rotate-[135deg]" : "rotate-[-45deg]"}`}
+              className={`text-xs ${is_income ? "rotate-[135deg]" : "rotate-[-45deg]"}`}
             />
             {count > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-dark-700 shadow-2xs border border-dark-200">
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-dark-700 shadow-2xs border border-dark-200">
                 {count}
               </span>
             )}
@@ -82,18 +82,18 @@ function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any;
 
       <div>
         <DisplayAmount
-          className="text-2xl font-bold text-dark-800 md:text-3xl"
-          notation={Math.abs(total || 0) > 9999 ? "compact" : "standard"}
+          className="text-xl font-bold text-dark-800 md:text-2xl"
+          notation={Math.abs(total || 0) > 99999 ? "compact" : "standard"}
           amount={total || 0}
         />
       </div>
 
       {previous ? (
-        <div className="text-[11px] font-medium text-dark-400">
+        <div className="text-[10px] font-medium text-dark-400 truncate">
           <span className={total >= previous ? (is_income ? "text-emerald-600" : "text-rose-600") : (is_income ? "text-rose-600" : "text-emerald-600")}>
             {total >= previous ? "+" : "-"}
             {Math.abs(((total - previous) / previous) * 100).toFixed(1)}%
-            <FontAwesomeIcon icon={total >= previous ? faUpLong : faDownLong} className="ml-0.5 text-[10px]" />
+            <FontAwesomeIcon icon={total >= previous ? faUpLong : faDownLong} className="ml-0.5 text-[9px]" />
           </span>{" "}
           vs last mo
         </div>
@@ -915,33 +915,33 @@ function PlanPageInner() {
         </div>
 
         {/* Income/Expense + Net Cashflow KPIs */}
-        <div className="flex flex-wrap justify-between gap-2 mb-3 sm:gap-3 md:mt-0 md:flex-nowrap md:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3 w-full">
           <MonthlyIncomeExpense cashflow={monthly_details?.income} category="income" previous={previous_details?.income?.total_income} />
           <MonthlyIncomeExpense cashflow={monthly_details?.expense} category="expense" previous={previous_details?.expense?.total_expense} />
-          <div className="flex grow md:hidden">
-            <MonthlyStatement details={monthly_details} mobile />
-          </div>
-          <div className="flex w-full flex-col gap-2 rounded-2xl border border-dark-200 bg-white p-4 shadow-xs transition-all duration-200 hover:shadow-md md:h-[9rem] md:w-[19rem] md:gap-1.5 md:p-5">
+          <div className="flex flex-1 min-w-0 flex-col justify-between gap-1.5 rounded-2xl border border-dark-200 bg-white p-3.5 shadow-xs transition-all duration-200 hover:shadow-md md:h-[8.5rem] md:p-4">
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                className={`flex h-7 w-7 items-center justify-center rounded-lg ${
                   (monthly_details?.net_cashflow?.total || 0) < 0
                     ? "bg-rose-50 text-rose-600"
                     : "bg-emerald-50 text-emerald-600"
                 }`}
               >
-                <FontAwesomeIcon icon={faCircleDollarToSlot} className="text-sm" />
+                <FontAwesomeIcon icon={faCircleDollarToSlot} className="text-xs" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-dark-600">Net Cashflow</span>
             </div>
-            <DisplayAmount
-              className={`text-2xl font-bold md:text-3xl ${
-                (monthly_details?.net_cashflow?.total || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
-              }`}
-              amount={monthly_details?.net_cashflow?.total || 0}
-            />
+            <div>
+              <DisplayAmount
+                className={`text-xl font-bold md:text-2xl ${
+                  (monthly_details?.net_cashflow?.total || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
+                }`}
+                notation={Math.abs(monthly_details?.net_cashflow?.total || 0) > 99999 ? "compact" : "standard"}
+                amount={monthly_details?.net_cashflow?.total || 0}
+              />
+            </div>
             {previous_details?.net_cashflow?.total ? (
-              <div className="text-[11px] font-medium text-dark-400">
+              <div className="text-[10px] font-medium text-dark-400 truncate">
                 <span
                   className={
                     monthly_details?.net_cashflow?.total >= previous_details?.net_cashflow?.total
@@ -962,13 +962,18 @@ function PlanPageInner() {
                         ? faUpLong
                         : faDownLong
                     }
-                    className="ml-0.5 text-[10px]"
+                    className="ml-0.5 text-[9px]"
                   />
                 </span>{" "}
                 vs last mo
               </div>
             ) : null}
           </div>
+        </div>
+
+        {/* Monthly statement (mobile) */}
+        <div className="flex grow md:hidden mb-3">
+          <MonthlyStatement details={monthly_details} mobile />
         </div>
 
         {/* Monthly statement (desktop) */}
@@ -1040,29 +1045,31 @@ function PlanPageInner() {
       </div>
 
       {/* Transactions sidebar */}
-      <div className="hidden overflow-hidden transition-all duration-200 rounded-2xl border border-dark-200 bg-white shadow-xs h-fit grow md:flex md:flex-col md:min-w-[19rem] md:max-w-[24rem]">
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-dark-100 bg-white">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+      <div className="hidden overflow-hidden transition-all duration-200 rounded-2xl border border-dark-200 bg-white shadow-xs h-fit grow md:flex md:flex-col md:min-w-[21rem] md:max-w-[25rem] shrink-0">
+        <div className="flex items-center justify-between gap-2 px-3.5 py-3 border-b border-dark-100 bg-white">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
               <FontAwesomeIcon icon={faArrowRightArrowLeft} className="text-xs rotate-[-45deg]" />
             </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-dark-800">Transactions</span>
+            <span className="truncate text-xs font-bold uppercase tracking-wider text-dark-800">Transactions</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-lg border border-dark-200 bg-white px-2.5 py-1 text-xs font-semibold text-dark-700 hover:bg-dark-50 shadow-2xs"
+              className="flex items-center gap-1 rounded-lg border border-dark-200 bg-white px-2 py-1 text-xs font-semibold text-dark-700 hover:bg-dark-50 shadow-2xs transition-colors"
               onClick={OnCompare}
+              title="Compare Plans"
             >
               <FontAwesomeIcon icon={faScaleBalanced} className="text-primary-600 text-xs" />
               <span>Compare</span>
             </button>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-primary-600 disabled:opacity-50"
+              className="flex items-center gap-1 rounded-lg bg-primary-500 px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-primary-600 disabled:opacity-40 transition-colors"
               onClick={Save}
               disabled={is_plan_synced}
+              title="Save Plan Changes"
             >
               <FontAwesomeIcon icon={faFloppyDisk} className="text-xs" />
               <span>Save</span>
