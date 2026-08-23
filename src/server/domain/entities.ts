@@ -2,6 +2,7 @@
 
 import {
   ACCOUNT_CONSTANTS,
+  ASSET_CLASS_CONSTANTS,
   CASHFLOW_CHANGE_CONSTANTS,
   CASHFLOW_CONSTANTS,
   LOAN_CONSTANTS,
@@ -436,6 +437,136 @@ export function MakeFundDistributionPercentage(
   return { _id, start_month, end_month, s, e, i, ...other_info };
 }
 
+/* -------------------------------- Asset -------------------------------- */
+
+export interface AssetSip {
+  amount: number;
+  frequency: "m" | "q" | "y";
+  start_month: number;
+  end_month?: number;
+  step_pct?: number;
+}
+
+export interface AssetRent {
+  monthly_rent: number;
+  step_pct?: number;
+  expense_ratio?: number;
+}
+
+export interface Asset {
+  _id: string;
+  title: string;
+  asset_class: string;
+  category: "s" | "e" | "i";
+  principal: number;
+  purchase_month: number;
+  growth_rate: number;
+  volatility?: number;
+  yield_rate?: number;
+  income_frequency?: "m" | "q" | "h" | "y";
+  income_mode?: "credit" | "reinvest";
+  compounding?: string;
+  maturity_month?: number;
+  sip?: AssetSip;
+  funding_account_id?: string;
+  rent?: AssetRent;
+  loan_id?: string;
+  jurisdiction?: "in" | "foreign";
+  listed?: boolean;
+  purchase_date?: string;
+  sale_month?: number;
+  active?: boolean;
+  [key: string]: any;
+}
+
+export function MakeAsset(input: Record<string, any>): Asset {
+  const {
+    _id = GenerateRandomString(6),
+    title,
+    asset_class,
+    category,
+    principal,
+    purchase_month,
+    growth_rate,
+    ...other
+  } = input;
+
+  if (typeof title !== "string" || title.length === 0 || title.length > 100)
+    throw new InvalidPropertyError("invalid: asset title should be a non-empty string (max 100)");
+  if (
+    typeof asset_class !== "string" ||
+    !Object.values(ASSET_CLASS_CONSTANTS.CLASS).includes(asset_class as any)
+  )
+    throw new InvalidPropertyError("invalid: asset_class should be one of fd|bond|savings|gold|ppf|equity|equity_foreign|mf|real_estate|vda");
+  if (typeof category !== "string" || !["s", "e", "i"].includes(category))
+    throw new InvalidPropertyError("invalid: asset category should be s | e | i");
+  if (typeof principal !== "number" || !Number.isFinite(principal) || principal < 0)
+    throw new InvalidPropertyError("invalid: asset principal should be a non-negative number");
+  if (typeof purchase_month !== "number" || !Number.isFinite(purchase_month) || purchase_month < 1)
+    throw new InvalidPropertyError("invalid: asset purchase_month should be a month number >= 1");
+  if (typeof growth_rate !== "number" || !Number.isFinite(growth_rate) || growth_rate < 0)
+    throw new InvalidPropertyError("invalid: asset growth_rate should be a non-negative number");
+
+  if (other.volatility !== undefined && (typeof other.volatility !== "number" || other.volatility < 0))
+    throw new InvalidPropertyError("invalid: asset volatility should be a non-negative number");
+  if (other.yield_rate !== undefined && (typeof other.yield_rate !== "number" || other.yield_rate < 0))
+    throw new InvalidPropertyError("invalid: asset yield_rate should be a non-negative number");
+  if (
+    other.income_frequency !== undefined &&
+    other.income_frequency !== null &&
+    !Object.values(ASSET_CLASS_CONSTANTS.INCOME_FREQUENCY).includes(other.income_frequency as any)
+  )
+    throw new InvalidPropertyError("invalid: asset income_frequency should be m | q | h | y | null");
+  if (
+    other.income_mode !== undefined &&
+    !["credit", "reinvest"].includes(other.income_mode)
+  )
+    throw new InvalidPropertyError("invalid: asset income_mode should be credit | reinvest");
+  if (
+    other.compounding !== undefined &&
+    !Object.values(ASSET_CLASS_CONSTANTS.COMPOUNDING).includes(other.compounding as any)
+  )
+    throw new InvalidPropertyError("invalid: asset compounding should be none | simple | monthly | quarterly | yearly");
+  if (
+    other.maturity_month !== undefined &&
+    (typeof other.maturity_month !== "number" || other.maturity_month < purchase_month)
+  )
+    throw new InvalidPropertyError("invalid: asset maturity_month should be >= purchase_month");
+
+  const sip = other.sip;
+  if (sip !== undefined && sip !== null) {
+    if (typeof sip !== "object" || typeof sip.amount !== "number" || sip.amount <= 0)
+      throw new InvalidPropertyError("invalid: asset sip.amount should be a positive number");
+    if (!["m", "q", "y"].includes(sip.frequency))
+      throw new InvalidPropertyError("invalid: asset sip.frequency should be m | q | y");
+    if (typeof sip.start_month !== "number" || sip.start_month < 1)
+      throw new InvalidPropertyError("invalid: asset sip.start_month should be >= 1");
+    if (sip.step_pct !== undefined && (typeof sip.step_pct !== "number" || sip.step_pct < 0))
+      throw new InvalidPropertyError("invalid: asset sip.step_pct should be a non-negative number");
+  }
+
+  const rent = other.rent;
+  if (rent !== undefined && rent !== null) {
+    if (typeof rent !== "object" || typeof rent.monthly_rent !== "number" || rent.monthly_rent <= 0)
+      throw new InvalidPropertyError("invalid: asset rent.monthly_rent should be a positive number");
+    if (rent.step_pct !== undefined && (typeof rent.step_pct !== "number" || rent.step_pct < 0))
+      throw new InvalidPropertyError("invalid: asset rent.step_pct should be a non-negative number");
+    if (
+      rent.expense_ratio !== undefined &&
+      (typeof rent.expense_ratio !== "number" || rent.expense_ratio < 0 || rent.expense_ratio > 100)
+    )
+      throw new InvalidPropertyError("invalid: asset rent.expense_ratio should be 0-100");
+  }
+
+  if (
+    other.jurisdiction !== undefined &&
+    !Object.values(ASSET_CLASS_CONSTANTS.JURISDICTION).includes(other.jurisdiction as any)
+  )
+    throw new InvalidPropertyError("invalid: asset jurisdiction should be in | foreign");
+
+  return { _id, title, asset_class, category, principal, purchase_month, growth_rate, ...other } as Asset;
+}
+
 /* -------------------------------- User -------------------------------- */
 
 export interface UserProfile {
@@ -550,6 +681,7 @@ export interface PlanTemplate {
   loan_accounts: LoanAccount[];
   cashflow_change_list: CashFlowChange[];
   fund_distribution_percentage: FundDistributionPercentage[];
+  asset_list: Asset[];
   category: "std" | "t-i" | "t-c";
   title: string;
   description: string;
@@ -569,6 +701,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     loan_accounts,
     cashflow_change_list,
     fund_distribution_percentage,
+    asset_list,
     category = PLAN_TEMPLATE_CONSTANTS.CATEGORY.STANDARD,
     title = "",
     description = "",
@@ -600,6 +733,8 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     throw new InvalidPropertyError(
       "fund_distribution_percentage should be an Array"
     );
+  if (asset_list !== undefined && asset_list !== null && !Array.isArray(asset_list))
+    throw new InvalidPropertyError("asset_list should be an Array");
 
   cashflow_list.forEach((cashflow, index) => {
     if (typeof cashflow !== "object" || cashflow === null) return;
@@ -652,6 +787,17 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     }
   });
 
+  (asset_list || []).forEach((asset_obj: Record<string, any>, index: number) => {
+    if (typeof asset_obj !== "object" || asset_obj === null) return;
+    try {
+      MakeAsset(asset_obj);
+    } catch (e: any) {
+      throw new InvalidPropertyError(
+        `Invalid asset at number ${index + 1} |${e.message}`
+      );
+    }
+  });
+
   const normalized: any = {
     user_id,
     cashflow_list,
@@ -659,6 +805,7 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
     loan_accounts,
     cashflow_change_list,
     fund_distribution_percentage,
+    asset_list: asset_list || [],
     title,
     description,
     category,

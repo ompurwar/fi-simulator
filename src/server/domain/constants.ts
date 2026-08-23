@@ -49,6 +49,38 @@ export const ACCOUNT_CONSTANTS = {
   },
 } as const;
 
+export const ASSET_CLASS_CONSTANTS = {
+  CLASS: {
+    FD: "fd",
+    BOND: "bond",
+    SAVINGS: "savings",
+    GOLD: "gold",
+    PPF: "ppf",
+    EQUITY: "equity",
+    EQUITY_FOREIGN: "equity_foreign",
+    MF: "mf",
+    REAL_ESTATE: "real_estate",
+    VDA: "vda",
+  },
+  INCOME_FREQUENCY: {
+    MONTHLY: "m",
+    QUARTERLY: "q",
+    HALF_YEARLY: "h",
+    YEARLY: "y",
+  },
+  COMPOUNDING: {
+    NONE: "none",
+    SIMPLE: "simple",
+    MONTHLY: "monthly",
+    QUARTERLY: "quarterly",
+    YEARLY: "yearly",
+  },
+  JURISDICTION: {
+    INDIA: "in",
+    FOREIGN: "foreign",
+  },
+} as const;
+
 export const LOAN_CONSTANTS = {
   TYPE: {
     HOME_LOAN: 1,

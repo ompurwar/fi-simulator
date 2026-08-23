@@ -17,6 +17,8 @@ import {
   MakeLoanScheduleByMonthToCashFlow,
   MakePrepaymentScheduleByMonthToCashFlow,
 } from "./loan";
+import { ComputeAssetSchedule, ComputeIncomeTaxExpenseSchedule } from "./assets";
+import type { TaxRuleSet } from "../tax/schema";
 import type { CashFlowLike, CashFlowChangeLike } from "./statements";
 
 export interface PlanForSnapshot {
@@ -25,7 +27,14 @@ export interface PlanForSnapshot {
   account_list?: AccountLike[];
   loan_accounts?: LoanLike[];
   fund_distribution_percentage?: FDPLike[];
+  asset_list?: any[];
+  tax_settings?: any;
   timestamp?: number;
+}
+
+export interface SnapshotOptions {
+  /** versioned rule set resolved from Tax_Rule_Store (asset TDS / capital gains / income tax) */
+  tax_rules?: TaxRuleSet;
 }
 
 export interface PlanSnapshot {
@@ -46,19 +55,33 @@ export interface PlanSnapshot {
   };
   aggregated_account_balances_and_transactions_by_month: any;
   balance_and_transaction_by_month: any[];
+  /** asset-class fields — present only when the plan has assets or tax enabled */
+  asset_month_map?: Record<number, any[]>;
+  asset_summary?: any;
+  tax_summary?: Record<string, any>;
+  tax_expense_cashflow?: any[];
+  bucket_growth?: Record<string, { value: number; growth_rate: number }>;
 }
 
-export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): PlanSnapshot {
+export function ComputePlanSnapshot(
+  plan: PlanForSnapshot = {},
+  duration = 50,
+  options: SnapshotOptions = {}
+): PlanSnapshot {
   const _plan = plan;
   const plan_duration = duration;
+  const rules = options.tax_rules;
+  const has_assets = Array.isArray(_plan.asset_list) && _plan.asset_list.length > 0;
+  const has_tax = !!_plan.tax_settings?.income_tax_enabled;
+  const asset_mode = has_assets || has_tax;
 
-  function CashFlowToStatement(plan_obj: PlanForSnapshot, dur: number, emi_expense_cashflow: any[] = []) {
+  function CashFlowToStatement(plan_obj: PlanForSnapshot, dur: number, auto_expense_cashflow: any[] = []) {
     let income_statement: MonthlyStatement[] = [];
     let expense_statement: MonthlyStatement[] = [];
     if (plan_obj) {
       let expense_list = (plan_obj.cashflow_list || []).filter((_: any) => _.category === "e");
       const income_list = (plan_obj.cashflow_list || []).filter((_: any) => _.category === "i");
-      expense_list = [...expense_list, ...emi_expense_cashflow];
+      expense_list = [...expense_list, ...auto_expense_cashflow];
       const cashflow_change_list = plan_obj.cashflow_change_list || [];
       income_statement = GetMonthlyIncomeList(dur, income_list, cashflow_change_list);
       expense_statement = GetMonthlyExpenseList(dur, expense_list, cashflow_change_list);
@@ -121,9 +144,32 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
 
   emi_expense_cashflow.push(...emi_schedule.map((emi_obj) => MakeLoanScheduleByMonthToCashFlow(emi_obj)));
 
+  // ---- asset projection + auto income-tax expense ----
+  let asset_schedule: ReturnType<typeof ComputeAssetSchedule> | null = null;
+  let tax_expense_cashflow: any[] = [];
+  if (asset_mode && rules) {
+    asset_schedule = ComputeAssetSchedule(_plan, plan_duration, rules);
+    if (_plan.tax_settings?.income_tax_enabled) {
+      const income_statement = GetMonthlyIncomeList(
+        plan_duration,
+        income_list,
+        _plan.cashflow_change_list || []
+      );
+      tax_expense_cashflow = ComputeIncomeTaxExpenseSchedule(
+        _plan,
+        plan_duration,
+        rules,
+        _plan.tax_settings,
+        income_statement,
+        asset_schedule.tax_summary
+      );
+    }
+  }
+
   const expense_list = [
     ...((_plan.cashflow_list || []).filter((_) => _.category === "e") as CashFlowLike[]),
     ...emi_expense_cashflow,
+    ...tax_expense_cashflow,
   ].map((expense) => {
     const cashflow_changes = (_plan.cashflow_change_list || []).filter(
       (c) => c.cashflow_id === expense._id && c.category === "e"
@@ -133,7 +179,9 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
 
   const account_list = DeepCopy(_plan.account_list || []).sort((a: any, b: any) => (a.start_month || 0) - (b.start_month || 0));
 
-  const cashflow = _plan ? CashFlowToStatement(_plan, plan_duration, emi_expense_cashflow) : { income_statement: [], expense_statement: [] };
+  const cashflow = _plan
+    ? CashFlowToStatement(_plan, plan_duration, [...emi_expense_cashflow, ...tax_expense_cashflow])
+    : { income_statement: [], expense_statement: [] };
 
   const net_cashflow = cashflow.income_statement.map((raw_income_obj, index) => {
     const expense_obj = cashflow.expense_statement[index];
@@ -152,6 +200,22 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
     account_list,
     loan_account_list
   );
+
+  // Merge asset cash-flow transactions into the transaction list + balances.
+  if (asset_schedule && asset_schedule.txns.length > 0) {
+    account_balances_and_transactions.transaction_list = [
+      ...account_balances_and_transactions.transaction_list,
+      ...asset_schedule.txns,
+    ];
+    for (const txn of asset_schedule.txns) {
+      const delta = txn.tran_type === "cr" ? txn.amount : -txn.amount;
+      for (const balance of account_balances_and_transactions.account_balances) {
+        if (String(balance.account_id) === String(txn.account_id) && balance.month >= txn.month) {
+          balance.balance = Math.round((balance.balance + delta) * 100) / 100;
+        }
+      }
+    }
+  }
 
   const aggregated_account_balances_and_transactions_by_month = AggregateBalanceAndTransactionsByMonth(
     account_balances_and_transactions.transaction_list,
@@ -173,7 +237,7 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
     return obj;
   });
 
-  return {
+  const snapshot: PlanSnapshot = {
     income_list,
     expense_list,
     account_list,
@@ -188,4 +252,15 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
     aggregated_account_balances_and_transactions_by_month,
     balance_and_transaction_by_month,
   };
+
+  // Asset/tax fields only when the plan uses them — old plans stay byte-identical.
+  if (asset_schedule) {
+    snapshot.asset_month_map = asset_schedule.asset_month_map;
+    snapshot.asset_summary = asset_schedule.asset_summary;
+    snapshot.tax_summary = asset_schedule.tax_summary;
+    snapshot.bucket_growth = asset_schedule.bucket_growth;
+    snapshot.tax_expense_cashflow = tax_expense_cashflow;
+  }
+
+  return snapshot;
 }
