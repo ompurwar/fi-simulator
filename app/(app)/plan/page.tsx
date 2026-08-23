@@ -351,46 +351,48 @@ function BalanceAndTxn({
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
-                    {/* ROI / Growth Chip */}
-                    {(blendedRoi(b.category) !== undefined || getRoi(b.category)) && (
-                      <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                        <span>{blendedRoi(b.category) !== undefined ? `~${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}</span>
-                        <span className="text-[9px] font-normal uppercase">ROI</span>
-                      </div>
-                    )}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      {/* ROI / Growth Chip */}
+                      {(blendedRoi(b.category) !== undefined || getRoi(b.category)) && (
+                        <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          <span>{blendedRoi(b.category) !== undefined ? `~${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}</span>
+                          <span className="text-[9px] font-normal uppercase text-emerald-600">ROI</span>
+                        </div>
+                      )}
+
+                      {/* Edit Account Button */}
+                      <button
+                        type="button"
+                        onClick={() => onEdit?.(b.account_id)}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-dark-200 bg-dark-50 text-dark-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                        title="Edit Account"
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} className="text-[10px]" />
+                      </button>
+                    </div>
 
                     {variation !== 0 && (
-                      <span className={`flex items-center gap-0.5 text-[11px] font-bold ${variation > 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      <div className={`flex items-center gap-1 text-xs font-bold ${variation > 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         <FontAwesomeIcon icon={variation > 0 ? faUpLong : faDownLong} className="text-[10px]" />
                         <DisplayAmount notation="compact" amount={Math.abs(variation)} />
-                      </span>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Edit Account Button */}
-                <button
-                  type="button"
-                  onClick={() => onEdit?.(b.account_id)}
-                  className="absolute right-2 top-2 p-1 text-dark-300 hover:text-primary-600 transition-colors"
-                  title="Edit Account"
-                >
-                  <FontAwesomeIcon icon={faPenToSquare} className="text-xs" />
-                </button>
-
                 {/* Mini Transactions list */}
                 {(account.txn || []).filter((t: any) => t.amount > 0).length > 0 && (
-                  <div className="flex flex-col gap-1 border-t border-dark-100 pt-2 max-h-16 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-1.5 border-t border-dark-100 pt-2.5 max-h-28 overflow-y-auto pr-1">
                     {(account.txn || [])
                       .filter((t: any) => t.amount > 0)
                       .map((txn: any, tidx: number) => (
-                        <div key={tidx} className="flex justify-between items-center text-[11px] text-dark-600">
-                          <span className="truncate font-medium">{txn.tran_desc}</span>
-                          <span className={`font-bold shrink-0 ml-2 ${txn.tran_type === "cr" ? "text-emerald-600" : "text-rose-600"}`}>
-                            {txn.tran_type === "cr" ? "+" : "-"}
+                        <div key={tidx} className="flex justify-between items-center text-xs text-dark-600">
+                          <span className="truncate font-medium text-dark-500 pr-2">{txn.tran_desc}</span>
+                          <div className={`inline-flex items-center gap-0.5 font-bold shrink-0 ${txn.tran_type === "cr" ? "text-emerald-600" : "text-rose-600"}`}>
+                            <span>{txn.tran_type === "cr" ? "+" : "-"}</span>
                             <DisplayAmount notation="compact" amount={txn.amount} />
-                          </span>
+                          </div>
                         </div>
                       ))}
                   </div>
