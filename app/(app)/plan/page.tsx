@@ -8,6 +8,8 @@ import { usePlanEngine } from "@/hooks/usePlanEngine";
 import { useRunway } from "@/hooks/useRunway";
 import { useBalanceSeq } from "@/hooks/useBalanceSeq";
 import { useWalkThrough } from "@/hooks/useWalkThrough";
+import { BuildScenarioLines, BuildWealthChartData } from "@/lib/wealthChart";
+import { WhatIfDrawer } from "@/components/plan/WhatIfDrawer";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { MonthSlider } from "@/components/plan/MonthSlider";
@@ -41,6 +43,7 @@ import {
   faPenToSquare,
   faWallet,
   faChartLine,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -403,9 +406,18 @@ function BalanceAndTxn({
                     <div className="flex items-center gap-1.5">
                       {/* ROI / Growth Chip */}
                       {(blendedRoi(b.category) !== undefined || getRoi(b.category)) && (
-                        <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                        <div
+                          className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200"
+                          title={
+                            blendedRoi(b.category) !== undefined
+                              ? "Blended: account ROI applies to idle cash only — asset growth accrues separately in your holdings"
+                              : "Annual ROI credited on the account's idle cash balance"
+                          }
+                        >
                           <span>{blendedRoi(b.category) !== undefined ? `~${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}</span>
-                          <span className="text-[9px] font-normal uppercase text-emerald-600">ROI</span>
+                          <span className="text-[9px] font-normal uppercase text-emerald-600">
+                            {blendedRoi(b.category) !== undefined ? "Blended" : "ROI"}
+                          </span>
                         </div>
                       )}
 
@@ -476,6 +488,8 @@ function PlanPageInner() {
   );
   const [current_month, setCurrentMonth] = useState(initial_month);
   const [simulation_open, setSimulationOpen] = useState(false);
+  const [show_scenarios, setShowScenarios] = useState(false);
+  const [whatif_open, setWhatifOpen] = useState(false);
 
   const plan = useMemo(
     () => plans.find((p) => p._id === (plan_id || selected_plan_id)) || plans[0],
@@ -573,29 +587,15 @@ function PlanPageInner() {
     window_start_point,
     window_start_point + balance_chart_months
   );
-  const balance_chart_datasets = ["e", "s", "i"].map((cat, idx) => ({
-    label: cat === "e" ? "EMERGENCY" : cat === "s" ? "SAVINGS" : "INVESTMENT",
-    data: Array.from({ length: plan_duration }, (_, i) =>
-      account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === cat)?.balance || 0
-    ).slice(window_start_point, window_start_point + balance_chart_months),
-    backgroundColor:
-      idx === 0
-        ? cssVar("--color-dark-300")
-        : idx === 1
-          ? cssVar("--color-accent-600")
-          : cssVar("--color-primary-400"),
-    borderColor:
-      idx === 0
-        ? cssVar("--color-dark-300")
-        : idx === 1
-          ? cssVar("--color-accent-600")
-          : cssVar("--color-primary-500"),
-    pointStyle: "circle",
-    pointRadius: 0,
-    pointHoverRadius: 15,
-    borderRadius: idx === 0 ? { topLeft: 3, topRight: 3 } : 0,
-    order: [3, 2, 1][idx],
-  }));
+  const { datasets: balance_chart_datasets, net_worth_series } = BuildWealthChartData(
+    engine,
+    { window_start: window_start_point, window_size: balance_chart_months },
+    cssVar,
+    balance_chart_labels
+  );
+  const scenario_datasets = show_scenarios
+    ? BuildScenarioLines(engine, { window_start: window_start_point, window_size: balance_chart_months }, cssVar)
+    : [];
 
   const aggregated_balance_for_month =
     current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0) +
@@ -908,6 +908,14 @@ function PlanPageInner() {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-xs font-bold text-dark-600">{GetMonthAndYear(plan, current_month)}</div>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
+                onClick={() => setWhatifOpen(true)}
+              >
+                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
+                What-if
+              </button>
               {is_plan_synced ? (
                 <button
                   type="button"
@@ -932,7 +940,7 @@ function PlanPageInner() {
           <div className="w-full mt-auto" style={{ aspectRatio: "400 / 350" }}>
             <MyChart
               labels={balance_chart_labels}
-              dataset={balance_chart_datasets}
+              dataset={[...balance_chart_datasets, ...scenario_datasets]}
               stacked
               chart_type="bar"
               height={350}
@@ -1043,20 +1051,47 @@ function PlanPageInner() {
                   <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
                 </button>
               </div>
+
+              <div className="flex items-center gap-1.5">
+                {engine.asset_scenarios && (
+                  <button
+                    type="button"
+                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
+                      show_scenarios
+                        ? "border-primary-300 bg-primary-50 text-primary-700"
+                        : "border-dark-200 bg-dark-50/50 text-dark-500 hover:bg-white"
+                    }`}
+                    onClick={() => setShowScenarios((v) => !v)}
+                    title="Overlay ±1σ asset scenario bands (plan end projection)"
+                  >
+                    <FontAwesomeIcon icon={faChartLine} className="text-xs" />
+                    Scenarios
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
+                  onClick={() => setWhatifOpen(true)}
+                  title="Simulate what-if changes without saving"
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
+                  What-if
+                </button>
+              </div>
             </div>
 
             <div className="h-[500px] w-full">
-              <MyChart
-                labels={balance_chart_labels}
-                dataset={balance_chart_datasets}
-                stacked
-                chart_type="bar"
-                height={500}
-                width={400}
-                annotation={chart_annotations}
-                formatter={ToDisplayableMoney}
-                onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
-              />
+          <MyChart
+            labels={balance_chart_labels}
+            dataset={[...balance_chart_datasets, ...scenario_datasets]}
+            stacked
+            chart_type="bar"
+            height={500}
+            width={400}
+            annotation={chart_annotations}
+            formatter={ToDisplayableMoney}
+            onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
+          />
             </div>
           </div>
           <BalanceAndTxn
@@ -1211,6 +1246,28 @@ function PlanPageInner() {
           </button>,
           document.getElementById("share-button")!
         )}
+
+      {whatif_open && plan && (
+        <WhatIfDrawer
+          plan={plan}
+          currentSnapshot={engine}
+          open={whatif_open}
+          onClose={() => setWhatifOpen(false)}
+          onApplied={() => {
+            setWhatifOpen(false);
+            FireNotification({
+              title: "Scenario applied",
+              desc: "Changes saved locally — use Save to sync.",
+              variant: "success",
+              active: true,
+              dismissal: "true",
+              time_based: true,
+              duration: 4000,
+              buttons: [],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

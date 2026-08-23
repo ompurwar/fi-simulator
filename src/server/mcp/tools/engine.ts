@@ -13,7 +13,9 @@ import { callUseCase, fail, ok, requireFields, isRecord } from "./envelope";
 import type { ToolDefinition } from "../types";
 
 /** Compact projection for token economy — enough to answer runway / net-worth /
- *  milestone questions without shipping the full statements + transactions. */
+ *  milestone questions without shipping the full statements + transactions.
+ *  Net worth(t) = buckets(t) + assets(t) — the SAME formula the web UI uses,
+ *  so agent numbers always match the app. */
 function toSummary(snapshot: any, milestones = false) {
   const stmt = snapshot.cashflow || { income_statement: [], expense_statement: [] };
   const monthly_totals = stmt.income_statement.map((inc: any, i: number) => ({
@@ -25,17 +27,38 @@ function toSummary(snapshot: any, milestones = false) {
   const balances = (snapshot.account_balances_and_transactions?.account_balances || []).map(
     (b: any) => ({ month: b.month, category: b.category, balance: b.balance })
   );
+  // asset holdings per month (same data as the web UI's asset_month_map)
+  const assets_by_month: Record<number, number> = {};
+  const asset_map: any = snapshot.asset_month_map || {};
+  for (const month of Object.keys(asset_map)) {
+    assets_by_month[Number(month)] = ((asset_map[month] as any[]) || []).reduce(
+      (s: number, r: any) => s + (r.value || 0),
+      0
+    );
+  }
+  // buckets + assets per month — net worth the way the app displays it
+  const net_worth_by_month = monthly_totals.map((t: any) => {
+    const bucket_total = balances
+      .filter((b: any) => b.month === t.month)
+      .reduce((s: number, b: any) => s + (b.balance || 0), 0);
+    return { month: t.month, net_worth: bucket_total + (assets_by_month[t.month] || 0) };
+  });
 
   if (milestones) {
     // yearly points (m1, 13, 25…) + overall totals — tiny payload for long durations
     const yearly = monthly_totals.filter((t: any) => (t.month - 1) % 12 === 0);
     const balances_yearly = balances.filter((b: any) => (b.month - 1) % 12 === 0);
+    const net_worth_yearly = net_worth_by_month.filter((n: any) => (n.month - 1) % 12 === 0);
     return {
       milestone_months: yearly.map((t: any) => t.month),
       income: yearly.map((t: any) => t.income),
       expense: yearly.map((t: any) => t.expense),
       net: yearly.map((t: any) => t.net),
       balances_by_month: balances_yearly,
+      assets_by_month: Object.fromEntries(
+        Object.entries(assets_by_month).filter(([m]) => (Number(m) - 1) % 12 === 0)
+      ),
+      net_worth_by_month: net_worth_yearly,
       totals: {
         income: monthly_totals.reduce((s: number, t: any) => s + (t.income || 0), 0),
         expense: monthly_totals.reduce((s: number, t: any) => s + (t.expense || 0), 0),
@@ -48,6 +71,8 @@ function toSummary(snapshot: any, milestones = false) {
     monthly_totals,
     net_cashflow: snapshot.net_cashflow || [],
     balances_by_month: balances,
+    assets_by_month,
+    net_worth_by_month,
     loan_account_list: snapshot.loan_account_list || [],
     fund_distribution_percentage_list: snapshot.fund_distribution_percentage_list || [],
   };
