@@ -773,7 +773,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         </button>
       </div>
 
-      <div className="mb-10 flex h-full flex-col-reverse gap-4 md:mb-0 md:mt-0 md:flex-row md:gap-0">
+      <div className="mb-16 flex h-full flex-col gap-4 md:mb-0 md:mt-0 md:flex-row md:gap-0">
         {/* loan list column */}
         {show_loan_list && (
           <div className={`flex w-full flex-col md:h-[580px] md:w-1/3 md:shrink-0 ${stage !== "loan_list" ? "hidden md:flex" : "flex"}`}>
@@ -1092,22 +1092,22 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
           {stage === "view_loan" && selected_loan && (
             <div className="flex w-full flex-col gap-4">
               {/* top KPI summary & doughnut */}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
                 <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Loan Type</span>
-                  <span className="mt-0.5 text-sm font-extrabold text-dark-800 truncate">{type_of_loan_being_edited}</span>
+                  <span className="mt-0.5 text-xs font-extrabold text-dark-800 sm:text-sm truncate" title={type_of_loan_being_edited}>{type_of_loan_being_edited}</span>
                 </div>
                 <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Monthly EMI</span>
-                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-primary-600" amount={emi_figures.monthly_emi} />
+                  <DisplayAmount className="mt-0.5 text-xs font-extrabold text-primary-600 sm:text-sm md:text-base truncate" amount={emi_figures.monthly_emi} />
                 </div>
                 <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Interest Payable</span>
-                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-amber-600" amount={emi_figures.total_interest_paid} />
+                  <DisplayAmount className="mt-0.5 text-xs font-extrabold text-amber-600 sm:text-sm md:text-base truncate" amount={emi_figures.total_interest_paid} />
                 </div>
                 <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total Payable</span>
-                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-dark-800" amount={emi_figures.total_payable} />
+                  <DisplayAmount className="mt-0.5 text-xs font-extrabold text-dark-800 sm:text-sm md:text-base truncate" amount={emi_figures.total_payable} />
                 </div>
               </div>
 
