@@ -1037,10 +1037,10 @@ function PlanPageInner() {
             <div className="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3 pb-2.5 border-b border-dark-100 dark:border-slate-800">
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <DisplayAmount className="text-xl font-extrabold text-dark-800 dark:text-white" amount={aggregated_balance_for_month} />
+                <div className="flex items-center gap-2">
+                  <DisplayAmount className="text-xl font-extrabold text-dark-800 dark:text-white whitespace-nowrap" amount={aggregated_balance_for_month} />
                   {aggregated_balance_for_month >= 10000000 && (
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                       {ToDisplayableMoney(aggregated_balance_for_month)}
                     </span>
                   )}
