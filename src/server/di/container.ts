@@ -164,6 +164,7 @@ export async function buildContainer(
     api_token_list,
     chat_session_list,
     networth_service,
+    tax_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,

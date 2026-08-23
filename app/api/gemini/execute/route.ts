@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   try {
     if (token.startsWith("fp_oa_")) {
       const oauthCtx = await container.oauth_service.verifyAccessToken(token);
-      ctx = { user_id: oauthCtx.user_id, role: "user" };
+      ctx = { user_id: oauthCtx.user_id };
     } else {
       ctx = await resolveApiToken(container, token);
     }
