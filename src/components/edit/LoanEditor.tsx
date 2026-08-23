@@ -27,6 +27,7 @@ import {
   faHouse,
   faArrowsRotate,
   faHandHoldingDollar,
+  faChartPie,
 } from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb, faFileLines } from "@fortawesome/free-regular-svg-icons";
 
@@ -80,37 +81,66 @@ function ComputeRefinanceAnalysis(loan: any, opts: { new_rate: number; new_tenur
 }
 
 /** Port of loan_account/LoanCard.vue */
-function LoanCard({ plan, loan, children }: { plan: any; loan: any; children?: React.ReactNode }) {
+function LoanCard({
+  plan,
+  loan,
+  children,
+  selected = false,
+  onClick,
+}: {
+  plan: any;
+  loan: any;
+  children?: React.ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
   const loan_type_options = (useFiPlanStore((s) => s.common_collection) as any)?.loan_type || [];
   const start_date = GetMMYYYY(loan.start_month, plan?.timestamp);
   const end_date = GetMMYYYY(loan.end_month, plan?.timestamp);
   const duration = loan.end_month - loan.start_month + 1;
   const emi = ComputeLoanEMI(loan.principal_amount, loan.interest_rate, duration);
-  const loan_type = loan_type_options.find((o: any) => o.value === loan.type)?.text;
+  const loan_type = loan_type_options.find((o: any) => o.value === loan.type)?.text || "Loan";
+
   return (
-    <div className="flex flex-col rounded-lg border border-l-2 border-l-primary-300 bg-dark-50 bg-gradient-to-t p-2 text-dark-200 shadow-sm hover:shadow-md">
-      <div className="flex justify-between">
-        <div className="mt-1 flex flex-col justify-between">
-          <p className="w-full truncate text-[12px] text-dark-200 first-letter:uppercase sm:text-base md:w-[15rem]">
+    <div
+      onClick={onClick}
+      className={`flex flex-col rounded-xl border bg-white p-3 text-dark-700 shadow-xs transition-all duration-200 hover:shadow-md ${
+        selected
+          ? "border-primary-400 border-l-4 border-l-primary-500 ring-2 ring-primary-400/20"
+          : "border-dark-200 border-l-4 border-l-primary-400"
+      } ${onClick ? "cursor-pointer" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="truncate text-sm font-bold text-dark-800 first-letter:uppercase sm:text-base">
             {loan.title}
           </p>
-          <div className="flex gap-1 text-xs text-dark-500 sm:text-sm">
-            <div>{loan_type}</div>
-            <DisplayAmount className="self-center font-medium" amount={loan.principal_amount} />
-            <div className="lowercase">@ {loan.interest_rate}% p.a.</div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-dark-500 sm:text-sm font-medium">
+            <span className="rounded-md bg-dark-100/70 px-1.5 py-0.5 text-[11px] font-semibold text-dark-700">
+              {loan_type}
+            </span>
+            <span className="text-dark-300">·</span>
+            <DisplayAmount className="self-center font-bold text-dark-800" amount={loan.principal_amount} />
+            <span className="text-dark-300">·</span>
+            <span className="text-dark-500 font-normal">@ {loan.interest_rate}% p.a.</span>
           </div>
-          <div className="flex w-fit gap-1 rounded-md py-1 text-[9px] uppercase text-dark-100 sm:text-sm">
-            <div className="font-bold">{start_date}</div>
-            <span> to </span>
-            <div className="font-bold">{end_date}</div>
+          <div className="flex w-fit items-center gap-1 rounded-md py-0.5 text-[10px] font-semibold uppercase tracking-wide text-dark-500 sm:text-xs">
+            <span className="font-bold text-dark-700">{start_date}</span>
+            <span className="text-dark-400 lowercase">to</span>
+            <span className="font-bold text-dark-700">{end_date}</span>
+            <span className="ml-1 text-dark-400 lowercase">({duration} mo)</span>
           </div>
         </div>
-        <div className="ml-auto text-[10px] text-dark-500 sm:text-xs">
-          <div className="flex w-fit content-center gap-1 self-center rounded-md">
-            <span className="self-center text-dark-500"> EMI </span>
-            <DisplayAmount className="self-center" amount={emi} />
-            <span className="flex w-[2em] justify-center self-center text-lg text-danger-300">{children}</span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5 rounded-lg bg-dark-50 px-2 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-dark-400">EMI</span>
+            <DisplayAmount className="font-bold text-dark-800 text-xs sm:text-sm" amount={emi} />
           </div>
+          {children && (
+            <div className="mt-1 flex items-center justify-end text-sm text-dark-400" onClick={(e) => e.stopPropagation()}>
+              {children}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -118,7 +148,7 @@ function LoanCard({ plan, loan, children }: { plan: any; loan: any; children?: R
 }
 
 const inputClass =
-  "relative border-[1.6px] rounded-[.5rem] px-3 py-[.25rem] w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
+  "relative border border-dark-200 rounded-lg px-3 py-2 w-full shadow-xs placeholder-dark-400 text-dark-800 text-left focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 bg-white transition-all duration-200 text-base appearance-none";
 
 /** Port of loan_account/LoanAccountCommand.vue */
 function LoanAccountCommand({
@@ -167,8 +197,6 @@ function LoanAccountCommand({
         end_month: loan.end_month,
         interest_rate: loan.interest_rate,
         type: loan.type,
-        // Normalize: the engine credits only on strict `deposit_to_bank === true`,
-        // so a truthy non-boolean (e.g. the string "true") must not tick the box.
         deposit_to_bank: loan.deposit_to_bank === true,
         prepayments: [...(loan.prepayments || [])],
         prepay_draft: { start_month: (loan.start_month || 1) + 12, amount: 0, frequency: "y", step_pct: null, step_frequency: null },
@@ -205,24 +233,23 @@ function LoanAccountCommand({
 
   async function SaveChanges() {
     const error_messages: string[] = [];
-    if (!state.title) error_messages.push("title is required");
-    if (!state.principal_amount) error_messages.push("principal amount is required");
-    if (!state.interest_rate) error_messages.push("interest rate is required");
-    if (!(state.end_month >= state.start_month)) error_messages.push("end month should be >= start month");
+    if (!state.title?.trim()) error_messages.push("Description / title is required");
+    if (!state.principal_amount || state.principal_amount <= 0) error_messages.push("Principal amount is required");
+    if (!state.interest_rate || state.interest_rate <= 0) error_messages.push("Interest rate is required");
+    if (!(state.end_month >= state.start_month)) error_messages.push("End month should be >= start month");
     if (error_messages.length) {
       alert(error_messages.join("\n"));
       return;
     }
     const loan_obj: any = {
       _id: mode === "add" ? GetRandomString(6) : loan?._id,
-      title: state.title,
+      title: state.title.trim(),
       principal_amount: state.principal_amount,
       start_month: state.start_month,
       end_month: state.end_month,
       interest_rate: state.interest_rate,
       type: state.type,
       ref_id: state.ref_id,
-      // always persist a real boolean so the engine and the checkbox agree
       deposit_to_bank: state.deposit_to_bank === true,
       prepayments: state.prepayments || [],
     };
@@ -234,8 +261,6 @@ function LoanAccountCommand({
       if (idx >= 0) loan_accounts[idx] = loan_obj;
     }
     update_plan_local({ ...plan, loan_accounts });
-    // Persist immediately — the plan page's snapshot and any refresh read the
-    // server copy, so a local-only edit would vanish on refresh.
     try {
       await sync_plan(plan._id);
     } catch (e: any) {
@@ -246,6 +271,8 @@ function LoanAccountCommand({
   }
 
   async function DeleteLoan() {
+    const ok = confirm(`Are you sure you want to delete "${loan?.title || "this loan"}"?`);
+    if (!ok) return;
     setState((s: any) => ({ ...s, deleting: true }));
     const loan_accounts = (plan.loan_accounts || []).filter((l: any) => l._id !== loan?._id);
     update_plan_local({ ...plan, loan_accounts });
@@ -258,119 +285,123 @@ function LoanAccountCommand({
     onDone({ action: "deleted" });
   }
 
-  const inputClass =
-    "relative border-[1.6px] rounded-[.5rem] px-3 py-[.25rem] w-full shadow-sm placeholder-dark-500 text-dark-400 text-left focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-300 focus:shadow-primary-500 bg-dark-50 flex justify-between transition-all duration-200 text-[1.25rem] appearance-none";
-
   return (
-    <div className="flex w-full flex-col gap-2">
-      <div className="flex gap-3 font-medium text-dark-600">
-        <div className="flex gap-3 self-center">
-          <FontAwesomeIcon icon={faLandmarkFlag} className="self-center text-2xl text-primary-500" />
-          <span className="self-center">Configure Loan parameters </span>
+    <div className="flex w-full flex-col gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
+      <div className="flex items-center justify-between border-b border-dark-100 pb-3">
+        <div className="flex items-center gap-2.5 font-semibold text-dark-800">
+          <FontAwesomeIcon icon={faLandmarkFlag} className="text-xl text-primary-500" />
+          <span className="text-base">{mode === "add" ? "Add New Loan" : "Configure Loan"}</span>
         </div>
         {mode === "edit" && (
-          <div className="ml-auto flex px-2 py-1 text-danger-500" onClick={DeleteLoan}>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-danger-500 transition-colors hover:bg-danger-50 hover:text-danger-600"
+            onClick={DeleteLoan}
+            disabled={state.deleting}
+          >
             {state.deleting ? (
-              <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-dark-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             ) : (
-              <FontAwesomeIcon icon={faTrashCan} className="self-center" />
+              <FontAwesomeIcon icon={faTrashCan} />
             )}
-          </div>
+            <span>Delete</span>
+          </button>
         )}
       </div>
-      <div className="flex">
-        <div className="w-full">
-          <span className="text-sm text-dark-300">Description</span>
-          <input
-            type="text"
-            name="Description"
-            id="description"
-            value={state.title}
-            onChange={(e) => setState((s: any) => ({ ...s, title: e.target.value }))}
-            style={{ fontSize: "1.25rem" }}
-            className={`${inputClass} mt-1`}
-          />
-        </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="loan_description" className="text-xs font-semibold uppercase tracking-wider text-dark-500">
+          Description / Name
+        </label>
+        <input
+          type="text"
+          id="loan_description"
+          value={state.title}
+          onChange={(e) => setState((s: any) => ({ ...s, title: e.target.value }))}
+          placeholder="e.g. Home Loan, Car Loan"
+          className={inputClass}
+        />
       </div>
-      <div className="flex justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-dark-300">Loan type</span>
-          <div className="flex">
-            {(loan_type_options as any[]).map((option, index) => (
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-dark-500">Loan Type</span>
+        <div className="flex flex-wrap rounded-lg border border-dark-200 bg-dark-50 p-1 gap-1">
+          {(loan_type_options as any[]).map((option, index) => {
+            const isSelected = state.type === option.value;
+            return (
               <button
                 key={index}
-                className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 ${
-                  state.type === option.value ? "bg-dark-200 text-dark-50" : ""
+                type="button"
+                className={`flex-1 min-w-[70px] rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  isSelected
+                    ? "bg-primary-500 text-white shadow-xs"
+                    : "text-dark-600 hover:bg-dark-100 hover:text-dark-800"
                 }`}
                 onClick={() => setState((s: any) => ({ ...s, type: option.value }))}
               >
                 {option.text}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
-      <div className="flex justify-between">
-        <div className="flex flex-col gap-1 py-2">
-          <div className="flex">
-            <input
-              id="disabled-checked-checkbox"
-              type="checkbox"
-              checked={state.deposit_to_bank}
-              onChange={(e) => setState((s: any) => ({ ...s, deposit_to_bank: e.target.checked }))}
-              className="h-4 w-4 self-center rounded border-gray-300 bg-gray-100 accent-primary-400"
-            />
-            <label htmlFor="disabled-checked-checkbox" className="ml-2 self-center text-sm text-dark-300">
-              Direct deposit to savings account
-            </label>
-          </div>
+
+      <div className="rounded-lg bg-dark-50 p-2.5 border border-dark-100">
+        <div className="flex items-center">
+          <input
+            id="deposit_to_bank"
+            type="checkbox"
+            checked={state.deposit_to_bank}
+            onChange={(e) => setState((s: any) => ({ ...s, deposit_to_bank: e.target.checked }))}
+            className="h-4 w-4 rounded border-dark-300 accent-primary-500 cursor-pointer"
+          />
+          <label htmlFor="deposit_to_bank" className="ml-2.5 select-none text-xs font-medium text-dark-700 cursor-pointer">
+            Direct deposit to savings account
+          </label>
         </div>
+        <p className="mt-1 text-[11px] text-dark-400 pl-6.5">
+          Credits principal into your savings balance right before EMI schedule starts.
+        </p>
       </div>
-      <div className="flex w-full flex-row gap-3">
-        <div className="w-full">
-          <div className="flex justify-between">
-            <span className="self-center text-sm text-dark-300">Principal Amount</span>
-            <DisplayAmount className="self-center text-xs" amount={state.principal_amount} />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold uppercase tracking-wider text-dark-500">Principal</label>
+            <DisplayAmount className="text-xs font-bold text-dark-700" amount={state.principal_amount} />
           </div>
           <input
             type="number"
-            value={state.principal_amount}
+            value={state.principal_amount || ""}
             onChange={(e) => setState((s: any) => ({ ...s, principal_amount: Number(e.target.value) }))}
             required
             min={1}
-            style={{ fontSize: "1.25rem" }}
-            className={`${inputClass} mt-1`}
+            placeholder="0"
+            className={inputClass}
           />
         </div>
-      </div>
-      <div className="flex w-full flex-row gap-3">
-        <div className="w-full">
-          <span className="text-sm text-dark-300">Interest Rate %</span>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase tracking-wider text-dark-500">Interest Rate %</label>
           <input
-            style={{ fontSize: "1.1rem" }}
-            className={inputClass}
             type="number"
-            min={1}
+            step="0.01"
+            min={0.1}
             max={100}
-            name="Interest rates"
-            value={state.interest_rate}
+            value={state.interest_rate || ""}
+            placeholder="e.g. 8.5"
             onChange={(e) => setState((s: any) => ({ ...s, interest_rate: Number(e.target.value) }))}
+            className={inputClass}
           />
         </div>
       </div>
 
-      <div className="flex grow flex-col gap-1 transition-all duration-200">
-        <span className="text-sm text-dark-300">EMI starts from</span>
-        <span className="-mt-1 text-[10px] text-dark-500">
-          When checked, "Direct deposit" credits the loan amount here — the month before the first EMI.
-        </span>
-        <div className="relative">
-          <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-            <FontAwesomeIcon icon={faFileLines} className="self-center text-sm text-dark-400" />
-          </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase tracking-wider text-dark-500">EMI Starts From</label>
           <MonthPicker
             plan_timestamp={plan.timestamp}
             duration={plan?.duration || 600}
@@ -378,64 +409,63 @@ function LoanAccountCommand({
             onChange={updateStartMonth}
           />
         </div>
-      </div>
-      <div className="flex gap-3">
-        <div className="w-full">
-          <span className="text-sm text-dark-300">Tenure (Months)</span>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase tracking-wider text-dark-500">Tenure (Months)</label>
           <input
-            style={{ fontSize: "1.25rem" }}
             type="number"
             min={1}
             className={inputClass}
-            name="Start Month"
-            value={duration_in_month}
+            value={duration_in_month || ""}
+            placeholder="Months"
             onChange={(e) => updateDuration(Number(e.target.value))}
           />
         </div>
       </div>
 
       {mode === "edit" && (
-        <div className="flex flex-col gap-2 rounded-md border border-dashed border-primary-300/50 bg-primary-300/5 p-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-primary-400/40 bg-primary-50/30 p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <FontAwesomeIcon icon={faHandHoldingDollar} className="self-center text-lg text-primary-500" />
-            <span className="self-center text-sm font-medium text-dark-400">Prepayments</span>
-            <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">
-              extra principal beyond the EMI — shortens the loan
+            <FontAwesomeIcon icon={faHandHoldingDollar} className="text-base text-primary-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-dark-700">Prepayments</span>
+            <span className="text-[11px] text-dark-400">
+              (Optional: extra payments to shorten tenure)
             </span>
           </div>
 
           {state.prepayments.length > 0 && (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {state.prepayments.map((p: any, i: number) => (
-                <div key={p._id || i} className="flex items-center gap-2 rounded-md border border-dark-300/50 bg-dark-50 px-2 py-1 text-xs text-dark-300">
-                  <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">From</span>
-                  <span className="self-center font-semibold text-dark-200">{GetMMYYYY(p.start_month, plan.timestamp)}</span>
-                  <DisplayAmount className="self-center font-semibold text-success-400" amount={p.amount} />
-                  <span className="self-center capitalize text-dark-500">
-                    {p.frequency === "q" ? "quarterly" : p.frequency === "y" ? "yearly" : p.frequency === "m" ? "monthly" : "one-time"}
-                    {p.step_pct
-                      ? ` · +${p.step_pct}% ${p.step_frequency === "m" ? "every mo" : p.step_frequency === "q" ? "every qtr" : p.step_frequency === "y" ? "every yr" : "each"}`
-                      : ""}
+                <div key={p._id || i} className="flex items-center gap-2 rounded-lg border border-dark-200 bg-white px-2.5 py-1.5 text-xs text-dark-700 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-dark-400">From</span>
+                  <span className="font-bold text-dark-800">{GetMMYYYY(p.start_month, plan.timestamp)}</span>
+                  <span className="text-dark-300">·</span>
+                  <DisplayAmount className="font-bold text-success-600" amount={p.amount} />
+                  <span className="text-dark-500 font-medium">
+                    ({p.frequency === "q" ? "quarterly" : p.frequency === "y" ? "yearly" : p.frequency === "m" ? "monthly" : "one-time"}
+                    {p.step_pct ? ` · +${p.step_pct}% step-up` : ""})
                   </span>
-                  <FontAwesomeIcon
-                    icon={faTrashCan}
-                    className="ml-auto self-center cursor-pointer text-dark-400 transition-colors duration-200 hover:text-danger-300"
+                  <button
+                    type="button"
+                    className="ml-auto text-dark-400 hover:text-danger-500 transition-colors p-1"
                     onClick={() =>
                       setState((s: any) => ({
                         ...s,
                         prepayments: s.prepayments.filter((x: any) => (p._id ? x._id !== p._id : true)),
                       }))
                     }
-                  />
+                  >
+                    <FontAwesomeIcon icon={faTrashCan} />
+                  </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-end gap-2">
-              <div className="flex w-full flex-col gap-1">
-                <span className="text-sm text-dark-300">Starts from</span>
+          <div className="flex flex-col gap-2.5 pt-1">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-dark-600">Start Month</span>
                 <MonthPicker
                   plan_timestamp={plan.timestamp}
                   duration={plan?.duration || 600}
@@ -443,20 +473,20 @@ function LoanAccountCommand({
                   onChange={(m: number) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, start_month: m } }))}
                 />
               </div>
-              <div className="flex w-full flex-col gap-1">
-                <span className="text-sm text-dark-300">Amount (per occurrence)</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-dark-600">Amount ₹</span>
                 <input
                   type="number"
                   min={1}
-                  className={`${inputClass} !text-base`}
+                  className={`${inputClass} !py-1.5 !text-sm`}
                   value={state.prepay_draft.amount || ""}
-                  placeholder="0"
+                  placeholder="e.g. 50000"
                   onChange={(e) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, amount: Number(e.target.value) } }))}
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex rounded-md border border-dark-200 bg-white p-0.5">
                 {[
                   { label: "One-time", value: null },
                   { label: "Monthly", value: "m" },
@@ -465,8 +495,11 @@ function LoanAccountCommand({
                 ].map((option) => (
                   <button
                     key={String(option.value)}
-                    className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 p-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 ${
-                      state.prepay_draft.frequency === option.value ? "bg-dark-200 text-dark-50" : ""
+                    type="button"
+                    className={`rounded px-2 py-1 text-[11px] font-semibold transition-all ${
+                      state.prepay_draft.frequency === option.value
+                        ? "bg-primary-500 text-white shadow-2xs"
+                        : "text-dark-600 hover:bg-dark-50"
                     }`}
                     onClick={() => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, frequency: option.value } }))}
                   >
@@ -474,51 +507,15 @@ function LoanAccountCommand({
                   </button>
                 ))}
               </div>
-              {state.prepay_draft.frequency && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Step-up %</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-20 rounded-md border-[1.6px] border-dark-300 bg-dark-50 px-2 py-1 text-right text-sm text-dark-400 focus:border-primary-300 focus:outline-none"
-                    value={state.prepay_draft.step_pct ?? ""}
-                    placeholder="0"
-                    onChange={(e) => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, step_pct: e.target.value === "" ? null : Number(e.target.value) } }))}
-                  />
-                  {(state.prepay_draft.step_pct ?? 0) > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">every</span>
-                      <div className="flex">
-                        {[
-                          { label: "Same", value: null },
-                          { label: "Mo", value: "m" },
-                          { label: "Qtr", value: "q" },
-                          { label: "Yr", value: "y" },
-                        ].map((option) => (
-                          <button
-                            key={String(option.value)}
-                            className={`border-b-2 border-t-2 border-dark-300 bg-dark-50 px-1.5 py-1 text-xs text-dark-400 first:rounded-l-md first:border-l-2 first:border-r-0 last:rounded-r-md last:border-r-2 ${
-                              (state.prepay_draft.step_frequency ?? null) === option.value ? "bg-dark-200 text-dark-50" : ""
-                            }`}
-                            onClick={() => setState((s: any) => ({ ...s, prepay_draft: { ...s.prepay_draft, step_frequency: option.value } }))}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
               <Button
                 variant="neutral"
                 sub_variant="outline"
                 size="sm"
-                className="ml-auto w-fit self-center px-3 py-1 text-success-400 hover:border-success-400"
+                className="px-3 py-1 text-xs font-semibold text-success-600 hover:border-success-500"
                 onClick={() => {
                   const draft = state.prepay_draft;
                   if (!draft.amount || draft.amount <= 0) {
-                    alert("prepayment amount is required");
+                    alert("Prepayment amount is required");
                     return;
                   }
                   setState((s: any) => ({
@@ -528,25 +525,25 @@ function LoanAccountCommand({
                   }));
                 }}
               >
-                <FontAwesomeIcon className="self-center" icon={faPlus} />
-                Add
+                <FontAwesomeIcon icon={faPlus} className="mr-1" />
+                Add Prepay
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-3 flex gap-3">
-        <Button variant="primary" sub_variant="solid" className="flex grow py-2 capitalize" onClick={SaveChanges}>
+      <div className="mt-2 flex gap-3 pt-2">
+        <Button variant="primary" sub_variant="solid" className="flex flex-1 justify-center gap-2 py-2.5 font-bold capitalize shadow-xs" onClick={SaveChanges}>
           {state.loading ? (
-            <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center text-primary-50" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           ) : (
-            <FontAwesomeIcon icon={faFileLines} className="self-center text-xl" />
+            <FontAwesomeIcon icon={faFileLines} className="self-center text-lg" />
           )}
-          <div className="self-center">{mode === "add" ? "Add" : "Update"}</div>
+          <span>{mode === "add" ? "Add Loan" : "Update Loan"}</span>
         </Button>
       </div>
     </div>
@@ -567,23 +564,11 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   const [stage, setStage] = useState("loan_list");
   const [selected_loan_id, setSelectedLoanId] = useState("");
   const [mode, setMode] = useState<"add" | "edit">("add");
-  const [default_loan_title, setDefaultLoanTitle] = useState("loan");
-  const [default_loan_type, setDefaultLoanType] = useState(4);
+  const [default_loan_title, setDefaultLoanTitle] = useState("Home Loan");
+  const [default_loan_type, setDefaultLoanType] = useState(1);
   const [plan_sync_inprogress, setPlanSyncInprogress] = useState(false);
   const [show_refinance, setShowRefinance] = useState(false);
   const [refi, setRefi] = useState<any>({ new_rate: 8, new_tenure: 240, refinance_month: 13, foreclosure_charge: 0 });
-
-  useEffect(() => {
-    if (selected_loan) {
-      setRefi({
-        new_rate: selected_loan.interest_rate,
-        new_tenure: Math.min(240, Math.max(12, selected_loan.end_month - selected_loan.start_month)),
-        refinance_month: Math.max(selected_loan.start_month, Math.min(selected_loan.start_month + 12, selected_loan.end_month)),
-        foreclosure_charge: 0,
-      });
-      setShowRefinance(false);
-    }
-  }, [selected_loan_id]);
 
   const loan_list = useMemo(() => {
     if (!plan) return [];
@@ -604,6 +589,18 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
     [selected_loan, default_loan_title, default_loan_type]
   );
 
+  useEffect(() => {
+    if (selected_loan) {
+      setRefi({
+        new_rate: selected_loan.interest_rate,
+        new_tenure: Math.min(240, Math.max(12, selected_loan.end_month - selected_loan.start_month)),
+        refinance_month: Math.max(selected_loan.start_month, Math.min(selected_loan.start_month + 12, selected_loan.end_month)),
+        foreclosure_charge: 0,
+      });
+      setShowRefinance(false);
+    }
+  }, [selected_loan_id, selected_loan]);
+
   const is_plan_synced = plan_synced_map[plan_id] !== false;
   const show_loan_list = ["loan_list", "add_loan"].includes(stage);
   const show_loan_meta_card = ["view_loan", "edit_loan"].includes(stage) && !!selected_loan;
@@ -614,30 +611,32 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
     const loan_obj: any = loan_being_edited;
     const tenure = Math.max(1, loan_obj.end_month - loan_obj.start_month + 1);
     const emi = ComputeLoanEMI(loan_obj.principal_amount || 0, loan_obj.interest_rate || 0, tenure);
-    const total_interest_paid = (loan_obj.principal_amount || 0) > 0 ? emi * tenure - (loan_obj.principal_amount || 0) : 0;
+    const total_interest_paid = (loan_obj.principal_amount || 0) > 0 ? Math.max(0, emi * tenure - (loan_obj.principal_amount || 0)) : 0;
     return { monthly_emi: emi, total_interest_paid, total_payable: (loan_obj.principal_amount || 0) + total_interest_paid };
   }, [loan_being_edited]);
 
-  const type_of_loan_being_edited = (useFiPlanStore((s) => s.common_collection) as any)?.loan_type?.find(
-    (o: any) => o.value === loan_being_edited.type
-  )?.text || "";
+  const type_of_loan_being_edited =
+    (useFiPlanStore((s) => s.common_collection) as any)?.loan_type?.find(
+      (o: any) => o.value === loan_being_edited.type
+    )?.text || "Loan";
 
   const emi_chart_data = useMemo(() => {
-    const labels = ["Principal AMount", "Total Interest"];
+    const labels = ["Principal Amount", "Total Interest"];
     const datasets: any[] = [];
-    if (loan_being_edited.principal_amount) {
+    if (loan_being_edited.principal_amount && loan_being_edited.principal_amount > 0) {
       datasets.push({
         data: [loan_being_edited.principal_amount, emi_figures.total_interest_paid],
         type: "doughnut",
         label: "Breakup",
         backgroundColor: [
-          typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue("--color-primary-300") : "",
-          typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue("--color-warning-600") : "",
+          (typeof document !== "undefined" && getComputedStyle(document.body).getPropertyValue("--color-primary-400").trim()) || "#34d399",
+          (typeof document !== "undefined" && getComputedStyle(document.body).getPropertyValue("--color-warning-500").trim()) || "#d97706",
         ],
+        borderColor: ["#ffffff", "#ffffff"],
+        borderWidth: 2,
         pointStyle: "circle",
         pointRadius: 0,
         pointHoverRadius: 5,
-        borderRadius: { topLeft: 3, topRight: 3 },
       });
     }
     return { labels, datasets };
@@ -681,7 +680,6 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
     }
   }
 
-  // LOAN_CONSTANTS.TYPE: home=1, car=2, personal=3, credit=4
   function SetLoanDefaults(template_id: string) {
     if (template_id === "home") {
       setDefaultLoanTitle("Home Loan");
@@ -707,7 +705,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
     setPlanSyncInprogress(false);
     FireNotification({
       title: "Success",
-      desc: " All changes saved successfully!",
+      desc: "All changes saved successfully!",
       variant: "success",
       active: true,
       dismissal: "true",
@@ -718,10 +716,10 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   }
 
   const PANEL_STAGES_LABELS: Record<string, string> = {
-    loan_list: "loan list ",
-    view_loan: selected_loan ? selected_loan.title : "",
-    add_loan: "Add ",
-    edit_loan: "Edit",
+    loan_list: "Loan List",
+    view_loan: selected_loan ? selected_loan.title : "Loan Details",
+    add_loan: "Add Loan",
+    edit_loan: "Edit Loan",
   };
   const breadcrumb_data = stack.map((s) => PANEL_STAGES_LABELS[s] || s);
 
@@ -734,135 +732,180 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   }
 
   const templates = [
-    { id: "car", icon: faCar, label: "Car Loan" },
-    { id: "credit", icon: faCreditCard, label: "Credit Card" },
-    { id: "personal", icon: faUserTie, label: "Personal Loan" },
     { id: "home", icon: faHouse, label: "Home Loan" },
+    { id: "car", icon: faCar, label: "Car Loan" },
+    { id: "personal", icon: faUserTie, label: "Personal Loan" },
+    { id: "credit", icon: faCreditCard, label: "Credit Card" },
   ];
 
   return (
-    <div className="flex w-full flex-col justify-between gap-3 md:min-h-[570px]">
+    <div className="flex w-full flex-col justify-between gap-3 md:min-h-[570px] md:w-[99vw]">
       {/* breadcrumb bar */}
-      <div className="fixed bottom-0 z-20 flex w-full gap-2 border-b-2 border-t-2 bg-dark-50 p-1 pb-2 pt-2 md:relative md:z-0 md:mt-0 md:border-t-0 md:bg-transparent md:pb-2 md:pt-0">
-        <div className="flex w-fit cursor-pointer gap-2 px-3 py-1 text-primary-600" onClick={() => SetState(stage, "back")}>
-          <FontAwesomeIcon className="self-center text-xl font-bold" icon={faArrowLeft} />
+      <div className="fixed bottom-0 z-20 flex w-full items-center gap-2 border-b border-t bg-white px-3 py-2 shadow-xs md:relative md:z-0 md:mt-0 md:border-b md:border-t-0 md:bg-transparent md:px-0 md:py-1 md:shadow-none">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-600 transition-colors hover:bg-primary-50"
+          onClick={() => SetState(stage, "back")}
+          title="Back"
+        >
+          <FontAwesomeIcon className="text-base font-bold" icon={faArrowLeft} />
+        </button>
+        <div className="h-5 w-[2px] rounded-full bg-primary-400" />
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          {breadcrumb_data.map((btext: string, index: number) => (
+            <div
+              key={index}
+              className="flex items-center text-xs font-semibold text-dark-600 first-letter:uppercase after:ml-1.5 after:text-dark-300 after:content-['/'] last:after:content-[''] sm:text-sm md:text-lg"
+            >
+              <span className="truncate max-w-[150px] sm:max-w-[200px]">{btext}</span>
+            </div>
+          ))}
         </div>
-        <div className="h-full self-center rounded-md border-2 bg-primary-300" />
-        {breadcrumb_data.map((btext: string, index: number) => (
-          <div
-            key={index}
-            className="self-center font-medium text-dark-400 first-letter:uppercase after:ml-2 after:font-medium after:text-dark-200 after:content-['/'] last:after:content-[''] sm:text-xl"
-          >
-            {btext.substring(0, 20)} {btext?.length > 20 ? "..." : ""}
-          </div>
-        ))}
-        <div className="ml-auto flex w-fit cursor-pointer gap-2 px-3 py-1 text-dark-600" onClick={() => router.back()}>
-          <FontAwesomeIcon className="self-center text-xl font-bold" icon={faXmark} />
-        </div>
+        <button
+          type="button"
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
+          onClick={() => router.back()}
+          title="Close"
+        >
+          <FontAwesomeIcon className="text-lg font-bold" icon={faXmark} />
+        </button>
       </div>
 
-      <div className={`flex h-full gap-6 md:mt-0 md:flex-row md:gap-0 ${stage === "loan_list" ? "flex-col" : "flex-col-reverse"}`}>
-        {/* loan list */}
+      <div className="mb-10 flex h-full flex-col-reverse gap-4 md:mb-0 md:mt-0 md:flex-row md:gap-0">
+        {/* loan list column */}
         {show_loan_list && (
-          <div className={`flex-col snap-y md:w-1/3 md:shrink-0 ${stage !== "loan_list" ? "hidden md:flex" : "flex"}`}>
+          <div className={`flex w-full flex-col md:h-[580px] md:w-1/3 md:shrink-0 ${stage !== "loan_list" ? "hidden md:flex" : "flex"}`}>
             {loan_list.length > 0 && (
-              <div className="overflow-x-hidden overflow-y-scroll pl-2 pr-1 md:h-[480px]">
+              <div className="flex flex-col gap-3 overflow-x-hidden overflow-y-auto px-0 md:pl-2 md:pr-2">
                 {loan_list.map((loan_account: any) => (
-                  <div key={loan_account._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
-                    <div className={`flex justify-between gap-3 rounded-t-md ${selected_loan_id === loan_account._id ? "shadow-md" : ""}`}>
-                      <div className="flex w-full flex-col">
-                        <LoanCard plan={plan} loan={loan_account}>
-                          <div className="ml-auto self-center px-3 text-dark-300" onClick={() => SetState(stage, "view", loan_account._id)}>
-                            <FontAwesomeIcon className={`self-center ${selected_loan_id === loan_account._id ? "text-primary-300" : "text-dark-300"}`} icon={faChevronRight} />
-                          </div>
-                        </LoanCard>
-                      </div>
-                    </div>
-                  </div>
+                  <LoanCard
+                    key={loan_account._id}
+                    plan={plan}
+                    loan={loan_account}
+                    selected={selected_loan_id === loan_account._id}
+                    onClick={() => SetState(stage, "view", loan_account._id)}
+                  >
+                    <button
+                      type="button"
+                      className="p-1 text-dark-400 hover:text-primary-600 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        SetState(stage, "view", loan_account._id);
+                      }}
+                      title="View Details"
+                    >
+                      <FontAwesomeIcon
+                        className={selected_loan_id === loan_account._id ? "text-primary-500" : "text-dark-400"}
+                        icon={faChevronRight}
+                      />
+                    </button>
+                  </LoanCard>
                 ))}
-              </div>
-            )}
-            {loan_list.length <= 4 && loan_list.length !== 0 && (
-              <div className="mt-auto flex justify-center rounded-b-md py-3">
-                <Button variant="neutral" sub_variant="outline" size="lg" className="w-full px-3 py-1 text-success-400 hover:border-success-400" onClick={() => SetState(stage, "add")}>
-                  <FontAwesomeIcon className="self-center" icon={faPlus} />
-                  Add a loan
-                </Button>
-              </div>
-            )}
-            <hr className="w-full" />
-            {loan_list.length < 3 && loan_list.length > 0 && !is_plan_synced && (
-              <div className="mt-auto flex w-full flex-col justify-between gap-3 rounded-b-md py-3">
-                <div className="flex justify-between">
-                  <span className="flex rounded-md bg-dark-100 p-2 text-dark-500">
-                    <div className="mr-2">
-                      <FontAwesomeIcon icon={faLightbulb} />
-                    </div>
-                    <span className="text-xs text-dark-300">
-                      Changes are not synced automatically, you can either save them directly or view its impact on you Fi-Plan and save it later.
-                    </span>
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <Button variant="neutral" sub_variant="outline" size="lg" className="flex w-fit gap-2 px-3 py-1 text-success-400 hover:border-success-400" onClick={() => router.back()}>
-                    View changes
-                    <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="self-center" />
-                  </Button>
-                  <Button variant="primary" sub_variant="solid" size="lg" className="flex w-fit gap-2 px-3 py-1 text-success-400 hover:border-success-400" onClick={SavePlan}>
-                    Save changes
-                    <FontAwesomeIcon icon={faCloudArrowUp} className={`self-center font-bold md:text-lg ${!is_plan_synced ? "animate-pulse" : ""}`} />
-                  </Button>
-                </div>
-              </div>
-            )}
-            {/* empty state: loan templates */}
-            {loan_list.length === 0 && stage === "loan_list" && (
-              <div className="mt-auto flex flex-col justify-center gap-3 self-center rounded-b-md px-3 py-3">
-                {templates.map((t) => (
-                  <div key={t.id} className="flex grow gap-3 rounded-lg border p-2 px-3 py-5 shadow-sm">
-                    <FontAwesomeIcon className="self-center text-xl text-dark-500" icon={t.icon} />
-                    <div className="flex self-center justify-between text-dark-500">{t.label}</div>
+
+                {loan_list.length <= 4 && (
+                  <div className="mt-2 flex justify-center pb-2">
                     <Button
                       variant="neutral"
                       sub_variant="outline"
-                      size="sm"
-                      className="ml-auto w-fit self-center px-3 py-1 text-success-400 hover:border-success-400"
-                      onClick={() => {
-                        SetLoanDefaults(t.id);
-                        SetState(stage, "add");
-                      }}
+                      size="lg"
+                      className="w-full justify-center gap-2 py-2 font-semibold text-success-600 hover:border-success-500 hover:bg-success-50/50"
+                      onClick={() => SetState(stage, "add")}
                     >
-                      Create
-                      <FontAwesomeIcon className="self-center" icon={faChevronRight} />
+                      <FontAwesomeIcon icon={faPlus} />
+                      <span>Add a loan</span>
                     </Button>
                   </div>
-                ))}
+                )}
+
+                {!is_plan_synced && (
+                  <div className="mt-auto flex flex-col gap-2.5 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                    <div className="flex items-start gap-2">
+                      <FontAwesomeIcon icon={faLightbulb} className="text-amber-500 mt-0.5" />
+                      <span className="text-xs text-dark-600 font-medium">
+                        Changes are saved locally. Click save to sync with cloud.
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="neutral" sub_variant="outline" size="sm" className="flex-1 justify-center gap-1.5 text-dark-600 hover:border-dark-300" onClick={() => router.back()}>
+                        <span>Preview</span>
+                        <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="text-xs" />
+                      </Button>
+                      <Button variant="primary" sub_variant="solid" size="sm" className="flex-1 justify-center gap-1.5 font-semibold shadow-xs" onClick={SavePlan}>
+                        <span>Sync</span>
+                        <FontAwesomeIcon icon={faCloudArrowUp} className={`text-xs ${!is_plan_synced ? "animate-pulse" : ""}`} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* empty state: loan templates */}
+            {loan_list.length === 0 && stage === "loan_list" && (
+              <div className="flex w-full flex-col gap-3 p-2 md:pr-3">
+                <div className="rounded-xl border border-dashed border-dark-300 bg-dark-50/50 p-4 text-center">
+                  <FontAwesomeIcon icon={faLandmarkFlag} className="text-3xl text-dark-400 mb-2" />
+                  <h3 className="text-sm font-bold text-dark-700">No Loans Added Yet</h3>
+                  <p className="text-xs text-dark-400 mt-1">Start by choosing a loan type or creating a custom one:</p>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {templates.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between rounded-xl border border-dark-200 bg-white p-3 shadow-2xs transition-all duration-200 hover:border-primary-400 hover:shadow-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+                          <FontAwesomeIcon className="text-base" icon={t.icon} />
+                        </div>
+                        <div className="font-semibold text-dark-700 text-sm">{t.label}</div>
+                      </div>
+                      <Button
+                        variant="neutral"
+                        sub_variant="outline"
+                        size="sm"
+                        className="gap-1.5 px-3 py-1 font-semibold text-success-600 hover:border-success-500 hover:bg-success-50/40"
+                        onClick={() => {
+                          SetLoanDefaults(t.id);
+                          SetState(stage, "add");
+                        }}
+                      >
+                        <span>Create</span>
+                        <FontAwesomeIcon className="text-xs" icon={faChevronRight} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* selected loan meta card */}
+        {/* selected loan card in view / edit stage */}
         {show_loan_meta_card && selected_loan && (
-          <div className="mb-12 flex flex-col gap-2 rounded-md border-dashed px-2 md:mb-0 md:w-[470px]">
-            <LoanCard plan={plan} loan={selected_loan}>
+          <div className={`flex flex-col gap-3 px-2 md:shrink-0 ${show_loan_command ? "w-full md:w-[360px]" : "w-full md:w-[420px]"}`}>
+            <LoanCard plan={plan} loan={selected_loan} selected={true}>
               {stage === "view_loan" && (
-                <div className="ml-auto flex gap-3 self-center px-3 text-dark-300">
-                  <div className="self-center" onClick={() => setShowRefinance((v) => !v)}>
-                    <FontAwesomeIcon
-                      icon={faArrowsRotate}
-                      className={`self-center transition-colors duration-200 hover:text-primary-400 ${show_refinance ? "text-primary-400" : ""}`}
-                    />
-                  </div>
-                  <div className="self-center" onClick={() => SetState(stage, "edit", selected_loan_id)}>
-                    <FontAwesomeIcon icon={faPenToSquare} className="self-center transition-colors duration-200 hover:text-primary-400" />
-                  </div>
-                </div>
-              )}
-              {stage === "edit_loan" && (
-                <div className="self-center px-3 text-dark-300" onClick={() => SetState(stage, "back")}>
-                  <FontAwesomeIcon className="self-center" icon={faChevronLeft} />
-                  back
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold transition-colors ${
+                      show_refinance ? "bg-primary-500 text-white" : "bg-dark-100 text-dark-600 hover:bg-dark-200"
+                    }`}
+                    onClick={() => setShowRefinance((v) => !v)}
+                    title="Refinance Simulation"
+                  >
+                    <FontAwesomeIcon icon={faArrowsRotate} />
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 rounded-md bg-primary-50 border border-primary-200 px-2.5 py-1 text-xs font-bold text-primary-700 transition-colors hover:bg-primary-100"
+                    onClick={() => SetState(stage, "edit", selected_loan_id)}
+                    title="Edit Loan"
+                  >
+                    <FontAwesomeIcon icon={faPenToSquare} />
+                    <span>Edit</span>
+                  </button>
                 </div>
               )}
             </LoanCard>
@@ -871,39 +914,37 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
               const analysis = ComputeRefinanceAnalysis(selected_loan, refi);
               const is_worth_it = analysis.net_savings > 0;
               return (
-                <div className="flex flex-col gap-2 rounded-md border border-dashed border-primary-300/50 bg-primary-300/5 p-2">
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faArrowsRotate} className="self-center text-lg text-primary-500" />
-                    <span className="self-center text-sm font-medium text-dark-400">Refinance</span>
-                    <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">
-                      close now · restart at a new rate
-                    </span>
+                <div className="flex flex-col gap-2.5 rounded-xl border border-dashed border-primary-400/40 bg-primary-50/40 p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-2 border-b border-primary-200/60 pb-2">
+                    <FontAwesomeIcon icon={faArrowsRotate} className="text-base text-primary-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-dark-800">Refinance Simulator</span>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <div className="flex w-full flex-col gap-1">
-                      <span className="text-sm text-dark-300">New rate %</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold text-dark-600">New Rate %</span>
                       <input
                         type="number"
                         min={0}
-                        className={`${inputClass} !text-base`}
+                        step="0.1"
+                        className={`${inputClass} !py-1.5 !text-sm`}
                         value={refi.new_rate}
                         onChange={(e) => setRefi((r: any) => ({ ...r, new_rate: Number(e.target.value) }))}
                       />
                     </div>
-                    <div className="flex w-full flex-col gap-1">
-                      <span className="text-sm text-dark-300">New tenure (months)</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold text-dark-600">Tenure (Mo)</span>
                       <input
                         type="number"
                         min={1}
-                        className={`${inputClass} !text-base`}
+                        className={`${inputClass} !py-1.5 !text-sm`}
                         value={refi.new_tenure}
                         onChange={(e) => setRefi((r: any) => ({ ...r, new_tenure: Number(e.target.value) }))}
                       />
                     </div>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <div className="flex w-full flex-col gap-1">
-                      <span className="text-sm text-dark-300">Refinance month</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold text-dark-600">From Month</span>
                       <MonthPicker
                         plan_timestamp={plan.timestamp}
                         duration={plan?.duration || 600}
@@ -911,57 +952,47 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
                         onChange={(m: number) => setRefi((r: any) => ({ ...r, refinance_month: m }))}
                       />
                     </div>
-                    <div className="flex w-full flex-col gap-1">
-                      <span className="text-sm text-dark-300">Foreclosure charge ₹</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold text-dark-600">Charge ₹</span>
                       <input
                         type="number"
                         min={0}
-                        className={`${inputClass} !text-base`}
+                        className={`${inputClass} !py-1.5 !text-sm`}
                         value={refi.foreclosure_charge}
                         onChange={(e) => setRefi((r: any) => ({ ...r, foreclosure_charge: Number(e.target.value) }))}
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1 rounded-md border border-dark-300/50 bg-dark-50 px-2 py-1 text-xs text-dark-300">
+                  <div className="flex flex-col gap-1.5 rounded-lg border border-dark-200 bg-white p-2.5 text-xs text-dark-700">
                     <div className="flex justify-between">
-                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Outstanding at close</span>
-                      <DisplayAmount className="self-center font-semibold text-dark-200" amount={analysis.outstanding_balance} />
+                      <span className="text-dark-500">Outstanding:</span>
+                      <DisplayAmount className="font-bold text-dark-800" amount={analysis.outstanding_balance} />
                     </div>
                     <div className="flex justify-between">
-                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">EMI before → after</span>
-                      <span className="self-center">
-                        <DisplayAmount amount={analysis.old_emi} /> <span className="text-dark-500">→</span>{" "}
-                        <DisplayAmount className="font-semibold text-primary-300" amount={analysis.new_emi} />
+                      <span className="text-dark-500">EMI Change:</span>
+                      <span className="font-semibold">
+                        <DisplayAmount amount={analysis.old_emi} /> →{" "}
+                        <DisplayAmount className="font-bold text-primary-600" amount={analysis.new_emi} />
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Remaining interest → new</span>
-                      <span className="self-center">
-                        <DisplayAmount amount={analysis.old_remaining_interest} /> <span className="text-dark-500">→</span>{" "}
-                        <DisplayAmount className="font-semibold text-primary-300" amount={analysis.new_total_interest} />
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="self-center text-[10px] uppercase tracking-wide text-dark-500">Net savings</span>
-                      <span className={`self-center font-bold ${is_worth_it ? "text-success-400" : "text-danger-300"}`}>
+                    <div className="flex justify-between border-t border-dark-100 pt-1">
+                      <span className="font-semibold text-dark-600">Net Savings:</span>
+                      <span className={`font-bold ${is_worth_it ? "text-success-600" : "text-danger-500"}`}>
                         {is_worth_it ? "" : "−"}
                         <DisplayAmount amount={Math.abs(analysis.net_savings)} />
-                        {analysis.breakeven_months !== null && (
-                          <span className="ml-1 font-normal normal-case text-dark-500">· breakeven ≈ {analysis.breakeven_months} mo</span>
-                        )}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-1">
                     <Button
                       variant="primary"
                       sub_variant="solid"
-                      className="flex grow justify-center gap-2 py-1 capitalize"
+                      className="flex flex-1 justify-center gap-1.5 py-1.5 text-xs font-bold capitalize shadow-xs"
                       onClick={async () => {
                         if (analysis.refinance_month > selected_loan.end_month) {
-                          alert("refinance month should be within the loan tenure");
+                          alert("Refinance month should be within the loan tenure");
                           return;
                         }
                         const new_loan_id = GetRandomString(6);
@@ -990,10 +1021,10 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
                         setSelectedLoanId(new_loan_id);
                       }}
                     >
-                      <FontAwesomeIcon className="self-center" icon={faArrowsRotate} />
-                      Apply refinance
+                      <FontAwesomeIcon icon={faArrowsRotate} />
+                      Apply Refinance
                     </Button>
-                    <Button variant="neutral" sub_variant="outline" className="py-1 capitalize" onClick={() => setShowRefinance(false)}>
+                    <Button variant="neutral" sub_variant="outline" size="sm" className="px-3 text-xs" onClick={() => setShowRefinance(false)}>
                       Cancel
                     </Button>
                   </div>
@@ -1003,9 +1034,16 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
           </div>
         )}
 
-        {/* command column */}
+        {/* desktop visual divider arrow */}
         {show_loan_command && (
-          <div className="mb-12 flex h-full w-full flex-col md:mb-0 md:h-[580px] md:w-[370px] md:min-w-0">
+          <div className="mx-2 hidden md:flex md:shrink-0 self-center">
+            <FontAwesomeIcon className="text-2xl text-primary-300" icon={faChevronRight} />
+          </div>
+        )}
+
+        {/* command column (add / edit form) */}
+        {show_loan_command && (
+          <div className="mb-10 flex h-full w-full flex-col md:mb-0 md:h-[580px] md:w-[380px] md:min-w-0 md:shrink-0 overflow-y-auto px-1">
             <LoanAccountCommand
               plan={plan}
               loan={mode === "edit" ? selected_loan : undefined}
@@ -1016,16 +1054,13 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
                 if (r.action === "deleted") SetState(stage, "deleted");
                 if (r.action === "added") {
                   if (mode === "add") {
-                    // new loan: return to the list, then open the new loan's view
                     SetState(stage, "back");
                     setTimeout(() => {
                       setStage("view_loan");
                       setSelectedLoanId(r.loan_id || "");
                       setStack((s) => [...s, "view_loan"]);
-                    }, 1000);
+                    }, 500);
                   } else {
-                    // edit: we are already back on view_loan — refreshing the
-                    // selected id is enough (no duplicate breadcrumb entry)
                     setSelectedLoanId(r.loan_id || "");
                   }
                 }
@@ -1034,52 +1069,95 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
           </div>
         )}
 
-        {/* chart column */}
-        <div className="ml-3 flex h-full gap-2 md:border-l-2">
-          {/* loan graphics in list stage (matches original show_loan_graphics) */}
+        {/* right analytics & chart column */}
+        <div className="flex h-full flex-1 flex-col gap-3 transition-all duration-300 md:ml-auto md:border-l md:border-dark-100 md:pl-4 md:h-[580px] md:overflow-y-auto">
+          {/* loan list illustration state */}
           {stage === "loan_list" && (
-            <div className="flex grow">
-              <img src="/loan_graphics_bg_removed.png" alt="" className="ml-auto aspect-auto w-auto" />
+            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+              <img
+                src="/loan_graphics_bg_removed.png"
+                alt="Loan Management illustration"
+                className="max-h-[340px] w-auto object-contain drop-shadow-xs"
+              />
+              <h3 className="mt-4 text-base font-bold text-dark-700 sm:text-lg">Smart Loan & Debt Planner</h3>
+              <p className="max-w-md text-xs text-dark-400 sm:text-sm mt-1">
+                Configure amortizations, simulate prepayments and compare refinancing options to become debt-free faster.
+              </p>
             </div>
           )}
+
+          {/* view loan state: KPI metrics + Doughnut Chart + Amortization table */}
           {stage === "view_loan" && selected_loan && (
-            <div className="flex w-full flex-col gap-3 px-1 md:px-3">
+            <div className="flex w-full flex-col gap-4">
+              {/* top KPI summary & doughnut */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Loan Type</span>
+                  <span className="mt-0.5 text-sm font-extrabold text-dark-800 truncate">{type_of_loan_being_edited}</span>
+                </div>
+                <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Monthly EMI</span>
+                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-primary-600" amount={emi_figures.monthly_emi} />
+                </div>
+                <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Interest Payable</span>
+                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-amber-600" amount={emi_figures.total_interest_paid} />
+                </div>
+                <div className="flex flex-col justify-center rounded-xl border border-dark-200 bg-white p-2.5 text-center shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total Payable</span>
+                  <DisplayAmount className="mt-0.5 text-sm sm:text-base font-extrabold text-dark-800" amount={emi_figures.total_payable} />
+                </div>
+              </div>
+
+              {/* amortization schedule table */}
               <LoanAmortizationTable plan={plan} loan={selected_loan} />
             </div>
           )}
+
+          {/* add / edit loan state: live metrics & doughnut chart preview */}
           {["add_loan", "edit_loan"].includes(stage) && (
-            <div className="flex w-full flex-col gap-3 rounded-lg p-6 px-0 md:px-3 md:p-3">
-              <div className="flex flex-col-reverse self-center md:flex-row">
-                <div className="flex w-full flex-row justify-between gap-3 md:w-[200px] md:flex-col md:justify-center">
-                  <div className="grid h-[80px] place-content-center rounded-md border bg-dark-50 mb-auto w-full">
-                    <span className="self-center text-sm font-bold text-dark-300 sm:text-2xl">{type_of_loan_being_edited}</span>
-                  </div>
-                  <div className="grid h-[80px] place-content-start rounded-md border bg-dark-50 md:place-content-center w-full">
-                    <div className="flex flex-col-reverse justify-center md:flex-col">
-                      <span className="self-center text-center text-xs font-semibold text-dark-200">Loan EMI</span>
-                      <DisplayAmount className="self-center text-lg font-bold text-dark-500" amount={emi_figures.monthly_emi} />
+            <div className="flex w-full flex-col gap-4 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-dark-100 pb-2.5">
+                <FontAwesomeIcon icon={faChartPie} className="text-base text-primary-500" />
+                <span className="text-sm font-bold text-dark-800">Live Repayment Breakdown</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Monthly EMI</span>
+                  <DisplayAmount className="text-lg font-bold text-primary-600 mt-1" amount={emi_figures.monthly_emi} />
+                </div>
+                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total Interest</span>
+                  <DisplayAmount className="text-lg font-bold text-amber-600 mt-1" amount={emi_figures.total_interest_paid} />
+                </div>
+                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total (P + I)</span>
+                  <DisplayAmount className="text-lg font-bold text-dark-800 mt-1" amount={emi_figures.total_payable} />
+                </div>
+              </div>
+
+              {emi_chart_data.datasets.length > 0 ? (
+                <div className="flex flex-col items-center justify-center p-3">
+                  <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={180} width={180} />
+                  <div className="mt-3 flex items-center justify-center gap-4 text-xs font-semibold">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-full bg-primary-400"></span>
+                      <span className="text-dark-600">Principal:</span>
+                      <DisplayAmount className="font-bold text-dark-800" amount={loan_being_edited.principal_amount || 0} />
                     </div>
-                  </div>
-                  <div className="grid h-[80px] place-content-start rounded-md border bg-dark-50 md:place-content-center w-full">
-                    <div className="flex flex-col-reverse justify-center md:flex-col">
-                      <span className="self-center text-center text-xs font-semibold text-dark-200">Total Interest Payable</span>
-                      <DisplayAmount className="self-center text-lg font-bold text-dark-500" amount={emi_figures.total_interest_paid} />
-                    </div>
-                  </div>
-                  <div className="grid h-[80px] place-content-start rounded-md border bg-dark-50 md:place-content-center w-full">
-                    <div className="flex flex-col-reverse justify-center md:flex-col">
-                      <span className="self-center text-center text-xs font-semibold text-dark-200">Total Payable</span>
-                      <span className="self-center text-center text-xs font-semibold text-dark-200">(Principal + Interest)</span>
-                      <DisplayAmount className="self-center text-lg font-bold text-dark-500" amount={emi_figures.total_payable} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-full bg-amber-500"></span>
+                      <span className="text-dark-600">Interest:</span>
+                      <DisplayAmount className="font-bold text-amber-700" amount={emi_figures.total_interest_paid} />
                     </div>
                   </div>
                 </div>
-                {emi_chart_data.datasets.length > 0 && (
-                  <div className="self-center px-3 opacity-70">
-                    <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={150} width={150} />
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center p-8 text-center text-xs text-dark-400">
+                  Enter principal amount and interest rate to see breakdown
+                </div>
+              )}
             </div>
           )}
         </div>
