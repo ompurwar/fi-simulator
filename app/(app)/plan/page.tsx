@@ -268,15 +268,20 @@ function BalanceAndTxn({
           </div>
 
           <div>
-            <div className="flex items-baseline gap-1">
-              <span className={`text-3xl font-extrabold ${runway < 6 ? "text-danger-600" : "text-emerald-600"}`}>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className={`text-3xl font-extrabold ${runway < 6 ? "text-danger-600" : "text-emerald-600 dark:text-emerald-400"}`}>
                 {runway < 12 ? runway.toFixed(1) : (runway / 12).toFixed(1)}
               </span>
-              <span className="text-sm font-bold text-dark-500">{runway < 12 ? "months" : "years"}</span>
+              <span className="text-sm font-bold text-dark-500 dark:text-slate-400">{runway < 12 ? "months" : "years"}</span>
+              {runway >= 1200 && (
+                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                  FI Freedom 🚀
+                </span>
+              )}
             </div>
-            <span className="text-[11px] text-dark-400">Cash-runway coverage</span>
+            <span className="text-[11px] text-dark-400 dark:text-slate-400">Cash-runway coverage</span>
             {currentAssetTotal > 0 && incl_investments_runway > 0 && (
-              <div className="text-[10px] text-dark-400">
+              <div className="text-[10px] text-dark-400 dark:text-slate-400">
                 incl. investments ≈{" "}
                 {incl_investments_runway < 12 ? `${incl_investments_runway.toFixed(1)} months` : `${(incl_investments_runway / 12).toFixed(1)} yrs`}
               </div>
@@ -1029,61 +1034,70 @@ function PlanPageInner() {
         {/* Net worth chart + BalanceAndTxn (desktop) */}
         <div className="flex flex-col justify-between gap-4 mb-20 md:mb-0 md:flex-row md:items-start">
           <div className="flex-col hidden h-fit p-4 border border-dark-200 rounded-2xl bg-white shadow-xs md:flex md:flex-1 w-full overflow-hidden self-start md:sticky md:top-2">
-            <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-dark-100">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Net Worth</span>
-                <DisplayAmount className="text-xl font-extrabold text-dark-800" amount={aggregated_balance_for_month} />
+            <div className="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3 pb-2.5 border-b border-dark-100 dark:border-slate-800">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <DisplayAmount className="text-xl font-extrabold text-dark-800 dark:text-white" amount={aggregated_balance_for_month} />
+                  {aggregated_balance_for_month >= 10000000 && (
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
+                      {ToDisplayableMoney(aggregated_balance_for_month)}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-1.5 rounded-lg border border-dark-200 bg-dark-50/50 p-1">
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-dark-600 hover:bg-white hover:shadow-2xs disabled:opacity-30 transition-all"
-                  disabled={current_month === 1}
-                  onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}
-                  title="Previous Month"
-                >
-                  <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
-                </button>
-                <span className="px-2 text-xs font-bold text-dark-800 min-w-[90px] text-center">
-                  {GetMonthAndYear(plan, current_month)}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-dark-600 hover:bg-white hover:shadow-2xs disabled:opacity-30 transition-all"
-                  disabled={current_month === plan_duration}
-                  onClick={() => setCurrentMonth((m) => Math.min(plan_duration, m + 1))}
-                  title="Next Month"
-                >
-                  <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {engine.asset_scenarios && (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 rounded-lg border border-dark-200 dark:border-slate-700 bg-dark-50/50 dark:bg-slate-800 p-1 shrink-0">
                   <button
                     type="button"
-                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
-                      show_scenarios
-                        ? "border-primary-300 bg-primary-50 text-primary-700"
-                        : "border-dark-200 bg-dark-50/50 text-dark-500 hover:bg-white"
-                    }`}
-                    onClick={() => setShowScenarios((v) => !v)}
-                    title="Overlay ±1σ asset scenario bands (plan end projection)"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-dark-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs disabled:opacity-30 transition-all"
+                    disabled={current_month === 1}
+                    onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}
+                    title="Previous Month"
                   >
-                    <FontAwesomeIcon icon={faChartLine} className="text-xs" />
-                    Scenarios
+                    <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
-                  onClick={() => setWhatifOpen(true)}
-                  title="Simulate what-if changes without saving"
-                >
-                  <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
-                  What-if
-                </button>
+                  <span className="px-2 text-xs font-bold text-dark-800 dark:text-slate-100 min-w-[85px] text-center whitespace-nowrap">
+                    {GetMonthAndYear(plan, current_month)}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-dark-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs disabled:opacity-30 transition-all"
+                    disabled={current_month === plan_duration}
+                    onClick={() => setCurrentMonth((m) => Math.min(plan_duration, m + 1))}
+                    title="Next Month"
+                  >
+                    <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {engine.asset_scenarios && (
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                        show_scenarios
+                          ? "border-primary-300 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300"
+                          : "border-dark-200 dark:border-slate-700 bg-dark-50/50 dark:bg-slate-800 text-dark-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700"
+                      }`}
+                      onClick={() => setShowScenarios((v) => !v)}
+                      title="Overlay ±1σ asset scenario bands (plan end projection)"
+                    >
+                      <FontAwesomeIcon icon={faChartLine} className="text-xs" />
+                      <span>Scenarios</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 rounded-lg border border-primary-300 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-1.5 text-xs font-bold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 whitespace-nowrap transition-all shrink-0"
+                    onClick={() => setWhatifOpen(true)}
+                    title="Simulate what-if changes without saving"
+                  >
+                    <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs text-primary-500" />
+                    <span>What-if</span>
+                  </button>
+                </div>
               </div>
             </div>
 
