@@ -33,15 +33,21 @@ const CLASS_META: Record<string, { label: string; icon: any; growth: number; yie
 
 function AssetCard({ plan, asset, children }: { plan: any; asset: any; children?: React.ReactNode }) {
   const meta = CLASS_META[asset.asset_class] || CLASS_META.fd;
+  const sold = !!asset.sale_month;
   return (
-    <div className="flex flex-col rounded-lg border border-l-2 border-l-primary-300 bg-dark-50 p-2 text-dark-200 shadow-sm hover:shadow-md">
+    <div className={`flex flex-col rounded-lg border border-l-2 border-l-primary-300 bg-dark-50 p-2 text-dark-200 shadow-sm hover:shadow-md ${sold ? "opacity-60" : ""}`}>
       <div className="flex justify-between">
         <div className="mt-1 flex flex-col justify-between">
           <p className="w-full truncate text-[12px] text-dark-200 first-letter:uppercase sm:text-base md:w-[15rem]">{asset.title}</p>
           <DisplayAmount className="w-fit font-medium sm:text-xl" notation="standard" amount={asset.principal} />
           <div className="flex w-fit gap-2 rounded-md py-1 text-[9px] uppercase text-dark-100 sm:text-xs">
             <span className="rounded-md bg-dark-100 px-1.5 py-0.5">{meta.label}</span>
-            {asset.maturity_month && (
+            {sold && (
+              <span className="rounded-md bg-danger-100 px-1.5 py-0.5 text-danger-500">
+                sold {monthToLabel(asset.sale_month, plan?.timestamp)}
+              </span>
+            )}
+            {!sold && asset.maturity_month && (
               <span className="rounded-md bg-warning-100 px-1.5 py-0.5 text-warning-500">
                 mat {monthToLabel(asset.maturity_month, plan?.timestamp)}
               </span>
@@ -114,6 +120,7 @@ function AssetCommand({
       deleting: false,
       rent: undefined,
       sip: undefined,
+      sale_month: undefined,
     };
   }
 
@@ -135,6 +142,7 @@ function AssetCommand({
       income_mode: state.income_mode,
       compounding: state.compounding,
       maturity_month: state.maturity_month,
+      sale_month: state.sale_month,
       active: state.active ?? true,
       ...(state.rent?.monthly_rent > 0 ? { rent: { monthly_rent: state.rent.monthly_rent, step_pct: state.rent.step_pct || 0, expense_ratio: state.rent.expense_ratio ?? 20 } } : {}),
       ...(state.sip?.amount > 0
@@ -336,6 +344,33 @@ function AssetCommand({
               <option value="e">Emergency</option>
             </select>
           </div>
+        </div>
+
+        <div className="flex w-full flex-col gap-1 rounded-md bg-danger-50 p-2">
+          <span className={labelClass}>Sell this asset on (optional)</span>
+          {state.sale_month ? (
+            <>
+              <MonthPicker
+                plan_timestamp={plan.timestamp}
+                duration={plan?.duration || 600}
+                month={state.sale_month}
+                min_month={state.purchase_month || 1}
+                onChange={(m) => setState((s: any) => ({ ...s, sale_month: m }))}
+              />
+              <div className="flex w-fit cursor-pointer px-1 text-[10px] text-danger-400" onClick={() => setState((s: any) => ({ ...s, sale_month: undefined }))}>
+                Clear sale date
+              </div>
+            </>
+          ) : (
+            <Button variant="neutral" sub_variant="outline" size="md" className="w-full px-3 py-1 text-[12px]" onClick={() => setState((s: any) => ({ ...s, sale_month: (s.purchase_month || 1) + 36 }))}>
+              Set sale date
+            </Button>
+          )}
+          {state.sale_month && (
+            <div className="text-[10px] text-dark-300">
+              Proceeds credit back to the bucket and LTCG/STCG is realized per the stored tax rules.
+            </div>
+          )}
         </div>
       </div>
 
