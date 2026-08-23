@@ -744,7 +744,7 @@ gantt
 
   section Polish
   networth + share tools + tests   :p11, after p7, 2
-  loan/FDP dedicated tools (v1.1)  :p12, after p11, 2
+  loan/FDP dedicated tools (v1.1)  :p12, after p11, 2 — DONE: loans (Task 2.18) + FDP (Task 2.24)
   Agent usage guide (claude code / desktop mcp add) :p13, after p11, 1
 ```
 
