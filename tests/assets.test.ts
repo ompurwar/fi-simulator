@@ -9,6 +9,7 @@ import {
 } from "@/server/engine/assets";
 import { BuildAssetsFromNetWorth } from "@/server/networth/importAssets";
 import { ComputePlanSnapshot } from "@/server/engine/planSnapshot";
+import { ComputeIncomeTax } from "@/server/tax/engine";
 import { AY_RULE_SETS, ASSET_PRESETS } from "@/server/tax/rules-data";
 
 const FY_2025_26 = AY_RULE_SETS.find((r) => r.assessment_year === "2025-26")!;
@@ -297,5 +298,90 @@ describe("ComputePlanSnapshot integration", () => {
       (without.cashflow.expense_statement[0] as any).total_expense;
     expect(tax_expense).toBeCloseTo(663000 / 12, 0);
     expect(with_tax.tax_expense_cashflow!.length).toBe(12);
+  });
+
+  it("TDS on FD interest offsets the annual income tax (no double taxation)", () => {
+    // FD: 1M @ 30% quarterly, reinvest — interest compounds net of TDS, so the
+    // engine's numbers are exact; the test derives the expected slab tax
+    // dynamically from the computed summary (avoiding compounding round-trips).
+    const plan = basePlan({
+      asset_list: [{ ...FD, _id: "big-fd", principal: 1000000, yield_rate: 30, maturity_month: undefined }],
+      tax_settings: { income_tax_enabled: true, regime: "new", age_group: "below60" },
+    });
+    const snap = ComputePlanSnapshot(plan, 12, { tax_rules: FY_2025_26 });
+
+    const fy = Object.keys(snap.tax_summary!)[0];
+    const summary = snap.tax_summary![fy];
+    expect(summary.interest_income).toBeGreaterThan(200000);
+    expect(summary.tds_paid).toBeGreaterThan(20000);
+    // TDS fully offset against the annual liability (slab tax >> TDS here)
+    expect(summary.tds_credit_used).toBeCloseTo(summary.tds_paid, 0);
+
+    const expected_tax = ComputeIncomeTax({
+      rules: FY_2025_26,
+      regime: "new",
+      gross_salary: 1800000,
+      other_income: summary.interest_income,
+    }).total_tax;
+
+    expect(snap.tax_expense_cashflow![0].amount).toBeCloseTo((expected_tax - summary.tds_paid) / 12, 0);
+    // total tax paid = TDS txns + income tax rows = full slab liability
+    const tds_txns = snap.account_balances_and_transactions.transaction_list
+      .filter((t: any) => t.tran_desc.startsWith("TDS on"))
+      .reduce((s: number, t: any) => s + t.amount, 0);
+    const tax_rows = snap.tax_expense_cashflow!.reduce((s: number, r: any) => s + r.amount, 0);
+    expect(tds_txns + tax_rows).toBeCloseTo(expected_tax, -1);
+  });
+
+  it("slab-taxed gains (foreign equity STCG) flow into the annual income tax", () => {
+    // foreign equity sold at month 19 (18 months held → STCG taxed at slab, no txn at sale)
+    const plan = basePlan({
+      asset_list: [
+        { _id: "us1", title: "US Stocks", asset_class: "equity_foreign", category: "i", principal: 500000, purchase_month: 1, growth_rate: 12, sale_month: 19 },
+      ],
+      tax_settings: { income_tax_enabled: true, regime: "new", age_group: "below60" },
+    });
+    const snap = ComputePlanSnapshot(plan, 24, { tax_rules: FY_2025_26 });
+
+    // sale month 19 = Oct 2026 → FY 2026-27
+    const fy_summary = snap.tax_summary!["2026-27"];
+    expect(fy_summary).toBeTruthy();
+    expect(fy_summary.slab_taxable_gains).toBeGreaterThan(0);
+    // no tax txn emitted at the sale itself (slab-treated)
+    const stcg_txns = snap.account_balances_and_transactions.transaction_list.filter(
+      (t: any) => t.tran_desc.startsWith("STCG tax")
+    );
+    expect(stcg_txns).toHaveLength(0);
+
+    // FY 2026-27 income tax: 18L salary + slab gain → higher monthly tax than the
+    // clean FY 2025-26 (18L salary only → 1,50,800/yr → 12,566.67/mo)
+    const tax_fy_2026 = snap.tax_expense_cashflow!.filter((r: any) => r.desc.includes("2026-27"));
+    const tax_fy_2025 = snap.tax_expense_cashflow!.filter((r: any) => r.desc.includes("2025-26"));
+    expect(tax_fy_2025[0].amount).toBeCloseTo(150800 / 12, 0);
+    expect(tax_fy_2026[0].amount).toBeGreaterThan(tax_fy_2025[0].amount);
+  });
+
+  it("112A ₹1.25L exemption is shared across equity sales within a financial year", () => {
+    // two equity lots sold at month 14 (13 months held → LTCG), same FY (2026-27)
+    // lot A gain ≈ 1,38,093 → consumes the whole 1.25L exemption
+    // lot B gain ≈ 69,046 → fully taxable
+    const plan = basePlan({
+      asset_list: [
+        { _id: "eq-a", title: "Equity A", asset_class: "equity", category: "i", principal: 1000000, purchase_month: 1, growth_rate: 12, sale_month: 14 },
+        { _id: "eq-b", title: "Equity B", asset_class: "equity", category: "i", principal: 500000, purchase_month: 1, growth_rate: 12, sale_month: 14 },
+      ],
+    });
+    const snap = ComputePlanSnapshot(plan, 24, { tax_rules: FY_2025_26 });
+
+    const ltcg_txns = snap.account_balances_and_transactions.transaction_list.filter(
+      (t: any) => t.tran_desc.startsWith("LTCG tax")
+    );
+    const total_tax = ltcg_txns.reduce((s: number, t: any) => s + t.amount, 0);
+    // A: (1,38,093 − 1,25,000) × 12.5% ≈ 1,637; B: 69,046 × 12.5% ≈ 8,631
+    expect(total_tax).toBeCloseTo(1637 + 8631, -1);
+
+    const fy_summary = snap.tax_summary!["2026-27"];
+    expect(fy_summary.ltcg_112a_exemption_used).toBeCloseTo(125000, 0);
+    expect(fy_summary.ltcg_realized).toBeGreaterThan(200000);
   });
 });

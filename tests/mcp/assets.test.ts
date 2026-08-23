@@ -272,6 +272,45 @@ describe("asset simulate patches", () => {
     expect(snap.tax_expense_cashflow[0].amount).toBeCloseTo(192400 / 8, 0);
   });
 
+  it("FD TDS offsets the auto income tax in the persisted snapshot", async () => {
+    const add = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_asset", {
+      plan_id,
+      title: "Big FD",
+      asset_class: "fd",
+      category: "i",
+      principal: 1000000,
+      purchase_month: 1,
+      growth_rate: 0,
+      yield_rate: 30,
+      income_frequency: "q",
+      income_mode: "reinvest",
+    });
+    expect(add.ok).toBe(true);
+    const set = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_tax_settings", {
+      plan_id,
+      income_tax_enabled: true,
+      regime: "new",
+    });
+    expect(set.ok).toBe(true);
+
+    const snapshot = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+      duration: 12,
+    });
+    const snap = (snapshot as any).data;
+    const fy = Object.keys(snap.tax_summary || {})[0];
+    expect(fy).toBeTruthy();
+    expect(snap.tax_summary[fy].tds_paid).toBeGreaterThan(0);
+    // TDS is credited against the income-tax expense, never double-charged
+    expect(snap.tax_summary[fy].tds_credit_used).toBeCloseTo(snap.tax_summary[fy].tds_paid, 0);
+
+    // cleanup + disable tax
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_assets", { plan_id });
+    const fd = (list as any).data.find((a: any) => a.title === "Big FD");
+    await callRegistryTool(makeToolRegistry(t.container), ctx, "delete_asset", { plan_id, asset_id: fd._id });
+    await callRegistryTool(makeToolRegistry(t.container), ctx, "update_tax_settings", { plan_id, income_tax_enabled: false });
+  });
+
   it("update_asset patch merges changes into the persisted asset", async () => {
     const add = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_asset", {
       plan_id,

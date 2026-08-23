@@ -176,6 +176,8 @@ export interface CapitalGainsInput {
   sale_fy?: string;
   /** ISO date of purchase — gates the indexation alternative for property */
   purchase_date?: string;
+  /** per-FY remaining 112A exemption (₹1.25L shared across all equity sales in a year) */
+  remaining_exemption?: number;
 }
 
 export interface CapitalGainsResult {
@@ -226,8 +228,10 @@ export function ComputeCapitalGains(input: CapitalGainsInput): CapitalGainsResul
     };
   }
 
-  // 112A exemption (Indian listed equity / equity MF)
-  const exemption_used = Math.min(profile.exemption_112a, gain);
+  // 112A exemption (Indian listed equity / equity MF) — per-FY remaining pool
+  // when the caller aggregates across sales; otherwise the profile's full amount.
+  const exemption_pool = input.remaining_exemption ?? profile.exemption_112a;
+  const exemption_used = Math.min(exemption_pool, gain);
 
   // Indexation alternative (property bought ≤ cutoff)
   let indexation_used = false;

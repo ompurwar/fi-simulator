@@ -31,6 +31,7 @@ export interface FDPLike {
   e: number;
   i: number;
   strategy?: string;
+  active?: boolean;
 }
 
 export interface Transaction {
@@ -115,7 +116,7 @@ function GetDistributionPercentageForMonth(
   account_list: AccountLike[] = []
 ): FDPLike {
   let distribution = fund_distribution_percentage_list.find(
-    (_) => (_.start_month ?? 0) <= month && month <= (_.end_month ?? 0)
+    (_) => _.active !== false && (_.start_month ?? 0) <= month && month <= (_.end_month ?? 0)
   );
   if (distribution) distribution.strategy = "Custom";
   if (!distribution) distribution = ComputeDistributionPercentage(income_statement, expense_statement, account_balances, month, account_list);

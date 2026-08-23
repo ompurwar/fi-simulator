@@ -64,6 +64,36 @@ export interface AssetTxn {
   tran_desc: string;
 }
 
+export interface AssetTaxSummaryYear {
+  interest_income: number;
+  rent_income: number;
+  dividends: number;
+  /** capital gains realized at a FLAT rate — taxed immediately at the sale event */
+  ltcg_realized: number;
+  stcg_realized: number;
+  /** gains taxed at slab — added into the annual Income Tax computation */
+  slab_taxable_gains: number;
+  /** 112A ₹1.25L exemption consumed across equity sales this year */
+  ltcg_112a_exemption_used: number;
+  /** TDS deducted at source (FD interest) — credited against the annual tax */
+  tds_paid: number;
+  /** portion of tds_paid actually offset against the income-tax expense */
+  tds_credit_used?: number;
+}
+
+export function emptyTaxSummaryYear(): AssetTaxSummaryYear {
+  return {
+    interest_income: 0,
+    rent_income: 0,
+    dividends: 0,
+    ltcg_realized: 0,
+    stcg_realized: 0,
+    slab_taxable_gains: 0,
+    ltcg_112a_exemption_used: 0,
+    tds_paid: 0,
+  };
+}
+
 export interface AssetScheduleResult {
   txns: AssetTxn[];
   asset_month_map: Record<number, any[]>;
@@ -74,7 +104,7 @@ export interface AssetScheduleResult {
     total_unrealized: number;
   };
   /** per assessment year: taxable income streams + realized capital gains + TDS */
-  tax_summary: Record<string, { interest_income: number; rent_income: number; dividends: number; ltcg_realized: number; stcg_realized: number; tds_paid: number }>;
+  tax_summary: Record<string, AssetTaxSummaryYear>;
   /** value-weighted blended growth per bucket (the derived e/s/i growth %) */
   bucket_growth: Record<"e" | "s" | "i", { value: number; growth_rate: number }>;
 }
@@ -250,6 +280,8 @@ export function ComputeAssetSchedule(
   const asset_month_map: Record<number, any[]> = {};
   const by_class: Record<string, { count: number; value: number; invested: number }> = {};
   const tax_summary: AssetScheduleResult["tax_summary"] = {};
+  // 112A ₹1.25L exemption is shared across ALL equity sales in the same FY.
+  const exemption_remaining_per_fy: Record<string, number> = {};
   const bucket_values: Record<"e" | "s" | "i", { value: number; growth: number }> = {
     e: { value: 0, growth: 0 },
     s: { value: 0, growth: 0 },
@@ -266,7 +298,7 @@ export function ComputeAssetSchedule(
     const recordCapGain = (sale_value: number, sale_month: number) => {
       if (!isMarketClass(asset.asset_class) || !rules || !plan.timestamp) return;
       const fy = MonthToAssessmentYear(plan.timestamp, sale_month);
-      if (!tax_summary[fy]) tax_summary[fy] = { interest_income: 0, rent_income: 0, dividends: 0, ltcg_realized: 0, stcg_realized: 0, tds_paid: 0 };
+      if (!tax_summary[fy]) tax_summary[fy] = emptyTaxSummaryYear();
       const profile_key = CG_PROFILE_BY_CLASS[asset.asset_class];
       const profile = rules.capital_gains.profiles[profile_key];
       if (!profile) return;
@@ -274,6 +306,11 @@ export function ComputeAssetSchedule(
       const invested = asset.principal || 0;
       const gain = Math.max(0, sale_value - invested);
       if (gain <= 0) return;
+      // per-FY 112A exemption pool (only profiles that carry one participate)
+      let remaining_exemption: number | undefined;
+      if (profile.exemption_112a > 0) {
+        remaining_exemption = exemption_remaining_per_fy[fy] ?? profile.exemption_112a;
+      }
       const result = ComputeCapitalGains({
         rules,
         profile,
@@ -283,9 +320,18 @@ export function ComputeAssetSchedule(
         purchase_fy: plan.timestamp ? MonthToAssessmentYear(plan.timestamp, start) : undefined,
         sale_fy: fy,
         purchase_date: asset.purchase_date,
+        remaining_exemption,
       });
+      if (remaining_exemption !== undefined) {
+        exemption_remaining_per_fy[fy] = Math.max(0, remaining_exemption - result.exemption_used);
+        tax_summary[fy].ltcg_112a_exemption_used += result.exemption_used;
+      }
+      if (result.treat_as_slab) {
+        // gains taxed at slab — added into the annual Income Tax computation
+        tax_summary[fy].slab_taxable_gains += gain;
+        return;
+      }
       if (result.is_long_term) tax_summary[fy].ltcg_realized += gain;
-      else if (result.treat_as_slab) tax_summary[fy].stcg_realized += gain;
       else tax_summary[fy].stcg_realized += gain;
       if (result.tax > 0 && funding_account_id) {
         txns.push({
@@ -335,7 +381,7 @@ export function ComputeAssetSchedule(
 
       // per-assessment-year income streams for tax_summary
       const fy = plan.timestamp ? MonthToAssessmentYear(plan.timestamp, month) : "current";
-      if (!tax_summary[fy]) tax_summary[fy] = { interest_income: 0, rent_income: 0, dividends: 0, ltcg_realized: 0, stcg_realized: 0, tds_paid: 0 };
+      if (!tax_summary[fy]) tax_summary[fy] = emptyTaxSummaryYear();
       const bucket = tax_summary[fy];
       if (row.income_gross > 0) {
         if (asset.rent) bucket.rent_income += row.rent_gross || row.income_gross;
@@ -381,6 +427,8 @@ export function ComputeAssetSchedule(
     t.tds_paid = round2(t.tds_paid);
     t.ltcg_realized = round2(t.ltcg_realized);
     t.stcg_realized = round2(t.stcg_realized);
+    t.slab_taxable_gains = round2(t.slab_taxable_gains);
+    t.ltcg_112a_exemption_used = round2(t.ltcg_112a_exemption_used);
   }
 
   return {
@@ -455,7 +503,7 @@ export function ComputeIncomeTaxExpenseSchedule(
   rules: TaxRuleSet,
   tax_settings: any,
   income_statement: any[],
-  asset_tax_summary: Record<string, { interest_income: number; rent_income: number; dividends: number; tds_paid: number; ltcg_realized: number; stcg_realized: number }>
+  asset_tax_summary: Record<string, AssetTaxSummaryYear>
 ): any[] {
   if (!tax_settings?.income_tax_enabled || !plan.timestamp) return [];
   const regime = tax_settings.regime === "old" ? "old" : "new";
@@ -469,7 +517,8 @@ export function ComputeIncomeTaxExpenseSchedule(
   }
   for (const fy of Object.keys(asset_tax_summary)) {
     const t = asset_tax_summary[fy];
-    fy_asset_income[fy] = t.interest_income + t.rent_income + t.dividends;
+    // slab-taxed gains (foreign-equity STCG, debt-MF gains) join interest/rent/dividends
+    fy_asset_income[fy] = t.interest_income + t.rent_income + t.dividends + (t.slab_taxable_gains || 0);
   }
 
   const rows: any[] = [];
@@ -492,7 +541,11 @@ export function ComputeIncomeTaxExpenseSchedule(
       deductions: tax_settings.deductions,
       other_income: annual_asset_income,
     });
-    const monthly = result.total_tax / Math.max(1, months_per_fy[fy] || 12);
+    // TDS already deducted at source (FD interest) offsets the annual liability.
+    const tds_credit_used = Math.min(asset_tax_summary[fy]?.tds_paid || 0, result.total_tax);
+    const net_tax = Math.max(0, result.total_tax - tds_credit_used);
+    if (asset_tax_summary[fy]) asset_tax_summary[fy].tds_credit_used = round2(tds_credit_used);
+    const monthly = net_tax / Math.max(1, months_per_fy[fy] || 12);
     if (monthly <= 0) continue;
     for (let m = 1; m <= duration; m++) {
       if (MonthToAssessmentYear(plan.timestamp, m) === fy) {
