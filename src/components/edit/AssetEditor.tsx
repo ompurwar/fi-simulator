@@ -112,6 +112,8 @@ function AssetCommand({
       active: true,
       loading: false,
       deleting: false,
+      rent: undefined,
+      sip: undefined,
     };
   }
 
@@ -134,6 +136,10 @@ function AssetCommand({
       compounding: state.compounding,
       maturity_month: state.maturity_month,
       active: state.active ?? true,
+      ...(state.rent?.monthly_rent > 0 ? { rent: { monthly_rent: state.rent.monthly_rent, step_pct: state.rent.step_pct || 0, expense_ratio: state.rent.expense_ratio ?? 20 } } : {}),
+      ...(state.sip?.amount > 0
+        ? { sip: { amount: state.sip.amount, frequency: state.sip.frequency, start_month: state.sip.start_month || 1, step_pct: state.sip.step_pct || 0 } }
+        : {}),
     };
     setState((s: any) => ({ ...s, loading: true }));
     const asset_list = [...(plan.asset_list || [])];
@@ -226,10 +232,79 @@ function AssetCommand({
           <div className="w-full">
             <span className={labelClass}>Income Mode</span>
             <select value={state.income_mode} onChange={(e) => setState((s: any) => ({ ...s, income_mode: e.target.value }))} className={inputClass}>
-              <option value="credit">Credit to bucket</option>
-              <option value="reinvest">Reinvest</option>
+              <option value="credit">Pay out to account</option>
+              <option value="reinvest">Reinvest (compound)</option>
             </select>
           </div>
+        </div>
+
+        {state.asset_class === "real_estate" && (
+          <div className="flex w-full flex-col gap-2 rounded-md bg-dark-100 p-2">
+            <div className="text-xs font-medium text-dark-300">Rental Income</div>
+            <div className="flex w-full gap-3">
+              <div className="w-full">
+                <span className={labelClass}>Monthly Rent (₹)</span>
+                <input type="number" min={0} value={state.rent?.monthly_rent || ""} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), monthly_rent: Number(e.target.value) } }))} className={inputClass} />
+              </div>
+              <div className="w-full">
+                <span className={labelClass}>Rent Step %/yr</span>
+                <input type="number" min={0} value={state.rent?.step_pct || 0} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), step_pct: Number(e.target.value) } }))} className={inputClass} />
+              </div>
+            </div>
+            <div className="flex w-full gap-3">
+              <div className="w-full">
+                <span className={labelClass}>Expense Ratio %</span>
+                <input type="number" min={0} max={100} value={state.rent?.expense_ratio ?? 20} onChange={(e) => setState((s: any) => ({ ...s, rent: { ...(s.rent || {}), expense_ratio: Number(e.target.value) } }))} className={inputClass} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex w-full flex-col gap-2 rounded-md bg-dark-100 p-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-dark-300">Recurring Investment (SIP)</span>
+            {state.sip?.amount > 0 && (
+              <span className="cursor-pointer text-[10px] text-danger-400" onClick={() => setState((s: any) => ({ ...s, sip: undefined }))}>Remove</span>
+            )}
+          </div>
+          {state.sip?.amount > 0 ? (
+            <>
+              <div className="flex w-full gap-3">
+                <div className="w-full">
+                  <span className={labelClass}>Amount (₹/period)</span>
+                  <input type="number" min={0} value={state.sip.amount} onChange={(e) => setState((s: any) => ({ ...s, sip: { ...s.sip, amount: Number(e.target.value) } }))} className={inputClass} />
+                </div>
+                <div className="w-full">
+                  <span className={labelClass}>Frequency</span>
+                  <select value={state.sip.frequency} onChange={(e) => setState((s: any) => ({ ...s, sip: { ...s.sip, frequency: e.target.value } }))} className={inputClass}>
+                    <option value="m">Monthly</option>
+                    <option value="q">Quarterly</option>
+                    <option value="y">Yearly</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex w-full gap-3">
+                <div className="w-full">
+                  <span className={labelClass}>Start Month</span>
+                  <MonthPicker
+                    plan_timestamp={plan.timestamp}
+                    duration={plan?.duration || 600}
+                    month={state.sip.start_month || 1}
+                    min_month={state.purchase_month || 1}
+                    onChange={(m) => setState((s: any) => ({ ...s, sip: { ...s.sip, start_month: m } }))}
+                  />
+                </div>
+                <div className="w-full">
+                  <span className={labelClass}>Step-up %/yr</span>
+                  <input type="number" min={0} value={state.sip.step_pct || 0} onChange={(e) => setState((s: any) => ({ ...s, sip: { ...s.sip, step_pct: Number(e.target.value) } }))} className={inputClass} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <Button variant="neutral" sub_variant="outline" size="md" className="w-full px-3 py-1 text-[12px]" onClick={() => setState((s: any) => ({ ...s, sip: { amount: 10000, frequency: "m", start_month: s.purchase_month || 1, step_pct: 0 } }))}>
+              Add SIP
+            </Button>
+          )}
         </div>
         <div className="flex w-full gap-3">
           <div className="w-full">

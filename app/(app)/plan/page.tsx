@@ -266,7 +266,16 @@ function BalanceAndTxn({
           <div className="flex justify-between pt-2">
             <div className="flex flex-col">
               <div className="md:text-xs">Net Worth</div>
-              <DisplayAmount className="text-lg font-bold text-dark-400" notation="compact" amount={net_worth} />
+              <DisplayAmount
+                className="text-lg font-bold text-dark-400"
+                notation="compact"
+                amount={net_worth + (assetSummary?.total_value || 0)}
+              />
+              {assetSummary?.total_value > 0 && (
+                <div className="text-[9px] text-dark-200 sm:text-[10px]">
+                  incl. <DisplayAmount notation="compact" amount={assetSummary.total_value} /> assets
+                </div>
+              )}
             </div>
             <div className="flex flex-col">
               <div className="md:text-xs">Burn Rate</div>
@@ -548,7 +557,9 @@ function PlanPageInner() {
     order: [3, 2, 1][idx],
   }));
 
-  const aggregated_balance_for_month = current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0);
+  const aggregated_balance_for_month =
+    current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0) +
+    (engine.asset_month_map?.[current_month] || []).reduce((acc: number, a: any) => acc + (a.value || 0), 0);
   const is_plan_synced = plan_synced_map[plan._id] !== false;
 
   // matching original ToDisplayableMoney + annotation
