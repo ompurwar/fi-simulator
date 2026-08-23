@@ -28,6 +28,7 @@ import type {
   CommonCollectionRepository,
   ApiTokenRepository,
   ChatSessionRepository,
+  TaxRuleRepository,
 } from "../domain/ports";
 import { DbInsertFailedError } from "../domain/errors";
 
@@ -675,6 +676,53 @@ export function makeApiTokenRepository(database: Database): ApiTokenRepository {
         .updateMany(
           { _id: db.MakeId(_id), status: "active" },
           { $set: token_info }
+        );
+      return { success: acknowledged };
+    },
+  };
+}
+
+/* ------------------------------ Tax rules ------------------------------ */
+
+const taxRuleCollection = "Tax_Rule_Store";
+const PRESETS_DOC_ID = "PRESETS";
+
+/** Versioned tax rule sets (AY docs) + asset-class presets (PRESETS doc) in Tax_Rule_Store. */
+export function makeTaxRuleRepository(database: Database): TaxRuleRepository {
+  const db = database;
+  return {
+    async UpsertRuleSet(doc: Record<string, any>) {
+      const id = doc._id || `AY-${doc.assessment_year}`;
+      const { acknowledged } = await db
+        .collection(taxRuleCollection)
+        .replaceOne({ _id: id }, { ...doc, _id: id, updated_at: Date.now() }, { upsert: true });
+      return { success: acknowledged };
+    },
+    async FindByAssessmentYear(assessment_year: string) {
+      const found = await db
+        .collection(taxRuleCollection)
+        .findOne({ assessment_year });
+      return found ?? null;
+    },
+    async ListRuleSets() {
+      const list = await db
+        .collection(taxRuleCollection)
+        .find({ assessment_year: { $exists: true } })
+        .sort({ assessment_year: 1 })
+        .toArray();
+      return list;
+    },
+    async GetPresets() {
+      const found = await db.collection(taxRuleCollection).findOne({ _id: PRESETS_DOC_ID });
+      return found ?? null;
+    },
+    async UpsertPresets(presets: Record<string, any>) {
+      const { acknowledged } = await db
+        .collection(taxRuleCollection)
+        .replaceOne(
+          { _id: PRESETS_DOC_ID },
+          { ...presets, _id: PRESETS_DOC_ID, updated_at: Date.now() },
+          { upsert: true }
         );
       return { success: acknowledged };
     },

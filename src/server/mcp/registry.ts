@@ -9,11 +9,12 @@ import { makeChangeTools } from "./tools/changes";
 import { makeLoanTools } from "./tools/loans";
 import { makeFdpTools } from "./tools/fdp";
 import { makeAccountTools } from "./tools/accounts";
+import { makeTaxTools } from "./tools/tax";
 import { makeNetWorthTools } from "./tools/networth";
 import { makeIndStocksTools } from "./tools/indstocks";
 import { makeShareTools } from "./tools/share";
 
-/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, fdp, accounts, networth, indstocks, share. */
+/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, fdp, accounts, tax, networth, indstocks, share. */
 export function makeToolRegistry(container: Container): ToolDefinition[] {
   return [
     ...makePlanTools(container),
@@ -23,13 +24,15 @@ export function makeToolRegistry(container: Container): ToolDefinition[] {
     ...makeLoanTools(container),
     ...makeFdpTools(container),
     ...makeAccountTools(container),
+    ...makeTaxTools(container),
     ...makeNetWorthTools(container),
     ...makeIndStocksTools(container),
     ...makeShareTools(container),
   ];
 }
 
-/** Invoke a registry tool by name, wrapping any thrown error into an envelope. */
+/** Invoke a registry tool by name, wrapping any thrown error into an envelope.
+ *  System-level tools (requiresRole: "admin") are rejected for non-admin contexts. */
 export async function callRegistryTool(
   registry: ToolDefinition[],
   ctx: ToolContext,
@@ -39,6 +42,15 @@ export async function callRegistryTool(
   const definition = registry.find((tool) => tool.name === name);
   if (!definition) {
     return { ok: false, error: { code: "UNKNOWN_TOOL", message: `unknown tool: ${name}` } };
+  }
+  if (definition.requiresRole && ctx.role !== "admin") {
+    return {
+      ok: false,
+      error: {
+        code: "FORBIDDEN",
+        message: `tool ${name} requires the admin role`,
+      },
+    };
   }
   try {
     return await definition.handler(ctx, args);

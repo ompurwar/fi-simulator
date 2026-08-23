@@ -101,6 +101,15 @@ export interface CommonCollectionRepository {
   GetCommonCollectionList(): Promise<any>;
 }
 
+/** Versioned tax rule sets + asset-class presets (Tax_Rule_Store). */
+export interface TaxRuleRepository {
+  UpsertRuleSet(doc: Record<string, any>): Promise<{ success: boolean }>;
+  FindByAssessmentYear(assessment_year: string): Promise<any | null>;
+  ListRuleSets(): Promise<any[]>;
+  GetPresets(): Promise<any | null>;
+  UpsertPresets(presets: Record<string, any>): Promise<{ success: boolean }>;
+}
+
 export interface Database {
   /** Wrap a string id into a Mongo ObjectId. */
   MakeId(id: string): any;

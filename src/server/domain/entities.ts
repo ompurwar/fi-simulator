@@ -448,6 +448,7 @@ export interface UserProfile {
   photos?: string[];
   src?: "std" | "google";
   ob_params?: Record<string, any>;
+  role?: "user" | "admin";
   timestamp?: number;
   status?: string;
   IsValidPassword?: (pass: string) => boolean;
@@ -462,12 +463,16 @@ export function MakeUser(
   if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw new InvalidPropertyError("Email is not valid");
 
+  if (other_info.role !== undefined && !["user", "admin"].includes(other_info.role))
+    throw new InvalidPropertyError("role should be user | admin");
+
   const normalized: UserProfile = {
     _id: other_info._id || GenerateRandomString(24),
     first_name: first_name?.toLowerCase(),
     last_name: last_name?.toLowerCase(),
     email: email.toLowerCase(),
     ...other_info,
+    role: other_info.role ?? "user",
   };
   if (!other_info.default_plan_id) normalized.default_plan_id = "";
 

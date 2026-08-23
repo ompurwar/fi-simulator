@@ -2,6 +2,8 @@
 
 export interface ToolContext {
   user_id: string;
+  /** resolved from User_Profiles.role (default "user"); admin gates requiresRole tools */
+  role?: string;
 }
 
 export type ToolError = { code: string; message: string; details?: unknown };
@@ -13,6 +15,8 @@ export interface ToolDefinition {
   title?: string;
   description: string;
   inputSchema: Record<string, any>; // zod raw shape
+  /** system-level tools: only callable when ctx.role === "admin" */
+  requiresRole?: "admin";
   handler(ctx: ToolContext, args: Record<string, any>): Promise<ToolResult>;
 }
 

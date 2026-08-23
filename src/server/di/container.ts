@@ -33,6 +33,7 @@ import {
   makePlanTemplateRepository,
   makeSessionRepository,
   makeShareObjectRepository,
+  makeTaxRuleRepository,
   makeUserRepository,
 } from "../infrastructure/repositories";
 import { SendTemplateMail, type MailConfig } from "../infrastructure/mail";
@@ -46,8 +47,11 @@ import {
   type NetWorthService,
 } from "../networth";
 import { makeAnthropicProvider } from "../ai/provider";
+import { makeGeminiProvider } from "../ai/geminiProvider";
 import type { AiProvider } from "../ai/types";
 import { makeOAuthService, makeOAuthStore, type OAuthService, type OAuthStore } from "../mcp/oauth";
+import { makeTaxRuleService, type TaxRuleService } from "../tax";
+import type { TaxRuleRepository } from "../domain/ports";
 
 export interface Container {
   env: Env;
@@ -68,6 +72,8 @@ export interface Container {
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
   networth_service: NetWorthService;
+  tax_rule_repo: TaxRuleRepository;
+  tax_service: TaxRuleService;
   ai_provider: AiProvider;
   googleOAuth: GoogleOAuth;
   mailConfig: MailConfig;
@@ -129,12 +135,20 @@ export async function buildContainer(
     provider: networth_provider,
   });
 
+  const tax_rule_repo = makeTaxRuleRepository(db);
+  const tax_service = makeTaxRuleService(tax_rule_repo);
+
   const ai_provider =
     overrides.aiProvider ??
-    makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
-      model: env.AI_MODEL,
-      baseURL: env.AI_BASE_URL,
-    });
+    (env.AI_PROVIDER === "gemini"
+      ? makeGeminiProvider(env.GEMINI_API_KEY || "", {
+          model: env.GEMINI_MODEL,
+          baseURL: env.GEMINI_BASE_URL,
+        })
+      : makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
+          model: env.AI_MODEL,
+          baseURL: env.AI_BASE_URL,
+        }));
 
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,
@@ -189,6 +203,8 @@ export async function buildContainer(
     networth_repo,
     networth_provider,
     networth_service,
+    tax_rule_repo,
+    tax_service,
     ai_provider,
     googleOAuth,
     mailConfig,
