@@ -344,7 +344,7 @@ function BalanceAndTxn({
             return (
               <div
                 key={b.account_id || idx}
-                className="flex relative md:flex-col gap-1 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full md:w-[14.5rem] p-2 sm:p-4"
+                className="flex relative md:flex-col gap-1 md:mb-0 rounded-2xl bg-dark-50 shadow-sm border sm:min-h-[100px] w-full p-2 sm:p-4"
               >
                 <div className="flex self-center gap-2 md:mb-2 md:w-full">
                   <div className="relative grid h-[2.5rem] w-[2.5rem] place-content-center self-center rounded-md bg-dark-100 text-dark-400 sm:h-[3rem] sm:w-[3rem]">
@@ -396,7 +396,7 @@ function BalanceAndTxn({
                   </button>
                 </div>
                 <hr className="hidden mb-1 md:block" />
-                <div className="flex flex-col self-center h-16 gap-1 pl-2 overflow-y-scroll border-l-2 sm:pl-4 md:h-8 md:w-full md:border-0 md:pl-0">
+                <div className="flex flex-col self-center min-h-[1.5rem] max-h-20 gap-1 pl-2 overflow-y-auto border-l-2 sm:pl-4 md:w-full md:border-0 md:pl-0">
                   {(account.txn || [])
                     .filter((t: any) => t.amount > 0)
                     .map((txn: any, tidx: number) => (
@@ -825,8 +825,8 @@ function PlanPageInner() {
 
         {/* Net worth chart + BalanceAndTxn (desktop) */}
         <div className="flex flex-col justify-between gap-4 mb-20 md:mb-0 md:flex-row md:items-start">
-          <div className="flex-col hidden h-full p-4 border rounded-2xl bg-dark-900 md:flex md:flex-1 w-full overflow-hidden">
-            <div className="flex flex-row-reverse justify-between gap-5">
+          <div className="flex-col hidden h-fit p-4 border rounded-2xl bg-dark-900 md:flex md:flex-1 w-full overflow-hidden self-start md:sticky md:top-2">
+            <div className="flex flex-row-reverse justify-between gap-5 mb-2">
               <div className="flex">
                 <button className="p-1 transition-colors duration-200 bg-transparent rounded-md text-warning-300 hover:bg-dark-600 disabled:opacity-50" disabled={current_month === 1} onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}>
                   <FontAwesomeIcon icon={faChevronLeft} className="self-center text-lg" />
@@ -872,13 +872,13 @@ function PlanPageInner() {
       </div>
 
       {/* Transactions sidebar */}
-      <div className="hidden overflow-hidden transition-all duration-200 rounded-none h-fit grow md:flex md:flex-col md:border-l">
+      <div className="hidden overflow-hidden transition-all duration-200 rounded-none h-fit grow md:flex md:flex-col md:border-l md:min-w-[19rem] md:max-w-[24rem]">
         <div className="flex justify-end gap-3 px-4 pt-6 pb-5 bg-white border-t">
           <div className="flex gap-2 mr-auto border-r-2 grow">
             <div className="grid p-2 rounded-md place-content-center bg-dark-100 text-dark-300">
               <FontAwesomeIcon icon={faArrowRightArrowLeft} className="rotate-[-45deg]" />
             </div>
-            <div className="self-center">Transactions</div>
+            <div className="self-center font-medium">Transactions</div>
           </div>
           <button className="flex gap-2 p-1 px-2 rounded-md bg-dark-900 text-dark-100 disabled:opacity-70" onClick={Save} disabled={is_plan_synced}>
             <span>Save</span>
@@ -891,11 +891,12 @@ function PlanPageInner() {
         </div>
         {/* month rows, matching IncomeExpenseAndNetCashflowStatement.vue (text-xs root, ±12 months) */}
         <div
-          className="flex flex-col items-center justify-between px-4 py-2 overflow-y-scroll text-xs transition-all duration-200 bg-white scroll-smooth md:snap-y snap-mandatory"
+          className="flex flex-col items-center justify-between px-3 py-2 overflow-y-scroll text-xs transition-all duration-200 bg-white scroll-smooth md:snap-y snap-mandatory"
           style={{ maxHeight: "130vh", minHeight: "fit-content" }}
         >
           {income_expense_and_net_cashflow.map((d: any, index: number) => {
             if (Math.abs(current_month - index) >= 12) return null;
+            const net = d.net_cashflow?.total || 0;
             return (
               <div
                 key={d.month}
@@ -906,28 +907,28 @@ function PlanPageInner() {
                 }`}
                 onClick={() => setCurrentMonth(d.month)}
               >
-                <div className="flex flex-col md:flex-row justify-between w-full md:items-center gap-1 md:gap-2">
+                <div className="flex flex-col md:flex-row justify-between w-full md:items-center gap-1.5 md:gap-2">
                   <div className="w-full md:w-auto shrink-0">
-                    <div className={`w-[60px] xl:w-[68px] py-0.5 text-center text-dark-500 text-xs xl:text-sm ${d.month === current_month ? "font-bold" : ""}`}>
+                    <div className={`px-2 py-0.5 rounded text-center text-dark-600 text-xs font-semibold whitespace-nowrap bg-dark-100/70 ${d.month === current_month ? "border border-primary-400 text-primary-600 font-bold" : ""}`}>
                       {GetMonthAndYear(plan, d.month)}
                     </div>
                   </div>
-                  <div className="w-full md:w-auto min-w-0">
+                  <div className="w-full md:w-auto min-w-0 flex-1">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px]">Income</span>
-                      <DisplayAmount className="font-bold text-dark-400 text-xs xl:text-sm" amount={d.income?.total_income || 0} />
+                      <span className="text-dark-300 text-[10px] uppercase tracking-wider">Income</span>
+                      <DisplayAmount className="font-bold text-dark-500 text-xs xl:text-sm whitespace-nowrap" amount={d.income?.total_income || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-auto min-w-0">
+                  <div className="w-full md:w-auto min-w-0 flex-1">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px]">Expense</span>
-                      <DisplayAmount className="font-bold text-dark-400 text-xs xl:text-sm" amount={d.expense?.total_expense || 0} />
+                      <span className="text-dark-300 text-[10px] uppercase tracking-wider">Expense</span>
+                      <DisplayAmount className="font-bold text-dark-500 text-xs xl:text-sm whitespace-nowrap" amount={d.expense?.total_expense || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-auto min-w-0">
-                    <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px]">Net</span>
-                      <DisplayAmount className="font-bold text-dark-600 text-xs xl:text-sm" amount={d.net_cashflow?.total || 0} />
+                  <div className="w-full md:w-auto min-w-0 flex-1 text-right">
+                    <div className="flex flex-col items-end">
+                      <span className="text-dark-300 text-[10px] uppercase tracking-wider">Net</span>
+                      <DisplayAmount className={`font-bold text-xs xl:text-sm whitespace-nowrap ${net >= 0 ? "text-success-400" : "text-danger-400"}`} amount={net} />
                     </div>
                   </div>
                 </div>
