@@ -1118,40 +1118,44 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
 
           {/* add / edit loan state: live metrics & doughnut chart preview */}
           {["add_loan", "edit_loan"].includes(stage) && (
-            <div className="flex w-full flex-col gap-4 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
+            <div className="flex w-full flex-col gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
               <div className="flex items-center gap-2 border-b border-dark-100 pb-2.5">
                 <FontAwesomeIcon icon={faChartPie} className="text-base text-primary-500" />
                 <span className="text-sm font-bold text-dark-800">Live Repayment Breakdown</span>
               </div>
 
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Monthly EMI</span>
-                  <DisplayAmount className="text-lg font-bold text-primary-600 mt-1" amount={emi_figures.monthly_emi} />
-                </div>
-                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total Interest</span>
-                  <DisplayAmount className="text-lg font-bold text-amber-600 mt-1" amount={emi_figures.total_interest_paid} />
-                </div>
-                <div className="flex flex-col rounded-lg border border-dark-100 bg-dark-50 p-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Total (P + I)</span>
-                  <DisplayAmount className="text-lg font-bold text-dark-800 mt-1" amount={emi_figures.total_payable} />
-                </div>
-              </div>
-
               {emi_chart_data.datasets.length > 0 ? (
-                <div className="flex flex-col items-center justify-center p-3">
-                  <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={180} width={180} />
-                  <div className="mt-3 flex items-center justify-center gap-4 text-xs font-semibold">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-full bg-primary-400"></span>
-                      <span className="text-dark-600">Principal:</span>
-                      <DisplayAmount className="font-bold text-dark-800" amount={loan_being_edited.principal_amount || 0} />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  {/* Left: 3 metric rows */}
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div className="flex items-center justify-between rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-dark-500">Monthly EMI</span>
+                      <DisplayAmount className="text-sm font-bold text-primary-600 sm:text-base" amount={emi_figures.monthly_emi} />
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-full bg-amber-500"></span>
-                      <span className="text-dark-600">Interest:</span>
-                      <DisplayAmount className="font-bold text-amber-700" amount={emi_figures.total_interest_paid} />
+                    <div className="flex items-center justify-between rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-dark-500">Total Interest</span>
+                      <DisplayAmount className="text-sm font-bold text-amber-600 sm:text-base" amount={emi_figures.total_interest_paid} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-dark-100 bg-dark-50 p-2.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-dark-500">Total (P + I)</span>
+                      <DisplayAmount className="text-sm font-bold text-dark-800 sm:text-base" amount={emi_figures.total_payable} />
+                    </div>
+                  </div>
+
+                  {/* Right: Doughnut Chart & Legend */}
+                  <div className="flex flex-col items-center justify-center shrink-0 sm:pl-2">
+                    <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={150} width={150} />
+                    <div className="mt-2 flex flex-col gap-1 text-xs font-medium text-dark-600">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-primary-400"></span>
+                        <span>Principal:</span>
+                        <DisplayAmount className="font-bold text-dark-800" amount={loan_being_edited.principal_amount || 0} />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+                        <span>Interest:</span>
+                        <DisplayAmount className="font-bold text-amber-700" amount={emi_figures.total_interest_paid} />
+                      </div>
                     </div>
                   </div>
                 </div>
