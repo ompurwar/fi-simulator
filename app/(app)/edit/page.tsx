@@ -31,6 +31,8 @@ import {
   faArrowTrendDown,
   faMoneyCheckDollar,
   faTrashCan,
+  faArrowsRotate,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb, faFileLines } from "@fortawesome/free-regular-svg-icons";
 

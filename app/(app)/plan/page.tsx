@@ -40,6 +40,7 @@ import {
   faCircleExclamation,
   faPenToSquare,
   faWallet,
+  faChartLine,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -726,17 +727,6 @@ function PlanPageInner() {
           </Popover>
         </div>
 
-        {/* Mobile wealth card — matches plan.page.vue chart_ref */}
-        <div className="flex flex-col p-4 mt-20 rounded-2xl bg-dark-900 md:hidden md:mt-0">
-          <div className="flex justify-between p-1 rounded-md bg-dark-600 sm:rounded-lg sm:p-2">
-            <div className="flex-col text-dark-200">
-              <div className="flex flex-col justify-between p-1 rounded-md bg-dark-600 text-primary-400">
-                <div className="flex text-xs sm:text-base">
-                  <div className="self-end text-dark-200">Wealth</div>
-                </div>
-                <DisplayAmount className="text-sm sm:text-base" amount={aggregated_balance_for_month} />
-              </div>
-            </div>
         {/* Mobile wealth card */}
         <div className="flex flex-col p-4 mt-2 rounded-2xl border border-dark-200 bg-white shadow-xs md:hidden">
           <div className="flex justify-between items-center pb-2 border-b border-dark-100 mb-2">
