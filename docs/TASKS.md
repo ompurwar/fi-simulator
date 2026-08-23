@@ -54,3 +54,4 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 3.5 | Asset engine — `MakeAsset` + presets + `engine/assets.ts` projection + snapshot wiring (`asset_*`, `tax_summary`, `bucket_growth`) + auto income-tax expense | DONE | — | Plan P2; tests/assets.test.ts (15) |
 | 3.6 | Asset MCP tools + simulate patches + AI prompt | DONE | — | Plan P3; tests/mcp/assets.test.ts (9) |
 | 3.7 | UI — AssetEditor, plan-page panels, Tax Manager, Salary Negotiation | DONE | — | Plan P4; `/api/tax/negotiation` + `next build` green |
+| 3.8 | P5 polish — scenario bands (`asset_scenarios` ±1σ) + net-worth import (`import_networth_assets`, AssetEditor Import button) | DONE | — | BuildAssetsFromNetWorth mapping + idempotent merge; 272/272 tests |

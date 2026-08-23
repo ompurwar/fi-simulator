@@ -181,7 +181,7 @@ Claude Code: `claude mcp add fi-plan-local -- node_modules/.bin/tsx standalone/m
 
 ## 4. Tools
 
-55 tools across 12 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
+56 tools across 12 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
 `create_plan`, `update_plan`, `delete_plan`, `fork_plan`, `set_default_plan`),
 engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`, `loan_refinance`), cashflows
 (income/expense list/add/update/delete), changes (`*_cashflow_change`), **loans
@@ -190,8 +190,9 @@ engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`, `loan_refinance`)
 strategies with `s + e + i = 100`, the Money Manager editor's model)**, **assets
 (`list_assets`, `add_asset`, `update_asset`, `delete_asset` — FD/bond/savings/
 gold/PPF/equity/foreign-equity/MF/real-estate/crypto holdings projected monthly
-with growth, yield, maturity, SIP and rent; `update_tax_settings` toggles the
-plan's auto Income Tax expense and HRA/deduction inputs)**, **accounts
+with growth, yield, maturity, SIP and rent; `import_networth_assets` seeds them
+from the IndMoney snapshot; `update_tax_settings` toggles the plan's auto
+Income Tax expense and HRA/deduction inputs)**, **accounts
 (`list_accounts`, `add_account`, `update_account`, `delete_account` — incl.
 `roi` annual interest % and persistent `init_balance`)**, **tax
 (`list_tax_rules`, `get_tax_rules`, `tax_calculation`, `salary_negotiation` for
