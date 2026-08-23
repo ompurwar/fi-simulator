@@ -75,6 +75,7 @@ function toSummary(snapshot: any, milestones = false) {
     balances_by_month: balances,
     assets_by_month,
     net_worth_by_month,
+    asset_summary: snapshot.asset_summary || undefined,
     loan_account_list: snapshot.loan_account_list || [],
     fund_distribution_percentage_list: snapshot.fund_distribution_percentage_list || [],
   };

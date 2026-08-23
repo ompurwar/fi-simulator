@@ -59,6 +59,14 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  // hardening: cap the patch count (an authenticated user can otherwise burn CPU)
+  const MAX_PATCHES = 50;
+  if (patches.length > MAX_PATCHES) {
+    return NextResponse.json(
+      { error: { message: `too many patches — max ${MAX_PATCHES} per request` } },
+      { status: 400 }
+    );
+  }
 
   const plan: any = await container.plan_list.FindById(plan_id);
   if (!plan) {

@@ -69,6 +69,13 @@ describe("POST /api/engine/scenario", () => {
     expect(res.status).toBe(400);
   });
 
+  it("caps the patch count to prevent CPU abuse", async () => {
+    const patches = Array.from({ length: 60 }, () => ({ op: "set_salary", amount: 100000 }));
+    const res = await scenario({ plan_id, patches }, { "auth-token": session_id });
+    expect(res.status).toBe(400);
+    expect(res.json.error.message).toContain("too many patches");
+  });
+
   it("rejects plans the user does not own with 403", async () => {
     const other = await signupUser(buildApp(container));
     const otherSession = await container.session_list.FindByActiveSessionId(other.session_id);

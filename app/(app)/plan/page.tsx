@@ -587,12 +587,12 @@ function PlanPageInner() {
     window_start_point,
     window_start_point + balance_chart_months
   );
-  const { datasets: balance_chart_datasets, net_worth_series } = BuildWealthChartData(
+  const balance_chart_datasets = BuildWealthChartData(
     engine,
     { window_start: window_start_point, window_size: balance_chart_months },
     cssVar,
     balance_chart_labels
-  );
+  ).datasets;
   const scenario_datasets = show_scenarios
     ? BuildScenarioLines(engine, { window_start: window_start_point, window_size: balance_chart_months }, cssVar)
     : [];

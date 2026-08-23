@@ -55,3 +55,5 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 3.6 | Asset MCP tools + simulate patches + AI prompt | DONE | — | Plan P3; tests/mcp/assets.test.ts (9) |
 | 3.7 | UI — AssetEditor, plan-page panels, Tax Manager, Salary Negotiation | DONE | — | Plan P4; `/api/tax/negotiation` + `next build` green |
 | 3.8 | P5 polish — scenario bands (`asset_scenarios` ±1σ) + net-worth import (`import_networth_assets`, AssetEditor Import button) | DONE | — | BuildAssetsFromNetWorth mapping + idempotent merge; 272/272 tests |
+| 3.9 | Fixes batch — negotiation contract (scenarios payload + `offers` fallback), current-vs-end asset values on cards, runway "incl. investments", first-FY tax backfill (default on, toggle everywhere) | DONE | — | `backfill_first_fy` in `update_tax_settings` + Tax Manager UI |
+| 3.10 | Connected net-worth simulation — shared `wealthChart` builder (e/s/i + ASSETS stacked segment), compare-page parity, MCP `net_worth_by_month`/`assets_by_month`/`asset_summary` in summary, UI What-if drawer (`/api/engine/scenario`), MCP `compare_scenarios` + `asset_projection` | DONE | — | Parity test locks MCP == UI numbers; 58 MCP tools |

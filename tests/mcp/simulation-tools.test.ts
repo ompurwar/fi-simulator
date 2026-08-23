@@ -34,6 +34,11 @@ beforeAll(async () => {
     growth_rate: 8.5,
     volatility: 14,
   });
+  await callRegistryTool(makeToolRegistry(t.container), ctx, "update_tax_settings", {
+    plan_id,
+    income_tax_enabled: true,
+    regime: "new",
+  });
 });
 
 afterAll(async () => {
@@ -74,6 +79,19 @@ describe("compare_scenarios", () => {
     expect(res.ok).toBe(true);
     const data = (res as any).data;
     expect(data.totals.scenario.net_worth_at_end).toBeGreaterThan(data.totals.baseline.net_worth_at_end);
+  });
+
+  it("reports tax totals per side (higher salary → higher tax)", async () => {
+    const res = await callRegistryTool(makeToolRegistry(t.container), ctx, "compare_scenarios", {
+      plan_id,
+      baseline_patches: [{ op: "set_salary", amount: 300000 }],
+      scenario_patches: [{ op: "set_salary", amount: 600000 }],
+      duration: 12,
+    });
+    expect(res.ok).toBe(true);
+    const data = (res as any).data;
+    expect(data.totals.scenario.tax_total).toBeGreaterThan(data.totals.baseline.tax_total);
+    expect(data.totals.scenario.tax_total).toBeGreaterThan(0);
   });
 });
 

@@ -138,6 +138,7 @@ function ComparablePlanWidget({
     avg_expense === 0
       ? "N/A"
       : `${runway < 12 ? runway.toFixed(1) : (runway / 12).toFixed(1)} ${runway < 12 ? "mth" : "yrs"}`;
+  const runway_incl_assets = avg_expense > 0 ? (net_worth + current_assets_now) / avg_expense : 0;
 
   useEffect(() => {
     onStatementUpdate({
@@ -254,6 +255,14 @@ function ComparablePlanWidget({
         <div className="flex flex-col">
           <div className="ml-auto text-dark-200">Runway</div>
           <div className="ml-auto text-3xl font-bold text-dark-300">{runway_text}</div>
+          {current_assets_now > 0 && runway_incl_assets > 0 && (
+            <div className="ml-auto text-[10px] text-dark-400">
+              incl. investments ≈{" "}
+              {runway_incl_assets < 12
+                ? `${runway_incl_assets.toFixed(1)} months`
+                : `${(runway_incl_assets / 12).toFixed(1)} yrs`}
+            </div>
+          )}
         </div>
       </div>
 

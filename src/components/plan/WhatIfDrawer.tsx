@@ -99,6 +99,15 @@ export function WhatIfDrawer({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   function buildPatches(): any[] {
     const patches: any[] = [];
     if (typeof salary === "number" && salary > 0) patches.push({ op: "set_salary", amount: salary });
@@ -178,7 +187,7 @@ export function WhatIfDrawer({
   const after = result ? keyFigures(result.snapshot, month) : before;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-dark-900/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-dark-900/40" onClick={onClose} aria-label="What-if simulation overlay" role="dialog" aria-modal="true">
       <div
         className="flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto border-l border-dark-200 bg-white p-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}

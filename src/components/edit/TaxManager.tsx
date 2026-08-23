@@ -46,6 +46,7 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
 
   const [regime, setRegime] = useState<"new" | "old">("new");
   const [income_tax_enabled, setIncomeTaxEnabled] = useState(false);
+  const [backfill_first_fy, setBackfillFirstFy] = useState(true);
   const [age_group, setAgeGroup] = useState<"below60" | "senior" | "super_senior">("below60");
   const [deductions, setDeductions] = useState<Record<string, number>>({});
   const [salary_structure, setSalaryStructure] = useState<{
@@ -69,6 +70,7 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
       const t = plan.tax_settings || {};
       setRegime(t.regime === "old" ? "old" : "new");
       setIncomeTaxEnabled(!!t.income_tax_enabled);
+      setBackfillFirstFy(t.backfill_first_fy !== false);
       setAgeGroup(t.age_group || "below60");
       setDeductions(t.deductions || {});
       setSalaryStructure(t.salary_structure || null);
@@ -106,6 +108,7 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
       regime,
       income_tax_enabled,
       age_group,
+      backfill_first_fy,
     };
     const clean_deductions = Object.fromEntries(
       Object.entries(deductions).filter(([, v]) => typeof v === "number" && v > 0)
@@ -258,6 +261,20 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
             <p className="text-[11px] text-dark-500 leading-tight">
               Automatically applies tax slabs to your monthly income and flows hikes into your net cashflow.
             </p>
+            {income_tax_enabled && (
+              <div className="flex items-center justify-between rounded-md border border-dark-200 bg-white p-2">
+                <div>
+                  <span className="text-xs font-medium text-dark-700">Backfill first year</span>
+                  <div className="text-[10px] text-dark-400">Mid-FY plan start → tax the full year at month-1 salary</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={backfill_first_fy}
+                  onChange={(e) => setBackfillFirstFy(e.target.checked)}
+                  className="h-4 w-4 rounded border-dark-300 text-primary-600 focus:ring-primary-500"
+                />
+              </div>
+            )}
           </div>
 
           {/* Deductions (Old Regime only) */}

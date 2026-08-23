@@ -232,12 +232,13 @@ export function makeAssetTools(container: Container): ToolDefinition[] {
       name: "update_tax_settings",
       title: "Update a plan's tax settings",
       description:
-        "Persists the plan's tax settings used by the engine's automatic Income Tax expense: regime ('new' default or 'old'), income_tax_enabled (auto-deduct monthly slab tax from net cashflow — salary hikes then flow through slabs automatically), age_group (below60/senior/super_senior), deductions {c80, d80, d80_senior_parents, tta, ttb, b24, nps_1b} and salary_structure {basic_annual, hra_annual, rent_annual, metro} for the HRA exemption (old regime only). Omitted fields keep their current values; pass income_tax_enabled: false to stop auto tax.",
+        "Persists the plan's tax settings used by the engine's automatic Income Tax expense: regime ('new' default or 'old'), income_tax_enabled (auto-deduct monthly slab tax from net cashflow — salary hikes then flow through slabs automatically), age_group (below60/senior/super_senior), deductions {c80, d80, d80_senior_parents, tta, ttb, b24, nps_1b}, salary_structure {basic_annual, hra_annual, rent_annual, metro} for the HRA exemption (old regime only) and backfill_first_fy (default true — when the plan starts mid-financial-year, tax the first FY on the FULL year at month-1 salary; set false to tax only the plan's visible months). Omitted fields keep their current values; pass income_tax_enabled: false to stop auto tax.",
       inputSchema: {
         plan_id: z.string(),
         regime: z.enum(["new", "old"]).optional(),
         income_tax_enabled: z.boolean().optional(),
         age_group: z.enum(["below60", "senior", "super_senior"]).optional(),
+        backfill_first_fy: z.boolean().optional(),
         deductions: z.record(z.string(), z.number().min(0)).optional(),
         salary_structure: z
           .object({
@@ -258,6 +259,11 @@ export function makeAssetTools(container: Container): ToolDefinition[] {
             regime: args.regime ?? current.regime ?? "new",
             income_tax_enabled: args.income_tax_enabled ?? current.income_tax_enabled ?? false,
             age_group: args.age_group ?? current.age_group ?? "below60",
+            ...(args.backfill_first_fy !== undefined
+              ? { backfill_first_fy: args.backfill_first_fy }
+              : current.backfill_first_fy !== undefined
+                ? { backfill_first_fy: current.backfill_first_fy }
+                : {}),
             ...(args.deductions !== undefined
               ? { deductions: { ...(current.deductions || {}), ...args.deductions } }
               : current.deductions !== undefined

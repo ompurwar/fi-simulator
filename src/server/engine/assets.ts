@@ -533,6 +533,10 @@ export function ComputeIncomeTaxExpenseSchedule(
   // computed on the FULL year (missing months backfilled at the month-1 salary)
   // and charged at the true monthly TDS (total ÷ 12). Disable via
   // tax_settings.backfill_first_fy = false.
+  // NOTE (known limitation): the TRAILING partial FY at the plan's end is NOT
+  // backfilled — tax there is computed on the plan's visible months only. If a
+  // user keeps earning after the plan horizon, the final months' tax appears
+  // lower than real-world TDS (the plan assumes income ends with the plan).
   const backfill_enabled = tax_settings.backfill_first_fy !== false;
   const first_fy = income_statement.length
     ? MonthToAssessmentYear(plan.timestamp, income_statement[0].month)

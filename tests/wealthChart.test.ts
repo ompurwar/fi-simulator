@@ -73,6 +73,20 @@ describe("BuildWealthChartData", () => {
     expect(data.datasets[0].data).toEqual([110]); // only month 2
     expect(data.net_worth_series).toEqual([1230]);
   });
+
+  it("keeps the ASSETS segment when holdings exist OUTSIDE the window (no pop-in/out)", () => {
+    // assets only start at month 40 — the first window has no asset values yet,
+    // but the segment must still exist (zero-height) so it doesn't jump in later
+    const s = snapshot({
+      asset_month_map: { 40: [{ asset_class: "gold", value: 500 }] },
+    });
+    const data = BuildWealthChartData(s, { window_start: 0, window_size: 20 }, cssVar, Array(20).fill("M"));
+    const assets = data.datasets.find((d) => d.label === "ASSETS (invested)");
+    expect(assets).toBeTruthy();
+    expect(assets.data).toEqual(Array(20).fill(0));
+    // months 1-2 have buckets; months 3-20 have neither buckets nor assets
+    expect(data.net_worth_series).toEqual([600, 630, ...Array(18).fill(0)]);
+  });
 });
 
 describe("BuildScenarioLines", () => {

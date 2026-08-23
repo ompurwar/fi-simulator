@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed
+- Salary Negotiation contract mismatch — the redesigned Tax Manager sent `offers` while the API requires `scenarios` (Compare always 400'd). Payload now builds scenarios (custom offer → single; else +10/20/30/50%) and restores `age_group`/`salary_structure`; the route tolerates `offers: number[]` as a fallback. HTTP route tests added.
+- First-FY tax undercount — plans starting mid-financial-year now tax the first FY on the FULL year (missing months backfilled at month-1 salary) at the true monthly TDS (`total/12`) — the ₹36k-vs-₹55k/month gap on a ₹36L salary. Toggle `tax_settings.backfill_first_fy` (default true) exposed in `update_tax_settings` and the Tax Manager UI.
+- Plan-page cards used END-of-plan asset values — Net Worth "incl. assets" and the Asset Mix card now show the CURRENT month's holdings (`asset_month_map`); the scenario band is labeled "At plan end (M<duration>)".
+- Trailing partial FY is intentionally not backfilled (income assumed to end with the plan) — documented in the engine.
+
+### Added
+- Connected net-worth simulation — `src/lib/wealthChart.ts` is the single builder for plan + compare charts: e/s/i bars plus an **ASSETS (invested)** stacked segment (gold, top) so the bar top = Net Worth = annotation = Runway card figure everywhere; a "Scenarios" toggle overlays ±1σ bands. Compare page nets worth, annotations, cross-plan lines and a runway "incl. investments ≈" line all include holdings.
+- UI What-if drawer (plan page) — salary/regime/asset-growth/sell-asset patches via `POST /api/engine/scenario` (same engine pair as MCP `simulate_plan`, ownership-checked, never persists, patch count capped) with before/after chips (Net Worth, assets, monthly tax, net cashflow) and Apply → local mutations + Save sync.
+- MCP parity — `plan_snapshot` summary/milestones now carry `assets_by_month`, `net_worth_by_month` (buckets + assets, the app's Net Worth number) and `asset_summary`; agents quote the same numbers as the UI (parity test locks this).
+- MCP tools — `compare_scenarios` (baseline vs scenario head-to-head: monthly net-worth points + end totals + tax totals) and `asset_projection` (standalone per-asset calculator: monthly value/invested/growth/income/TDS, SIP step-up, maturity/sale). 58 tools total.
+
 ### Added
 - Versioned tax-rule system (Tasks 3.1–3.4) — India income-tax rule sets for AY 2023-24 → 2026-27 stored in MongoDB (`Tax_Rule_Store`, seeded via `npm run seed:tax-rules`) with bundled code fallbacks; pure computations (`ComputeIncomeTax` new/old regime + senior slabs + HRA + deductions + 87A rebate with marginal relief + surcharge/cess, `ComputeCapitalGains` with 112A ₹1.25L, foreign-equity no-exemption, indexation option for pre-23-Jul-24 property and crypto 30%, `ComputeSalaryNegotiation` with marginal rate on hikes, `MonthToAssessmentYear`) verified against ClearTax worked examples; MCP tools `list_tax_rules` / `get_tax_rules` / `tax_calculation` / `salary_negotiation` for all users.
 - RBAC for system-level MCP mutations (Task 3.3) — users carry `role` (`user` default / `admin`); `ToolDefinition.requiresRole` is enforced in the single `callRegistryTool` choke point (HTTP, stdio and the in-app assistant); `upsert_tax_rules` and `update_presets` are admin-only; promote via `npm run make:admin -- --email <e>`.

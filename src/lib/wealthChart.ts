@@ -78,7 +78,9 @@ export function BuildWealthChartData(
     return assets[m] || 0;
   });
 
-  const has_assets = assets_series.some((v) => v > 0);
+  // the segment exists whenever the PLAN has holdings (checked on the full map,
+  // not the window) so it doesn't pop in/out while the window slides
+  const has_assets = Object.keys(assets).length > 0;
   const datasets: any[] = [
     bar("e", "EMERGENCY", 3, { bg: cssVar("--color-dark-300"), border: cssVar("--color-dark-300"), radius: { topLeft: 3, topRight: 3 } }),
     bar("s", "SAVINGS", 2, { bg: cssVar("--color-accent-600"), border: cssVar("--color-accent-600") }),
