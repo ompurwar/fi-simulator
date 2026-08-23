@@ -298,6 +298,8 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
   const [stage, setStage] = useState("asset_list");
   const [mode, setMode] = useState<"add" | "edit">("add");
   const [selected_id, setSelectedId] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [import_msg, setImportMsg] = useState("");
 
   const asset_list = useMemo(() => {
     if (!plan) return [];
@@ -343,6 +345,30 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
   };
   const breadcrumb_data = stack.map((s) => PANEL_STAGES_LABELS[s] || s);
 
+  async function ImportFromNetWorth() {
+    setImporting(true);
+    setImportMsg("");
+    try {
+      const res = await fetch("/api/plan/import_networth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan_id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setImportMsg(json?.error?.message || "import failed");
+      } else {
+        const { added, skipped } = json.data || {};
+        const labels = added.map((a: any) => a.asset_class).join(", ");
+        setImportMsg(added.length > 0 ? `Imported: ${labels}${skipped.length ? ` (skipped existing: ${skipped.join(", ")})` : ""}` : "No new asset classes to import");
+      }
+    } catch (e: any) {
+      setImportMsg(e?.message || "import failed");
+    }
+    setImporting(false);
+  }
+
   if (!plan) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -379,6 +405,13 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
         {show_asset_list && (
           <div className={`flex-col snap-y md:h-[580px] md:w-1/3 md:shrink-0 ${stage !== "asset_list" ? "hidden md:flex" : "flex"}`}>
             <div className="overflow-y-scroll pl-2 pr-1">
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-md bg-dark-100 p-2">
+                <span className="text-[11px] text-dark-300">Import your holdings from Net Worth (IndMoney)</span>
+                <Button variant="neutral" sub_variant="outline" size="md" className="px-2 py-0.5 text-[11px]" onClick={ImportFromNetWorth} disabled={importing}>
+                  {importing ? "…" : "Import"}
+                </Button>
+              </div>
+              {import_msg && <div className="mb-2 rounded-md bg-warning-100 p-2 text-[11px] text-dark-400">{import_msg}</div>}
               {asset_list.map((asset: any) => (
                 <div key={asset._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
                   <AssetCard plan={plan} asset={asset}>

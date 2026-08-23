@@ -393,6 +393,58 @@ export function ComputeAssetSchedule(
 }
 
 /**
+ * Scenario bands — deterministic ±1σ paths. Re-runs the schedule with each
+ * market-linked asset's growth_rate shifted by its volatility (conservative =
+ * rate − vol, aggressive = rate + vol). Returns the final total value per
+ * scenario (plus the month-by-month total for chart bands).
+ */
+export function ComputeAssetScenarios(
+  plan: any,
+  duration: number,
+  rules?: TaxRuleSet
+): {
+  expected: { total_value: number; by_class: Record<string, number> };
+  conservative: { total_value: number; by_class: Record<string, number> };
+  aggressive: { total_value: number; by_class: Record<string, number> };
+  month_map: { conservative: Record<number, number>; expected: Record<number, number>; aggressive: Record<number, number> };
+} {
+  const assets = (plan.asset_list || []).filter((a: any) => a.active !== false);
+
+  function run(shift: number) {
+    const shifted = assets.map((a: any) => {
+      const vol = typeof a.volatility === "number" && a.volatility > 0 ? a.volatility : 0;
+      if (vol === 0) return a;
+      return { ...a, growth_rate: Math.max(0, (a.growth_rate || 0) + shift * vol) };
+    });
+    const result = ComputeAssetSchedule({ ...plan, asset_list: shifted }, duration, rules);
+    const by_class: Record<string, number> = {};
+    for (const [k, c] of Object.entries(result.asset_summary.by_class as Record<string, { value: number }>)) {
+      by_class[k] = Math.round(c.value);
+    }
+    const month_totals: Record<number, number> = {};
+    for (const [month, rows] of Object.entries(result.asset_month_map)) {
+      month_totals[Number(month)] = Math.round(rows.reduce((s: number, r: any) => s + (r.value || 0), 0));
+    }
+    return { total_value: result.asset_summary.total_value, by_class, month_totals };
+  }
+
+  const expected = run(0);
+  const conservative = run(-1);
+  const aggressive = run(1);
+
+  return {
+    expected: { total_value: expected.total_value, by_class: expected.by_class },
+    conservative: { total_value: conservative.total_value, by_class: conservative.by_class },
+    aggressive: { total_value: aggressive.total_value, by_class: aggressive.by_class },
+    month_map: {
+      conservative: conservative.month_totals,
+      expected: expected.month_totals,
+      aggressive: aggressive.month_totals,
+    },
+  };
+}
+
+/**
  * Auto "Income Tax" expense schedule: monthly equal installments of the annual
  * slab tax (new/old regime against the stored rule set) computed from the
  * plan's salary income plus asset income streams. Mirrors the EMI expense seam.

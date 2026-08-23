@@ -167,6 +167,7 @@ function BalanceAndTxn({
   onEdit,
   assetSummary,
   bucketGrowth,
+  assetScenarios,
 }: {
   balances: any[];
   month: number;
@@ -177,6 +178,7 @@ function BalanceAndTxn({
   onEdit?: (account_id: string) => void;
   assetSummary?: any;
   bucketGrowth?: Record<string, { value: number; growth_rate: number }>;
+  assetScenarios?: any;
 }) {
   const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
   const sorted = useBalanceSeq(balances).sort(
@@ -305,6 +307,13 @@ function BalanceAndTxn({
                 ))}
               </div>
             </div>
+            {assetScenarios && (
+              <div className="flex flex-wrap justify-between gap-2 border-t border-dark-700 pt-2 text-[10px] sm:text-xs">
+                <span className="text-danger-300">Conservative <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
+                <span className="font-medium text-dark-100">Expected <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
+                <span className="text-success-300">Aggressive <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+              </div>
+            )}
           </div>
         )}
 
@@ -836,6 +845,7 @@ function PlanPageInner() {
             onEdit={(account_id) => HandleEdit("account", "", account_id)}
             assetSummary={engine.asset_summary}
             bucketGrowth={engine.bucket_growth}
+            assetScenarios={engine.asset_scenarios}
           />
         </div>
       </div>

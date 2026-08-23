@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Container } from "../../di/container";
 import { InvalidOperationError, InvalidPropertyError } from "../../domain/errors";
 import { MakeAsset } from "../../domain/entities";
+import { BuildAssetsFromNetWorth } from "../../networth";
 import { callUseCase, ok, requireFields } from "./envelope";
 import type { ToolDefinition } from "../types";
 
@@ -34,7 +35,7 @@ const ASSET_EDITABLE = [
 ] as const;
 
 export function makeAssetTools(container: Container): ToolDefinition[] {
-  const { app, plan_list } = container;
+  const { app, plan_list, networth_service, tax_service } = container;
 
   async function getPlan(plan_id: string): Promise<any> {
     const plan: any = await plan_list.FindById(plan_id);
@@ -270,6 +271,51 @@ export function makeAssetTools(container: Container): ToolDefinition[] {
             ...plan,
             tax_settings: merged,
           });
+        });
+      },
+    },
+    {
+      name: "import_networth_assets",
+      title: "Import net-worth holdings as plan assets",
+      description:
+        "Creates plan assets from the user's latest net-worth snapshot (IndMoney sync): Indian Stocks → equity, Mutual Funds → mf, Fixed Deposits → fd, Gold → gold, Savings & Liquid → savings, US Stocks → equity_foreign, EPF/NPS → ppf (liabilities like loans/credit cards are skipped). Values aggregate per asset class and the growth/yield/volatility defaults come from the PRESETS document. Classes already present in the plan are left untouched. Returns the classes added with their values. Persists immediately.",
+      inputSchema: { plan_id: z.string() },
+      async handler(ctx, args) {
+        const missing = requireFields(args, ["plan_id"]);
+        if (missing) return missing;
+        return callUseCase(async () => {
+          const plan = await getPlan(args.plan_id);
+          const status = await container.networth_service.GetStatus({ user_id: ctx.user_id });
+          const snapshot = status?.snapshot;
+          if (!snapshot || !Array.isArray(snapshot.allocation)) {
+            throw new InvalidOperationError("no net-worth snapshot — connect and sync a provider first (networth_connect_url / networth_sync)");
+          }
+          const presets = await container.tax_service.getPresets();
+          const mapped = BuildAssetsFromNetWorth(snapshot.allocation, presets);
+
+          const existing_classes = new Set((plan.asset_list || []).map((a: any) => a.asset_class));
+          const added: any[] = [];
+          const skipped: string[] = [];
+          const asset_list = [...(plan.asset_list || [])];
+          for (const asset of mapped) {
+            if (existing_classes.has(asset.asset_class)) {
+              skipped.push(asset.asset_class);
+              continue;
+            }
+            asset_list.push(asset);
+            existing_classes.add(asset.asset_class);
+            added.push({ asset_class: asset.asset_class, principal: asset.principal });
+          }
+          if (added.length === 0) {
+            return { added: [], skipped, message: "no new asset classes to import" };
+          }
+          await app.UpdatePlan({
+            _id: args.plan_id,
+            user_id: ctx.user_id,
+            ...plan,
+            asset_list,
+          });
+          return { added, skipped };
         });
       },
     },

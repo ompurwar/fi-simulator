@@ -10,8 +10,12 @@ let plan_id: string;
 
 beforeAll(async () => {
   t = await createTestApp();
-  const { user } = await signupUser(t.app);
-  ctx = { user_id: user._id, role: "user" };
+  const signed = await signupUser(t.app);
+  // the /user/get/profile endpoint strips _id by design — resolve it via the session
+  const session = await t.container.session_list.FindByActiveSessionId(signed.session_id);
+  if (!session) throw new Error("no session for signed-up user");
+  const user_id = session.user_id.toString();
+  ctx = { user_id, role: "user" };
   for (const ruleSet of AY_RULE_SETS) {
     await t.container.tax_rule_repo.UpsertRuleSet({ ...ruleSet });
   }
@@ -140,6 +144,58 @@ describe("update_tax_settings + snapshot integration", () => {
       plan_id,
       income_tax_enabled: false,
     });
+  });
+});
+
+describe("import_networth_assets", () => {
+  it("seeds plan assets from a seeded net-worth snapshot, skipping existing classes", async () => {
+    // fake a connected IndMoney link + snapshot
+    const addLink = await t.container.networth_repo.AddLink({
+      user_id: ctx.user_id,
+      provider: "indmoney",
+      connected_at: Date.now(),
+      last_sync_at: Date.now(),
+    });
+    const addSnap = await t.container.networth_repo.AddSnapshot({
+      user_id: ctx.user_id,
+      provider: "indmoney",
+      as_of: new Date().toISOString(),
+      snapshot: {
+        total_net_worth: 1200000,
+        total_assets: 1200000,
+        total_liabilities: 0,
+        invested: 1000000,
+        unrealized_pnl: 200000,
+        as_of: new Date().toISOString(),
+        allocation: [
+          { asset_class: "Indian Stocks", value: 600000, invested: 500000, pnl: 100000, pnl_pct: 20 },
+          { asset_class: "Fixed Deposits", value: 300000, invested: 290000, pnl: 10000, pnl_pct: 3.45 },
+          { asset_class: "Gold", value: 200000, invested: 180000, pnl: 20000, pnl_pct: 11.1 },
+          { asset_class: "Loan", value: -650000, invested: -650000, pnl: 0, pnl_pct: 0 },
+        ],
+      },
+    });
+    expect(addLink.success).toBe(true);
+    expect(addSnap.success).toBe(true);
+
+    const res = await callRegistryTool(makeToolRegistry(t.container), ctx, "import_networth_assets", { plan_id });
+    if (!res.ok) throw new Error("IMPORT FAILED: " + JSON.stringify(res));
+    expect(res.ok).toBe(true);
+    const { added, skipped } = (res as any).data;
+    expect(added.map((a: any) => a.asset_class).sort()).toEqual(["equity", "fd", "gold"]);
+    expect(skipped).toEqual([]);
+
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_assets", { plan_id });
+    const assets = (list as any).data;
+    const equity = assets.find((a: any) => a.asset_class === "equity");
+    expect(equity).toBeTruthy();
+    expect(equity.principal).toBe(600000);
+    expect(equity.jurisdiction).toBe("in");
+
+    // second import skips everything (classes already present)
+    const again = await callRegistryTool(makeToolRegistry(t.container), ctx, "import_networth_assets", { plan_id });
+    expect((again as any).data.added).toEqual([]);
+    expect((again as any).data.skipped.sort()).toEqual(["equity", "fd", "gold"]);
   });
 });
 

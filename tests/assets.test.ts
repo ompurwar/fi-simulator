@@ -2,12 +2,14 @@
 import { MakeAsset } from "@/server/domain/entities";
 import {
   ComputeAssetSchedule,
+  ComputeAssetScenarios,
   ComputeIncomeTaxExpenseSchedule,
   ProjectAssetMonths,
   type AssetLike,
 } from "@/server/engine/assets";
+import { BuildAssetsFromNetWorth } from "@/server/networth/importAssets";
 import { ComputePlanSnapshot } from "@/server/engine/planSnapshot";
-import { AY_RULE_SETS } from "@/server/tax/rules-data";
+import { AY_RULE_SETS, ASSET_PRESETS } from "@/server/tax/rules-data";
 
 const FY_2025_26 = AY_RULE_SETS.find((r) => r.assessment_year === "2025-26")!;
 const PLAN_TS = new Date(2025, 3, 1).getTime(); // 1 Apr 2025
@@ -198,6 +200,52 @@ describe("ComputeIncomeTaxExpenseSchedule", () => {
     const plan = basePlan();
     const rows = ComputeIncomeTaxExpenseSchedule(plan, 12, FY_2025_26, plan.tax_settings, [], {});
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("ComputeAssetScenarios", () => {
+  it("projects conservative/expected/aggressive bands from volatility", () => {
+    const plan = basePlan({
+      asset_list: [
+        { _id: "g1", title: "Gold", asset_class: "gold", category: "i", principal: 200000, purchase_month: 1, growth_rate: 8.5, volatility: 14 },
+      ],
+    });
+    const s = ComputeAssetScenarios(plan, 120, FY_2025_26);
+    // 10 years of gold at 8.5% (expected) vs 8.5−14 = −5.5% (conservative) vs 22.5% (aggressive)
+    expect(s.expected.total_value).toBeGreaterThan(s.conservative.total_value);
+    expect(s.aggressive.total_value).toBeGreaterThan(s.expected.total_value);
+    expect(s.month_map.expected[120]).toBe(Math.round(s.expected.total_value));
+  });
+
+  it("assets without volatility keep a single path", () => {
+    const plan = basePlan({
+      asset_list: [{ ...FD, maturity_month: undefined }],
+    });
+    const s = ComputeAssetScenarios(plan, 12, FY_2025_26);
+    expect(s.conservative.total_value).toBeCloseTo(s.expected.total_value, 0);
+    expect(s.aggressive.total_value).toBeCloseTo(s.expected.total_value, 0);
+  });
+});
+
+describe("BuildAssetsFromNetWorth", () => {
+  it("maps net-worth classes to plan assets with preset defaults", () => {
+    const assets = BuildAssetsFromNetWorth(
+      [
+        { asset_class: "Indian Stocks", value: 948900 } as any,
+        { asset_class: "Fixed Deposits", value: 300000 } as any,
+        { asset_class: "Gold", value: 185000 } as any,
+        { asset_class: "Loan", value: -650000 } as any, // skipped (liability)
+      ],
+      ASSET_PRESETS
+    );
+    const byClass = Object.fromEntries(assets.map((a) => [a.asset_class, a]));
+    expect(byClass.equity).toBeTruthy();
+    expect(byClass.equity.principal).toBe(948900);
+    expect(byClass.fd.principal).toBe(300000);
+    expect(byClass.gold.principal).toBe(185000);
+    expect(byClass.gold.growth_rate).toBe(ASSET_PRESETS.asset_classes.gold.growth_rate);
+    // liabilities are never mapped
+    expect(assets.some((a) => a.asset_class === "vda" || a.asset_class === "real_estate")).toBe(false);
   });
 });
 

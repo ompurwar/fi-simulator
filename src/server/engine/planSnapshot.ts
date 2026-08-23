@@ -17,7 +17,7 @@ import {
   MakeLoanScheduleByMonthToCashFlow,
   MakePrepaymentScheduleByMonthToCashFlow,
 } from "./loan";
-import { ComputeAssetSchedule, ComputeIncomeTaxExpenseSchedule } from "./assets";
+import { ComputeAssetSchedule, ComputeAssetScenarios, ComputeIncomeTaxExpenseSchedule } from "./assets";
 import type { TaxRuleSet } from "../tax/schema";
 import type { CashFlowLike, CashFlowChangeLike } from "./statements";
 
@@ -61,6 +61,7 @@ export interface PlanSnapshot {
   tax_summary?: Record<string, any>;
   tax_expense_cashflow?: any[];
   bucket_growth?: Record<string, { value: number; growth_rate: number }>;
+  asset_scenarios?: any;
 }
 
 export function ComputePlanSnapshot(
@@ -260,6 +261,9 @@ export function ComputePlanSnapshot(
     snapshot.tax_summary = asset_schedule.tax_summary;
     snapshot.bucket_growth = asset_schedule.bucket_growth;
     snapshot.tax_expense_cashflow = tax_expense_cashflow;
+    if (has_assets) {
+      snapshot.asset_scenarios = ComputeAssetScenarios(_plan, plan_duration, rules);
+    }
   }
 
   return snapshot;
