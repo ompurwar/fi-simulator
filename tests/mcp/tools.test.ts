@@ -478,6 +478,38 @@ describe("share objects", () => {
     const month24b = (snapshot2 as any).data.cashflow.income_statement.find((s: any) => s.month === 24);
     expect(month24b.total_income).toBe(65000); // 50000 * 1.3
   });
+
+  it("persists frequency 'y' and an open end_month on embedded changes (no more m/end=start)", async () => {
+    const { ctx } = await signupCtx();
+    const plan = await createPlan(ctx);
+    const plan_id = String(plan._id);
+    const salary_id = String(
+      (plan.cashflow_list || []).find((c: any) => c.category === "i")._id
+    );
+
+    const add = await callRegistryTool(registry, ctx, "add_cashflow_change", {
+      plan_id,
+      cashflow_id: salary_id,
+      change_category: "i",
+      change_type: "p",
+      value: 10,
+      start_month: 1,
+      end_month: 600,
+      frequency: "y",
+      change_desc: "yearly hike",
+    });
+    expect(add.ok).toBe(true);
+
+    const doc = (await t.container.plan_list.FindById(plan_id)) as any;
+    const change = (doc.cashflow_change_list || []).find((c: any) => c.start_month === 1);
+    expect(change).toMatchObject({ frequency: "y", end_month: 600, value: 10 });
+
+    // and the projection compounds yearly from m1: m13 = 60500, m25 = 66550
+    const snap = await callRegistryTool(registry, ctx, "plan_snapshot", { plan_id, duration: 26, summary: true });
+    const totals = (snap as any).data.monthly_totals;
+    expect(totals.find((t: any) => t.month === 13).income).toBe(60500);
+    expect(totals.find((t: any) => t.month === 25).income).toBe(66550);
+  });
 });
 
 describe("cross-user isolation", () => {

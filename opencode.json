@@ -9,6 +9,15 @@
         "GMAIL_CLIENT_ID": "{env:GMAIL_CLIENT_ID}",
         "GMAIL_CLIENT_SECRET": "{env:GMAIL_CLIENT_SECRET}"
       }
+    },
+    "fiplan": {
+      "type": "remote",
+      "url": "https://fi-simulator-zeta.vercel.app/api/mcp",
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {env:FIPLAN_TOKEN}"
+      },
+      "enabled": true
     }
   }
 }

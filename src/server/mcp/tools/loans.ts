@@ -16,7 +16,21 @@ const LOAN_EDITABLE = [
   "deposit_to_bank",
   "type",
   "ref_id",
+  "prepayments",
 ] as const;
+
+const PREPAYMENT_SCHEMA = z
+  .array(
+    z.object({
+      start_month: z.number().int().min(1),
+      amount: z.number().positive(),
+      frequency: z.enum(["m", "q", "y"]).nullable().optional(),
+      step_pct: z.number().min(0).optional(),
+      step_frequency: z.enum(["m", "q", "y"]).nullable().optional(),
+      desc: z.string().optional(),
+    })
+  )
+  .optional();
 
 export function makeLoanTools(container: Container): ToolDefinition[] {
   const { app, plan_list } = container;
@@ -45,7 +59,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
       name: "add_loan",
       title: "Add a loan to a plan",
       description:
-        "Persists a new loan on the plan: principal_amount, interest_rate (annual %), start_month (when the FIRST EMI falls due), end_month (= start_month + tenure months - 1) and optional title, type (1 home, 2 car, 3 personal, 4 credit card, 5 other) and deposit_to_bank. deposit_to_bank true credits the principal into the bank account one month BEFORE the first EMI (disbursement); set it false when the money is already accounted for. Persists immediately.",
+        "Persists a new loan on the plan: principal_amount, interest_rate (annual %), start_month (when the FIRST EMI falls due), end_month (= start_month + tenure months - 1) and optional title, type (1 home, 2 car, 3 personal, 4 credit card, 5 other), deposit_to_bank and prepayments. deposit_to_bank true credits the principal into the bank account one month BEFORE the first EMI (disbursement); set it false when the money is already accounted for. prepayments model extra principal payments beyond the EMI: each {start_month, amount, frequency: 'm'|'q'|'y'|null, step_pct?} — null frequency = one-time lump, step_pct = % the amount grows by each recurrence (m/q/y). Prepayments shorten the loan and appear as 'Prepayment #N - <title>' expenses in the statement. Persists immediately.",
       inputSchema: {
         plan_id: z.string(),
         title: z.string().optional(),
@@ -55,6 +69,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
         end_month: z.number().int().min(1),
         type: z.number().int().min(1).max(5).optional(),
         deposit_to_bank: z.boolean().optional(),
+        prepayments: PREPAYMENT_SCHEMA,
       },
       async handler(ctx, args) {
         const missing = requireFields(args, [
@@ -76,6 +91,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
             type: args.type ?? 5,
             ref_id: null,
             deposit_to_bank: args.deposit_to_bank ?? false,
+            prepayments: args.prepayments ?? [],
           });
           if (!built.success || !built.result) {
             throw new InvalidOperationError(built.message || "invalid loan parameters");
@@ -94,7 +110,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
       name: "update_loan",
       title: "Update a plan's loan",
       description:
-        "Patches the loan with loan_id on the plan. changes may include title, principal_amount, interest_rate, start_month, end_month, deposit_to_bank, type or ref_id; omitted fields keep their current values. Persists immediately.",
+        "Patches the loan with loan_id on the plan. changes may include title, principal_amount, interest_rate, start_month, end_month, deposit_to_bank, type, ref_id or prepayments (array of {start_month, amount, frequency: 'm'|'q'|'y'|null, step_pct?}); omitted fields keep their current values. Pass prepayments: [] to clear them. Persists immediately.",
       inputSchema: {
         plan_id: z.string(),
         loan_id: z.string(),
@@ -104,6 +120,7 @@ export function makeLoanTools(container: Container): ToolDefinition[] {
         start_month: z.number().int().min(1).optional(),
         end_month: z.number().int().min(1).optional(),
         deposit_to_bank: z.boolean().optional(),
+        prepayments: PREPAYMENT_SCHEMA,
       },
       async handler(ctx, args) {
         const missing = requireFields(args, ["plan_id", "loan_id"]);

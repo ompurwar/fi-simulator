@@ -188,6 +188,10 @@ export async function POST(req: NextRequest) {
   let streamErrored = false;
   const ranTools = new Set<string>();
 
+  // Abort the agent loop (and the upstream LLM fetch) when the client stops the
+  // stream (Stop button, navigation, disconnect).
+  const loop_abort = new AbortController();
+
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(
@@ -199,6 +203,7 @@ export async function POST(req: NextRequest) {
           messages: contextMessages,
           registry,
           provider: container.ai_provider,
+          signal: loop_abort.signal,
           onEvent: (event) => {
             if (event.type === "text") {
               currentSegment += event.text;
@@ -245,9 +250,21 @@ export async function POST(req: NextRequest) {
         );
       } finally {
         await persistChat();
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
+        try {
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch {
+          /* client already gone */
+        }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
       }
+    },
+    // Client aborted (Stop button / navigation): cancel the upstream LLM request.
+    cancel() {
+      loop_abort.abort();
     },
   });
 

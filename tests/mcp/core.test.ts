@@ -105,6 +105,43 @@ describe("ApplyScenarioToPlan", () => {
     expect(scenario.cashflow_change_list[0].value).toBe(6);
   });
 
+  it("accepts FLAT patches and infers the op (no more format friction)", () => {
+    const plan: any = JSON.parse(JSON.stringify(EMPTY_PLAN));
+    plan.cashflow_list = [{ _id: "cf1", category: "e" }];
+
+    const flat = ApplyScenarioToPlan(plan, [
+      // flat add_cashflow_change — no op, no nested change
+      { cashflow_id: "cf1", change_category: "e", change_type: "p", value: 6, start_month: 1, frequency: "y" },
+      // flat add_income
+      { desc: "side hustle", amount: 30000, start_month: 24, end_month: 60, category: "i" },
+      // flat add_loan (tool vocabulary)
+      { principal_amount: 400000, interest_rate: 10, start_month: 40, end_month: 52 },
+    ]);
+    expect(flat.cashflow_change_list).toHaveLength(1);
+    expect(flat.cashflow_change_list[0]).toMatchObject({ cashflow_id: "cf1", value: 6, frequency: "y" });
+    const income = (flat.cashflow_list || []).find((c: any) => c.category === "i");
+    expect(income).toMatchObject({ desc: "side hustle", amount: 30000 });
+    const loan = flat.loan_accounts[0];
+    expect(loan).toMatchObject({ principal_amount: 400000, start_month: 40, end_month: 52 });
+  });
+
+  it("accepts flat set_account_balance when the account exists", () => {
+    const plan: any = JSON.parse(JSON.stringify(EMPTY_PLAN));
+    plan.account_list = [{ _id: "acc1", category: "s" }];
+
+    const scenario = ApplyScenarioToPlan(plan, [
+      { account_id: "acc1", month: 12, balance: 500000 },
+    ]);
+    expect(scenario.account_list[0].init_balance).toBe(500000);
+    expect(scenario.account_list[0].balance_month).toBe(12);
+  });
+
+  it("still rejects unknown ops with the schema hint", () => {
+    expect(() => ApplyScenarioToPlan(EMPTY_PLAN, [{ op: "delete_everything" }])).toThrowError(
+      /unknown scenario op/
+    );
+  });
+
   it("throws InvalidPropertyError on a category that contradicts the op", () => {
     expect(() =>
       ApplyScenarioToPlan(EMPTY_PLAN, [

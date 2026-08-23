@@ -131,12 +131,17 @@ export const api = {
 
   /* ------- assistant ------- */
   /** Raw SSE fetch for the assistant — returns the Response so the caller can read res.body. */
-  ChatAssistant: async (messages: AssistantMessage[], session_id?: string): Promise<Response> => {
+  ChatAssistant: async (
+    messages: AssistantMessage[],
+    session_id?: string,
+    signal?: AbortSignal
+  ): Promise<Response> => {
     try {
       return await fetch(`${API_BASE}${ENDPOINTS.ASSISTANT_CHAT}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal,
         body: JSON.stringify({ ...(session_id ? { session_id } : {}), messages }),
       });
     } catch {
@@ -146,12 +151,13 @@ export const api = {
 
   /** Retry the last turn in place — the server re-runs over stored history
    *  without a new user message (no duplicated prompt/tokens). */
-  ChatAssistantRetry: async (session_id: string): Promise<Response> => {
+  ChatAssistantRetry: async (session_id: string, signal?: AbortSignal): Promise<Response> => {
     try {
       return await fetch(`${API_BASE}${ENDPOINTS.ASSISTANT_CHAT}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal,
         body: JSON.stringify({ session_id, retry: true, messages: [] }),
       });
     } catch {

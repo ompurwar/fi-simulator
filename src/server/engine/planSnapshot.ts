@@ -13,7 +13,9 @@ import {
 import {
   AmortizationScheduleByMonth,
   ComputeLoanAmortizationSchedule,
+  ComputeLoanAmortizationScheduleWithPrepayments,
   MakeLoanScheduleByMonthToCashFlow,
+  MakePrepaymentScheduleByMonthToCashFlow,
 } from "./loan";
 import type { CashFlowLike, CashFlowChangeLike } from "./statements";
 
@@ -74,16 +76,50 @@ export function ComputePlanSnapshot(plan: PlanForSnapshot = {}, duration = 50): 
   const loan_account_list = DeepCopy(_plan.loan_accounts || []).sort((a: any, b: any) => a.start_month - b.start_month);
 
   const emi_schedule: any[] = [];
+  const emi_expense_cashflow: any[] = [];
   loan_account_list.forEach((loan_obj: any) => {
-    const schedule = ComputeLoanAmortizationSchedule(
-      loan_obj.principal_amount,
-      loan_obj.interest_rate,
-      loan_obj.end_month - loan_obj.start_month + 1
-    );
-    emi_schedule.push(...AmortizationScheduleByMonth(schedule, loan_obj.start_month, loan_obj));
+    const tenure = loan_obj.end_month - loan_obj.start_month + 1;
+    const prepayments = loan_obj.prepayments || [];
+    if (prepayments.length > 0) {
+      // Stored prepayment months are plan-absolute (consistent with the loan's
+      // own start_month); the engine works in loan-relative months (1 = first EMI).
+      const relative = prepayments
+        .map((p: any) => ({ ...p, start_month: p.start_month - loan_obj.start_month + 1 }))
+        .filter((p: any) => p.start_month >= 1);
+      const { schedule } = ComputeLoanAmortizationScheduleWithPrepayments(
+        loan_obj.principal_amount,
+        loan_obj.interest_rate,
+        tenure,
+        relative
+      );
+      const by_month = AmortizationScheduleByMonth(schedule, loan_obj.start_month, loan_obj);
+      emi_schedule.push(...by_month);
+      let prepayment_number = 0;
+      by_month.forEach((row: any) => {
+        if (row.prepayment > 0) {
+          prepayment_number += 1;
+          emi_expense_cashflow.push(
+            MakePrepaymentScheduleByMonthToCashFlow({
+              month: row.month,
+              prepayment: row.prepayment,
+              loan_id: loan_obj._id,
+              title: loan_obj.title,
+              prepayment_number,
+            })
+          );
+        }
+      });
+    } else {
+      const schedule = ComputeLoanAmortizationSchedule(
+        loan_obj.principal_amount,
+        loan_obj.interest_rate,
+        tenure
+      );
+      emi_schedule.push(...AmortizationScheduleByMonth(schedule, loan_obj.start_month, loan_obj));
+    }
   });
 
-  const emi_expense_cashflow = emi_schedule.map((emi_obj) => MakeLoanScheduleByMonthToCashFlow(emi_obj));
+  emi_expense_cashflow.push(...emi_schedule.map((emi_obj) => MakeLoanScheduleByMonthToCashFlow(emi_obj)));
 
   const expense_list = [
     ...((_plan.cashflow_list || []).filter((_) => _.category === "e") as CashFlowLike[]),
