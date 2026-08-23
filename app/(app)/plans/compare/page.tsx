@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { usePlanEngine } from "@/hooks/usePlanEngine";
 import { useRunway } from "@/hooks/useRunway";
+import { BuildWealthChartData } from "@/lib/wealthChart";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { ModalUi } from "@/components/ui/ModalUi";
@@ -66,7 +67,7 @@ function ComparablePlanWidget({
   current_month: number;
   offset: number;
   children: React.ReactNode;
-  onStatementUpdate: (data: { statement: any[]; plan_id: string; title: string }) => void;
+  onStatementUpdate: (data: { statement: any[]; plan_id: string; title: string; asset_month_map?: Record<number, any[]> }) => void;
 }) {
   const plan = useFiPlanStore((s) => s.plans.find((p) => p._id === current_plan_id));
   const plan_duration = useFiPlanStore((s) => s.plan_duration);
@@ -96,61 +97,20 @@ function ComparablePlanWidget({
   const window_start_point = window_number > 0 ? WINDOW_SIZE * window_number - 1 : 0;
 
   const balance_chart_data = useMemo(() => {
-    const emergency_balance: number[] = [];
-    const savings_balance: number[] = [];
-    const investment_balance: number[] = [];
-    engine.balance_and_transaction_by_month.forEach(({ data }: any) => {
-      data.forEach((account: any) => {
-        const { balance, category } = account.balance[0];
-        if (category === "s") savings_balance.push(balance);
-        if (category === "e") emergency_balance.push(balance);
-        if (category === "i") investment_balance.push(balance);
-      });
-    });
     const labels = engine.balance_and_transaction_by_month
       .map((b: any) => GetMonthAndYear(plan, b.month))
       .splice(window_start_point, WINDOW_SIZE);
-    const datasets = [
-      {
-        data: emergency_balance.splice(window_start_point, WINDOW_SIZE),
-        label: "EMERGENCY",
-        backgroundColor: cssVar("--color-dark-300"),
-        borderColor: cssVar("--color-dark-300"),
-        pointStyle: "circle",
-        pointRadius: 0,
-        pointHoverRadius: 15,
-        borderRadius: { topLeft: 3, topRight: 3 },
-        order: 3,
-      },
-      {
-        data: savings_balance.splice(window_start_point, WINDOW_SIZE),
-        label: "SAVINGS",
-        backgroundColor: cssVar("--color-accent-600"),
-        borderColor: cssVar("--color-accent-600"),
-        pointStyle: "circle",
-        pointRadius: 0,
-        pointHoverRadius: 15,
-        order: 2,
-      },
-      {
-        data: investment_balance.splice(window_start_point, WINDOW_SIZE),
-        label: "INVESTMENT",
-        backgroundColor: cssVar("--color-primary-400"),
-        borderColor: cssVar("--color-primary-500"),
-        pointStyle: "circle",
-        pointRadius: 0,
-        pointHoverRadius: 15,
-        order: 1,
-      },
-    ];
-    return { labels, datasets };
+    return BuildWealthChartData(engine, { window_start: window_start_point, window_size: WINDOW_SIZE }, cssVar, labels);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine.balance_and_transaction_by_month, current_hover_month]);
+  }, [engine.balance_and_transaction_by_month, engine.asset_month_map, current_hover_month]);
 
-  const aggregated_balance_for_month = current_month_balances.reduce(
-    (acc: number, curr: any) => acc + (curr.balance?.[0]?.balance || 0),
+  const current_assets_now = (engine.asset_month_map?.[current_hover_month] || []).reduce(
+    (acc: number, a: any) => acc + (a.value || 0),
     0
   );
+  const aggregated_balance_for_month =
+    current_month_balances.reduce((acc: number, curr: any) => acc + (curr.balance?.[0]?.balance || 0), 0) +
+    current_assets_now;
 
   const money_local =
     (typeof window !== "undefined" && window.navigator?.language) || useFiPlanStore.getState().local || "en-IN";
@@ -178,15 +138,17 @@ function ComparablePlanWidget({
     avg_expense === 0
       ? "N/A"
       : `${runway < 12 ? runway.toFixed(1) : (runway / 12).toFixed(1)} ${runway < 12 ? "mth" : "yrs"}`;
+  const runway_incl_assets = avg_expense > 0 ? (net_worth + current_assets_now) / avg_expense : 0;
 
   useEffect(() => {
     onStatementUpdate({
       statement: engine.income_expense_and_net_cashflow,
       plan_id: plan?._id || "",
       title: plan?.title || "",
+      asset_month_map: engine.asset_month_map || {},
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine.income_expense_and_net_cashflow]);
+  }, [engine.income_expense_and_net_cashflow, engine.asset_month_map]);
 
   async function SavePlan() {
     setPlanSyncInprogress(true);
@@ -283,11 +245,24 @@ function ComparablePlanWidget({
       <div className="mb-3 flex justify-between gap-12 rounded-xl px-0">
         <div className="flex flex-col">
           <div className="text-dark-200">Net worth</div>
-          <DisplayAmount className="text-3xl font-bold text-primary-500" notation="compact" amount={net_worth} />
+          <DisplayAmount className="text-3xl font-bold text-primary-500" notation="compact" amount={net_worth + current_assets_now} />
+          {current_assets_now > 0 && (
+            <div className="text-[10px] text-dark-400">
+              incl. <DisplayAmount notation="compact" amount={current_assets_now} /> assets
+            </div>
+          )}
         </div>
         <div className="flex flex-col">
           <div className="ml-auto text-dark-200">Runway</div>
           <div className="ml-auto text-3xl font-bold text-dark-300">{runway_text}</div>
+          {current_assets_now > 0 && runway_incl_assets > 0 && (
+            <div className="ml-auto text-[10px] text-dark-400">
+              incl. investments ≈{" "}
+              {runway_incl_assets < 12
+                ? `${runway_incl_assets.toFixed(1)} months`
+                : `${(runway_incl_assets / 12).toFixed(1)} yrs`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -386,7 +361,9 @@ function ComparePageInner() {
   const [duration, setDuration] = useState(plan_duration);
   const [show_control_panel, setShowControlPanel] = useState(false);
   const [selected_plan_id, setSelectedPlanId] = useState("");
-  const [plan_balance_map, setPlanBalanceMap] = useState<Record<string, { title: string; statement: any[] }>>({});
+  const [plan_balance_map, setPlanBalanceMap] = useState<
+    Record<string, { title: string; statement: any[]; asset_month_map?: Record<number, any[]> }>
+  >({});
 
   const plan_ids = useMemo(
     () => (searchParams.get("p_ids") || "").split(",").filter(Boolean).slice(0, MAX_PLAN_LIMIT),
@@ -406,16 +383,20 @@ function ComparePageInner() {
 
   const available_plans = plans.filter((p) => !plan_ids.includes(p._id));
 
-  // aggregated balance map (per plan, per month)
+  // aggregated balance map (per plan, per month) — FULL net worth = buckets + assets
   const aggregated_balance_map = useMemo(() => {
     const map: Record<string, { title: string; plan_id: string; aggregated_balance: number[] }> = {};
     for (const plan_id of Object.keys(plan_balance_map)) {
-      const { title, statement } = plan_balance_map[plan_id];
+      const { title, statement, asset_month_map } = plan_balance_map[plan_id];
       map[plan_id] = { title, plan_id, aggregated_balance: [] };
       for (let index = 0; index < duration - 1; index++) {
-        map[plan_id].aggregated_balance.push(
-          (statement[index]?.balances || []).reduce((acc: number, curr: any) => acc + (curr.balance?.[0]?.balance || 0), 0)
+        const month = index + 1;
+        const buckets = (statement[index]?.balances || []).reduce(
+          (acc: number, curr: any) => acc + (curr.balance?.[0]?.balance || 0),
+          0
         );
+        const assets = (asset_month_map?.[month] || []).reduce((acc: number, a: any) => acc + (a.value || 0), 0);
+        map[plan_id].aggregated_balance.push(buckets + assets);
       }
     }
     return map;
@@ -502,8 +483,8 @@ function ComparePageInner() {
     setGodPlanEntity({ active: true, plan_id: selected_plan_id, sub_entity_type, entity_type, entity_id: "" });
     router.push("/edit");
   }
-  function OnStatementUpdate({ plan_id, title, statement }: { plan_id: string; title: string; statement: any[] }) {
-    setPlanBalanceMap((m) => ({ ...m, [plan_id]: { title, statement } }));
+  function OnStatementUpdate({ plan_id, title, statement, asset_month_map }: { plan_id: string; title: string; statement: any[]; asset_month_map?: Record<number, any[]> }) {
+    setPlanBalanceMap((m) => ({ ...m, [plan_id]: { title, statement, asset_month_map } }));
   }
   function SetNextMonth() {
     setCurrentHoverMonthInput((v) => v + 1);

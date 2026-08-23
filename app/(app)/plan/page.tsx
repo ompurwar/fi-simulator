@@ -8,6 +8,8 @@ import { usePlanEngine } from "@/hooks/usePlanEngine";
 import { useRunway } from "@/hooks/useRunway";
 import { useBalanceSeq } from "@/hooks/useBalanceSeq";
 import { useWalkThrough } from "@/hooks/useWalkThrough";
+import { BuildScenarioLines, BuildWealthChartData } from "@/lib/wealthChart";
+import { WhatIfDrawer } from "@/components/plan/WhatIfDrawer";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { MonthSlider } from "@/components/plan/MonthSlider";
@@ -41,6 +43,7 @@ import {
   faPenToSquare,
   faWallet,
   faChartLine,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -161,6 +164,9 @@ function BalanceAndTxn({
   assetSummary,
   bucketGrowth,
   assetScenarios,
+  currentAssetTotal = 0,
+  currentAssetByClass,
+  planDuration = 600,
 }: {
   balances: any[];
   month: number;
@@ -172,6 +178,9 @@ function BalanceAndTxn({
   assetSummary?: any;
   bucketGrowth?: Record<string, { value: number; growth_rate: number }>;
   assetScenarios?: any;
+  currentAssetTotal?: number;
+  currentAssetByClass?: Record<string, number>;
+  planDuration?: number;
 }) {
   const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
   const sorted = useBalanceSeq(balances).sort(
@@ -199,7 +208,19 @@ function BalanceAndTxn({
     equity: "#3b82f6", equity_foreign: "#ec4899", mf: "#14b8a6", real_estate: "#f97316", vda: "#ef4444",
   };
 
-  const asset_by_class = assetSummary?.by_class ? Object.entries(assetSummary.by_class).filter(([, c]: any) => c.value > 0) : [];
+  // CURRENT month asset values (from asset_month_map) — never the end-of-plan
+  // projection (asset_summary aggregates the LAST projected month).
+  const asset_by_class: [string, number][] =
+    currentAssetByClass && Object.keys(currentAssetByClass).length > 0
+      ? Object.entries(currentAssetByClass).filter(([, v]) => v > 0)
+      : assetSummary?.by_class
+        ? Object.entries(assetSummary.by_class)
+            .map(([k, c]: any) => [k, c.value] as [string, number])
+            .filter(([, v]) => v > 0)
+        : [];
+  const asset_total_now = currentAssetTotal || asset_by_class.reduce((s, [, v]) => s + v, 0);
+  const asset_total_end = assetSummary?.total_value || 0;
+  const incl_investments_runway = avg_expense > 0 ? (net_worth + currentAssetTotal) / avg_expense : 0;
 
   function netVariation(txn: any[] = []) {
     return txn.reduce((acc, t) => {
@@ -253,7 +274,13 @@ function BalanceAndTxn({
               </span>
               <span className="text-sm font-bold text-dark-500">{runway < 12 ? "months" : "years"}</span>
             </div>
-            <span className="text-[11px] text-dark-400">Financial freedom coverage</span>
+            <span className="text-[11px] text-dark-400">Cash-runway coverage</span>
+            {currentAssetTotal > 0 && incl_investments_runway > 0 && (
+              <div className="text-[10px] text-dark-400">
+                incl. investments ≈{" "}
+                {incl_investments_runway < 12 ? `${incl_investments_runway.toFixed(1)} months` : `${(incl_investments_runway / 12).toFixed(1)} yrs`}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-dark-100 pt-3">
@@ -262,12 +289,12 @@ function BalanceAndTxn({
               <DisplayAmount
                 className="text-base font-bold text-dark-800"
                 notation="compact"
-                amount={net_worth + (assetSummary?.total_value || 0)}
+                amount={net_worth + asset_total_now}
               />
-              {assetSummary?.total_value > 0 && (
+              {asset_total_now > 0 && (
                 <div className="inline-flex items-center gap-1 text-[10px] text-dark-400">
                   <span>incl.</span>
-                  <DisplayAmount notation="compact" amount={assetSummary.total_value} />
+                  <DisplayAmount notation="compact" amount={asset_total_now} />
                   <span>assets</span>
                 </div>
               )}
@@ -289,18 +316,19 @@ function BalanceAndTxn({
                   <FontAwesomeIcon icon={faMoneyBillTrendUp} className="text-xs" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-dark-700">Asset Mix</span>
+                <span className="text-[10px] font-medium text-dark-400">(now · chart's top segment)</span>
               </div>
-              <DisplayAmount className="text-xs font-bold text-primary-600 whitespace-nowrap" notation="compact" amount={assetSummary.total_value} />
+              <DisplayAmount className="text-xs font-bold text-primary-600 whitespace-nowrap" notation="compact" amount={asset_total_now} />
             </div>
 
             <div className="flex items-center gap-3">
               <div className="h-[100px] w-[100px] shrink-0">
                 <MyChart
-                  labels={asset_by_class.map(([k]: any) => ASSET_CLASS_LABELS[k] || k)}
+                  labels={asset_by_class.map(([k]) => ASSET_CLASS_LABELS[k] || k)}
                   dataset={[
                     {
-                      data: asset_by_class.map(([, c]: any) => c.value),
-                      backgroundColor: asset_by_class.map(([k]: any) => ASSET_CLASS_COLORS[k] || "#64748b"),
+                      data: asset_by_class.map(([, v]) => v),
+                      backgroundColor: asset_by_class.map(([k]) => ASSET_CLASS_COLORS[k] || "#64748b"),
                       borderWidth: 0,
                       hoverOffset: 4,
                     },
@@ -310,24 +338,29 @@ function BalanceAndTxn({
                 />
               </div>
               <div className="flex w-full flex-col gap-1 overflow-hidden">
-                {asset_by_class.map(([k, c]: any) => (
+                {asset_by_class.map(([k, v]) => (
                   <div key={k} className="flex items-center gap-1.5 text-[11px]">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ASSET_CLASS_COLORS[k] || "#64748b" }} />
                     <span className="truncate text-dark-600 font-medium flex-1">{ASSET_CLASS_LABELS[k] || k}</span>
                     <span className="text-[10px] text-dark-400 font-mono">
-                      {Math.round((c.value / assetSummary.total_value) * 100)}%
+                      {asset_total_now > 0 ? `${Math.round((v / asset_total_now) * 100)}%` : "0%"}
                     </span>
-                    <DisplayAmount className="font-bold text-dark-800" notation="compact" amount={c.value} />
+                    <DisplayAmount className="font-bold text-dark-800" notation="compact" amount={v} />
                   </div>
                 ))}
               </div>
             </div>
 
-            {assetScenarios && (
-              <div className="flex flex-wrap justify-between gap-1.5 border-t border-dark-100 pt-2 text-[10px]">
-                <span className="text-danger-600 font-medium">Cons: <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
-                <span className="text-dark-700 font-bold">Exp: <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
-                <span className="text-emerald-600 font-medium">Aggr: <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+            {assetScenarios && asset_total_end > 0 && (
+              <div className="flex flex-col gap-1 border-t border-dark-100 pt-2 text-[10px]">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-dark-400">
+                  At plan end (M{planDuration})
+                </span>
+                <div className="flex flex-wrap justify-between gap-1.5">
+                  <span className="text-danger-600 font-medium">Cons: <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
+                  <span className="text-dark-700 font-bold">Exp: <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
+                  <span className="text-emerald-600 font-medium">Aggr: <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+                </div>
               </div>
             )}
           </div>
@@ -373,9 +406,18 @@ function BalanceAndTxn({
                     <div className="flex items-center gap-1.5">
                       {/* ROI / Growth Chip */}
                       {(blendedRoi(b.category) !== undefined || getRoi(b.category)) && (
-                        <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                        <div
+                          className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200"
+                          title={
+                            blendedRoi(b.category) !== undefined
+                              ? "Blended: account ROI applies to idle cash only — asset growth accrues separately in your holdings"
+                              : "Annual ROI credited on the account's idle cash balance"
+                          }
+                        >
                           <span>{blendedRoi(b.category) !== undefined ? `~${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}</span>
-                          <span className="text-[9px] font-normal uppercase text-emerald-600">ROI</span>
+                          <span className="text-[9px] font-normal uppercase text-emerald-600">
+                            {blendedRoi(b.category) !== undefined ? "Blended" : "ROI"}
+                          </span>
                         </div>
                       )}
 
@@ -446,6 +488,8 @@ function PlanPageInner() {
   );
   const [current_month, setCurrentMonth] = useState(initial_month);
   const [simulation_open, setSimulationOpen] = useState(false);
+  const [show_scenarios, setShowScenarios] = useState(false);
+  const [whatif_open, setWhatifOpen] = useState(false);
 
   const plan = useMemo(
     () => plans.find((p) => p._id === (plan_id || selected_plan_id)) || plans[0],
@@ -543,29 +587,15 @@ function PlanPageInner() {
     window_start_point,
     window_start_point + balance_chart_months
   );
-  const balance_chart_datasets = ["e", "s", "i"].map((cat, idx) => ({
-    label: cat === "e" ? "EMERGENCY" : cat === "s" ? "SAVINGS" : "INVESTMENT",
-    data: Array.from({ length: plan_duration }, (_, i) =>
-      account_balances_and_transactions.account_balances.find((b: any) => b.month === i + 1 && b.category === cat)?.balance || 0
-    ).slice(window_start_point, window_start_point + balance_chart_months),
-    backgroundColor:
-      idx === 0
-        ? cssVar("--color-dark-300")
-        : idx === 1
-          ? cssVar("--color-accent-600")
-          : cssVar("--color-primary-400"),
-    borderColor:
-      idx === 0
-        ? cssVar("--color-dark-300")
-        : idx === 1
-          ? cssVar("--color-accent-600")
-          : cssVar("--color-primary-500"),
-    pointStyle: "circle",
-    pointRadius: 0,
-    pointHoverRadius: 15,
-    borderRadius: idx === 0 ? { topLeft: 3, topRight: 3 } : 0,
-    order: [3, 2, 1][idx],
-  }));
+  const balance_chart_datasets = BuildWealthChartData(
+    engine,
+    { window_start: window_start_point, window_size: balance_chart_months },
+    cssVar,
+    balance_chart_labels
+  ).datasets;
+  const scenario_datasets = show_scenarios
+    ? BuildScenarioLines(engine, { window_start: window_start_point, window_size: balance_chart_months }, cssVar)
+    : [];
 
   const aggregated_balance_for_month =
     current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0) +
@@ -878,6 +908,14 @@ function PlanPageInner() {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-xs font-bold text-dark-600">{GetMonthAndYear(plan, current_month)}</div>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
+                onClick={() => setWhatifOpen(true)}
+              >
+                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
+                What-if
+              </button>
               {is_plan_synced ? (
                 <button
                   type="button"
@@ -902,7 +940,7 @@ function PlanPageInner() {
           <div className="w-full mt-auto" style={{ aspectRatio: "400 / 350" }}>
             <MyChart
               labels={balance_chart_labels}
-              dataset={balance_chart_datasets}
+              dataset={[...balance_chart_datasets, ...scenario_datasets]}
               stacked
               chart_type="bar"
               height={350}
@@ -1013,20 +1051,47 @@ function PlanPageInner() {
                   <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
                 </button>
               </div>
+
+              <div className="flex items-center gap-1.5">
+                {engine.asset_scenarios && (
+                  <button
+                    type="button"
+                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
+                      show_scenarios
+                        ? "border-primary-300 bg-primary-50 text-primary-700"
+                        : "border-dark-200 bg-dark-50/50 text-dark-500 hover:bg-white"
+                    }`}
+                    onClick={() => setShowScenarios((v) => !v)}
+                    title="Overlay ±1σ asset scenario bands (plan end projection)"
+                  >
+                    <FontAwesomeIcon icon={faChartLine} className="text-xs" />
+                    Scenarios
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
+                  onClick={() => setWhatifOpen(true)}
+                  title="Simulate what-if changes without saving"
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
+                  What-if
+                </button>
+              </div>
             </div>
 
             <div className="h-[500px] w-full">
-              <MyChart
-                labels={balance_chart_labels}
-                dataset={balance_chart_datasets}
-                stacked
-                chart_type="bar"
-                height={500}
-                width={400}
-                annotation={chart_annotations}
-                formatter={ToDisplayableMoney}
-                onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
-              />
+          <MyChart
+            labels={balance_chart_labels}
+            dataset={[...balance_chart_datasets, ...scenario_datasets]}
+            stacked
+            chart_type="bar"
+            height={500}
+            width={400}
+            annotation={chart_annotations}
+            formatter={ToDisplayableMoney}
+            onClick={(index) => setCurrentMonth(Math.min(plan_duration, window_start_point + index + 1))}
+          />
             </div>
           </div>
           <BalanceAndTxn
@@ -1040,6 +1105,12 @@ function PlanPageInner() {
             assetSummary={engine.asset_summary}
             bucketGrowth={engine.bucket_growth}
             assetScenarios={engine.asset_scenarios}
+            currentAssetTotal={(engine.asset_month_map?.[current_month] || []).reduce((acc: number, a: any) => acc + (a.value || 0), 0)}
+            currentAssetByClass={(engine.asset_month_map?.[current_month] || []).reduce((acc: Record<string, number>, a: any) => {
+              acc[a.asset_class] = (acc[a.asset_class] || 0) + (a.value || 0);
+              return acc;
+            }, {})}
+            planDuration={plan_duration}
           />
         </div>
       </div>
@@ -1175,6 +1246,28 @@ function PlanPageInner() {
           </button>,
           document.getElementById("share-button")!
         )}
+
+      {whatif_open && plan && (
+        <WhatIfDrawer
+          plan={plan}
+          currentSnapshot={engine}
+          open={whatif_open}
+          onClose={() => setWhatifOpen(false)}
+          onApplied={() => {
+            setWhatifOpen(false);
+            FireNotification({
+              title: "Scenario applied",
+              desc: "Changes saved locally — use Save to sync.",
+              variant: "success",
+              active: true,
+              dismissal: "true",
+              time_based: true,
+              duration: 4000,
+              buttons: [],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

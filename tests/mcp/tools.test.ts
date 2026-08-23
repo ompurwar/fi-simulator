@@ -299,6 +299,33 @@ describe("engine & simulation", () => {
       expect(snap.monthly_totals[0]).toMatchObject({ month: 1, income: 50000 });
       expect(Array.isArray(snap.balances_by_month)).toBe(true);
       expect(Array.isArray(snap.net_cashflow)).toBe(true);
+      // MCP net worth = buckets + assets, same as the web UI (consistency guard)
+      expect(Array.isArray(snap.net_worth_by_month)).toBe(true);
+      expect(snap.net_worth_by_month[0].month).toBe(1);
+      expect(snap.assets_by_month).toBeTruthy(); // {} for plans without holdings
+      expect(snap.asset_summary).toBeUndefined(); // no holdings → no summary
+    }
+  });
+
+  it("plan_snapshot milestones mode carries yearly net-worth/asset points", async () => {
+    const { ctx } = await signupCtx();
+    const plan = await createPlan(ctx);
+    const res = await callRegistryTool(registry, ctx, "plan_snapshot", {
+      plan_id: plan._id,
+      duration: 25,
+      summary: true,
+      milestones: true,
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const snap = res.data as any;
+      expect(Array.isArray(snap.milestone_months)).toBe(true);
+      expect(snap.milestone_months).toContain(1);
+      expect(snap.milestone_months).toContain(13);
+      expect(Array.isArray(snap.net_worth_by_month)).toBe(true);
+      expect(snap.net_worth_by_month[0]).toMatchObject({ month: 1 });
+      expect(snap.assets_by_month).toBeTruthy();
+      expect(snap.totals.net).toBeGreaterThan(0);
     }
   });
 

@@ -528,8 +528,29 @@ export function ComputeIncomeTaxExpenseSchedule(
     months_per_fy[fy] = (months_per_fy[fy] || 0) + 1;
   }
 
+  // First-FY backfill: when the plan starts mid-financial-year the user was
+  // almost certainly employed before the plan began, so the first FY's tax is
+  // computed on the FULL year (missing months backfilled at the month-1 salary)
+  // and charged at the true monthly TDS (total ÷ 12). Disable via
+  // tax_settings.backfill_first_fy = false.
+  // NOTE (known limitation): the TRAILING partial FY at the plan's end is NOT
+  // backfilled — tax there is computed on the plan's visible months only. If a
+  // user keeps earning after the plan horizon, the final months' tax appears
+  // lower than real-world TDS (the plan assumes income ends with the plan).
+  const backfill_enabled = tax_settings.backfill_first_fy !== false;
+  const first_fy = income_statement.length
+    ? MonthToAssessmentYear(plan.timestamp, income_statement[0].month)
+    : null;
+  const first_month_income = income_statement[0]?.total_income || 0;
+
   for (const fy of Object.keys(fy_totals)) {
-    const annual_salary = fy_totals[fy];
+    let annual_salary = fy_totals[fy];
+    const months_in_fy = months_per_fy[fy] || 12;
+    let divisor = months_in_fy;
+    if (fy === first_fy && backfill_enabled && months_in_fy < 12 && first_month_income > 0) {
+      annual_salary += (12 - months_in_fy) * first_month_income;
+      divisor = 12;
+    }
     const annual_asset_income = fy_asset_income[fy] || 0;
     if (annual_salary <= 0) continue;
     const result = ComputeIncomeTax({
@@ -545,7 +566,7 @@ export function ComputeIncomeTaxExpenseSchedule(
     const tds_credit_used = Math.min(asset_tax_summary[fy]?.tds_paid || 0, result.total_tax);
     const net_tax = Math.max(0, result.total_tax - tds_credit_used);
     if (asset_tax_summary[fy]) asset_tax_summary[fy].tds_credit_used = round2(tds_credit_used);
-    const monthly = net_tax / Math.max(1, months_per_fy[fy] || 12);
+    const monthly = net_tax / Math.max(1, divisor);
     if (monthly <= 0) continue;
     for (let m = 1; m <= duration; m++) {
       if (MonthToAssessmentYear(plan.timestamp, m) === fy) {
