@@ -23,6 +23,11 @@ import {
   faFolderOpen,
   faLandmark,
   faShareNodes,
+  faBolt,
+  faArrowTrendUp,
+  faPiggyBank,
+  faCalculator,
+  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
@@ -114,22 +119,24 @@ function Spinner({ className = "" }: { className?: string }) {
 }
 
 const md_components: Record<string, any> = {
-  p: ({ children }: any) => <p className="my-1 first:mt-0 last:mb-0">{children}</p>,
-  strong: ({ children }: any) => <strong className="font-semibold text-dark-50">{children}</strong>,
-  em: ({ children }: any) => <em className="italic">{children}</em>,
-  ul: ({ children }: any) => <ul className="my-1 list-disc pl-4">{children}</ul>,
-  ol: ({ children }: any) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
-  li: ({ children }: any) => <li className="my-0.5 leading-relaxed">{children}</li>,
-  h1: ({ children }: any) => <h1 className="my-2 text-base font-semibold text-dark-50">{children}</h1>,
-  h2: ({ children }: any) => <h2 className="my-2 text-base font-semibold text-dark-50">{children}</h2>,
-  h3: ({ children }: any) => <h3 className="my-2 text-sm font-semibold text-dark-50">{children}</h3>,
-  h4: ({ children }: any) => <h4 className="my-2 text-sm font-semibold text-dark-50">{children}</h4>,
-  hr: () => <hr className="my-2 border-dark-600" />,
+  p: ({ children }: any) => <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed text-dark-800">{children}</p>,
+  strong: ({ children }: any) => <strong className="font-bold text-dark-900">{children}</strong>,
+  em: ({ children }: any) => <em className="italic text-dark-700">{children}</em>,
+  ul: ({ children }: any) => <ul className="my-2 list-disc pl-4 space-y-1 text-dark-800">{children}</ul>,
+  ol: ({ children }: any) => <ol className="my-2 list-decimal pl-4 space-y-1 text-dark-800">{children}</ol>,
+  li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+  h1: ({ children }: any) => <h1 className="my-2 text-base font-bold text-dark-900 border-b border-dark-100 pb-1">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="my-2 text-sm font-bold text-dark-900 border-b border-dark-100 pb-1">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="my-1.5 text-xs font-bold uppercase tracking-wider text-primary-700">{children}</h3>,
+  h4: ({ children }: any) => <h4 className="my-1 text-xs font-bold text-dark-900">{children}</h4>,
+  hr: () => <hr className="my-2.5 border-dark-200" />,
   blockquote: ({ children }: any) => (
-    <blockquote className="my-1 border-l-2 border-primary-400 pl-2 italic text-dark-300">{children}</blockquote>
+    <blockquote className="my-2 border-l-4 border-primary-500 bg-primary-50/60 py-1.5 px-3 rounded-r-lg text-xs italic text-dark-700 leading-relaxed">
+      {children}
+    </blockquote>
   ),
   a: ({ href, children }: any) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-400 underline hover:text-primary-300">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 font-semibold underline hover:text-primary-700">
       {children}
     </a>
   ),
@@ -137,24 +144,26 @@ const md_components: Record<string, any> = {
     className?.includes("language-") ? (
       <code className={className}>{children}</code>
     ) : (
-      <code className="rounded bg-dark-800 px-1 py-0.5 text-[0.85em] text-accent-300">{children}</code>
+      <code className="rounded-md bg-dark-100 px-1.5 py-0.5 font-mono text-[0.85em] font-semibold text-primary-700 border border-dark-200/60">
+        {children}
+      </code>
     ),
   pre: ({ children }: any) => (
-    <pre className="my-2 overflow-x-auto rounded-lg border border-dark-600 bg-dark-800 p-2.5 text-xs leading-relaxed text-dark-100">
+    <pre className="my-2 overflow-x-auto rounded-xl border border-dark-700 bg-dark-900 p-3 font-mono text-xs leading-relaxed text-emerald-400 shadow-2xs">
       {children}
     </pre>
   ),
   table: ({ children }: any) => (
-    <div className="my-2 overflow-x-auto">
-      <table className="w-full border-collapse text-xs">{children}</table>
+    <div className="my-2.5 overflow-x-auto rounded-xl border border-dark-200 shadow-2xs">
+      <table className="w-full border-collapse text-xs bg-white">{children}</table>
     </div>
   ),
-  thead: ({ children }: any) => <thead className="bg-dark-800">{children}</thead>,
+  thead: ({ children }: any) => <thead className="bg-dark-50 text-dark-800 font-bold border-b border-dark-200">{children}</thead>,
   th: ({ children }: any) => (
-    <th className="border border-dark-600 px-2 py-1 text-left font-semibold text-dark-50">{children}</th>
+    <th className="px-3 py-2 text-left font-bold text-dark-800">{children}</th>
   ),
-  td: ({ children }: any) => <td className="border border-dark-600 px-2 py-1 text-dark-100">{children}</td>,
-  tr: ({ children }: any) => <tr>{children}</tr>,
+  td: ({ children }: any) => <td className="border-t border-dark-100 px-3 py-2 text-dark-700">{children}</td>,
+  tr: ({ children }: any) => <tr className="hover:bg-dark-50/50 transition-colors">{children}</tr>,
 };
 
 /** Render assistant markdown (GFM: tables, lists, code). Plain text passes through. */
@@ -187,14 +196,14 @@ function CopyButton({ text }: { text: string }) {
       type="button"
       aria-label="Copy message"
       onClick={copy}
-      className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors ${
+      className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
         copied
-          ? "text-success-300"
-          : "text-dark-400 hover:bg-dark-800 hover:text-dark-100"
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          : "text-dark-400 hover:bg-dark-100 hover:text-dark-700"
       }`}
     >
       <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-2.5 w-2.5" />
-      {copied ? "Copied" : "Copy"}
+      <span>{copied ? "Copied" : "Copy"}</span>
     </button>
   );
 }
@@ -580,10 +589,17 @@ export function ChatPanel() {
   }
 
   const tool_badge: Record<ToolStatus, string> = {
-    running: "border-accent-500/40 bg-accent-500/10 text-accent-300",
-    ok: "border-success-500/40 bg-success-500/10 text-success-300",
-    error: "border-danger-500/40 bg-danger-500/10 text-danger-300",
+    running: "border-amber-300 bg-amber-50 text-amber-700",
+    ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    error: "border-rose-200 bg-rose-50 text-rose-700",
   };
+
+  const starter_prompts = [
+    { text: "What's my current runway & net worth projection?", icon: faBolt },
+    { text: "Simulate a 15% salary hike starting from month 24", icon: faArrowTrendUp },
+    { text: "Check whether Old or New Tax Regime saves more tax", icon: faCalculator },
+    { text: "What if I allocate 40% surplus to investments?", icon: faPiggyBank },
+  ];
 
   return (
     <>
@@ -592,106 +608,137 @@ export function ChatPanel() {
           type="button"
           aria-label="Open Fi-Plan Assistant"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 hidden md:grid h-14 w-14 place-content-center rounded-full border-2 border-primary-400 bg-primary-500 text-primary-50 shadow-lg transition-all duration-200 hover:bg-primary-600 hover:shadow-primary-500/40"
+          className="fixed bottom-6 right-6 z-50 hidden md:flex h-13 w-13 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all border-2 border-white group"
         >
-          <FontAwesomeIcon icon={faRobot} className="h-6 w-6" />
+          <FontAwesomeIcon icon={faRobot} className="h-6 w-6 group-hover:rotate-6 transition-transform" />
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white"></span>
+          </span>
         </button>
       )}
 
       {open && (
         <div
-          className={`fixed inset-0 z-50 flex flex-col overflow-hidden bg-dark-800 text-dark-50 md:bottom-6 md:right-6 md:rounded-2xl md:border md:border-dark-700 md:shadow-2xl transition-[width,height,inset] duration-200 ${
+          className={`fixed inset-0 z-50 flex flex-col overflow-hidden bg-white text-dark-800 shadow-2xl transition-all duration-200 md:bottom-6 md:right-6 md:rounded-2xl md:border md:border-dark-200 ${
             expanded
-              ? "md:inset-4 md:h-auto md:w-auto"
-              : "md:inset-auto md:h-[28rem] md:w-[22rem]"
+              ? "md:inset-6 md:h-auto md:w-auto"
+              : "md:inset-auto md:h-[34rem] md:w-[26rem]"
           }`}
         >
-          {/* header */}
-          <div className="flex items-center justify-between gap-2 border-b border-dark-700 bg-dark-700 px-4 py-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <FontAwesomeIcon icon={faRobot} className="text-primary-400" />
-              <div>
-                <div className="truncate text-sm font-semibold leading-tight">Fi-Plan Assistant</div>
-                <div className="text-[10px] text-dark-300">Powered by your plan data</div>
+          {/* Lucid Header */}
+          <div className="flex items-center justify-between gap-2 border-b border-dark-100 bg-white px-4 py-3.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 border border-primary-200/60">
+                <FontAwesomeIcon icon={faRobot} className="text-sm" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-dark-900 leading-tight">Fi-Plan Assistant</div>
+                <div className="text-[10px] font-medium text-dark-400 truncate">Context-aware financial advisor</div>
               </div>
             </div>
-            <button
-              type="button"
-              aria-label="Expand or collapse assistant"
-              title={expanded ? "Collapse" : "Expand"}
-              onClick={() => setExpanded((e) => !e)}
-              className="hidden h-7 w-7 shrink-0 place-content-center rounded-md text-dark-300 hover:bg-dark-800 hover:text-dark-50 md:grid"
-            >
-              <FontAwesomeIcon icon={expanded ? faCompress : faExpand} className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Past sessions"
-              onClick={OpenSessions}
-              className="grid h-7 w-7 shrink-0 place-content-center rounded-md text-dark-300 hover:bg-dark-800 hover:text-dark-50"
-            >
-              <FontAwesomeIcon icon={faListUl} className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Close assistant"
-              className="grid h-7 w-7 shrink-0 place-content-center rounded-md text-dark-300 hover:bg-dark-800 hover:text-dark-50"
-              onClick={() => setOpen(false)}
-            >
-              <FontAwesomeIcon icon={faXmark} />
-            </button>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="New session"
+                title="New Chat"
+                disabled={streaming}
+                onClick={NewSession}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-dark-400 hover:bg-dark-50 hover:text-primary-600 transition-colors disabled:opacity-40"
+              >
+                <FontAwesomeIcon icon={faPlus} className="h-3 w-3" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Past sessions"
+                title="Chat History"
+                onClick={OpenSessions}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-dark-400 hover:bg-dark-50 hover:text-dark-800 transition-colors"
+              >
+                <FontAwesomeIcon icon={faListUl} className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Expand or collapse assistant"
+                title={expanded ? "Collapse" : "Expand"}
+                onClick={() => setExpanded((e) => !e)}
+                className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-dark-400 hover:bg-dark-50 hover:text-dark-800 transition-colors"
+              >
+                <FontAwesomeIcon icon={expanded ? faCompress : faExpand} className="h-3 w-3" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Close assistant"
+                title="Close"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-dark-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                <FontAwesomeIcon icon={faXmark} className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="relative flex min-h-0 flex-1">
-            {/* session drawer */}
+          <div className="relative flex min-h-0 flex-1 bg-dark-50/30">
+            {/* Lucid Session Drawer */}
             {sessions_open && (
-              <div className="absolute inset-y-0 left-0 z-10 flex w-56 flex-col border-r border-dark-700 bg-dark-900">
-                <div className="flex items-center justify-between border-b border-dark-700 px-3 py-2.5">
+              <div className="absolute inset-y-0 left-0 z-20 flex w-64 flex-col border-r border-dark-200 bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-dark-100 px-3.5 py-3">
                   <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faListUl} className="text-primary-400" />
-                    <span className="text-sm font-semibold">Sessions</span>
+                    <FontAwesomeIcon icon={faListUl} className="text-primary-600 text-xs" />
+                    <span className="text-xs font-bold text-dark-800">Saved Conversations</span>
                   </div>
                   <button
                     type="button"
                     aria-label="Close sessions"
-                    className="grid h-6 w-6 place-content-center rounded-md text-dark-400 hover:bg-dark-800 hover:text-dark-50"
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-dark-400 hover:bg-dark-100 hover:text-dark-800 transition-colors"
                     onClick={() => setSessionsOpen(false)}
                   >
-                    <FontAwesomeIcon icon={faXmark} />
+                    <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
                   </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={streaming}
-                  onClick={NewSession}
-                  className="mx-3 mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-primary-400/60 bg-primary-500/10 px-3 py-1.5 text-xs font-medium text-primary-300 hover:bg-primary-500/20 disabled:opacity-40"
-                >
-                  <FontAwesomeIcon icon={faPlus} className="h-3 w-3" />
-                  New session
-                </button>
-                <div className="mt-2 flex-1 overflow-y-auto px-2 pb-2">
+
+                <div className="p-3">
+                  <button
+                    type="button"
+                    disabled={streaming}
+                    onClick={NewSession}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary-700 active:scale-98 transition-all disabled:opacity-40"
+                  >
+                    <FontAwesomeIcon icon={faPlus} className="h-3 w-3" />
+                    <span>New Conversation</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
                   {sessions_loading && (
-                    <div className="flex items-center justify-center gap-2 py-6 text-xs text-dark-300">
-                      <Spinner className="h-3 w-3 text-accent-300" />
-                      Loading sessions…
+                    <div className="flex items-center justify-center gap-2 py-8 text-xs text-dark-400">
+                      <Spinner className="h-3.5 w-3.5 text-primary-500" />
+                      Loading history…
                     </div>
                   )}
                   {!sessions_loading && sessions.length === 0 && (
-                    <div className="py-8 text-center text-xs text-dark-300">No past sessions yet.</div>
+                    <div className="py-10 text-center text-xs text-dark-400">No saved sessions yet.</div>
                   )}
                   {sessions.map((s) => (
                     <div
                       key={s._id}
                       onClick={() => LoadSession(s)}
-                      className={`group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 ${
-                        s._id === session_id ? "bg-dark-700" : "hover:bg-dark-700/60"
+                      className={`group mb-1 flex cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2.5 transition-all ${
+                        s._id === session_id
+                          ? "bg-primary-50 border-l-4 border-l-primary-500 text-primary-900 shadow-2xs font-semibold"
+                          : "hover:bg-dark-50 text-dark-700"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-medium text-dark-100">
-                          {s.title || "Untitled session"}
+                        <div className="truncate text-xs font-bold leading-tight">
+                          {s.title || "Untitled conversation"}
                         </div>
-                        <div className="text-[10px] text-dark-400">
+                        <div className="mt-0.5 text-[10px] text-dark-400">
                           {RelativeTime(s.updated_at)}
                           {s.message_count > 0 ? ` · ${s.message_count} msg${s.message_count === 1 ? "" : "s"}` : ""}
                         </div>
@@ -704,9 +751,9 @@ export function ChatPanel() {
                           e.stopPropagation();
                           DeleteSession(s);
                         }}
-                        className="grid h-6 w-6 shrink-0 place-content-center rounded-md text-dark-400 opacity-0 hover:bg-danger-500/10 hover:text-danger-300 group-hover:opacity-100 disabled:opacity-40"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-dark-300 opacity-0 hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 transition-all disabled:opacity-40"
                       >
-                        <FontAwesomeIcon icon={faTrash} className="h-3 w-3" />
+                        <FontAwesomeIcon icon={faTrash} className="h-2.5 w-2.5" />
                       </button>
                     </div>
                   ))}
@@ -714,168 +761,167 @@ export function ChatPanel() {
               </div>
             )}
 
-            {/* messages */}
-            <div ref={list_ref} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+            {/* Chat Messages List */}
+            <div ref={list_ref} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 scroll-smooth">
               {thinking_text && (
                 answer_started || !streaming ? (
-                  /* folded reasoning block (Claude Code-style toggle) */
+                  /* folded reasoning block */
                   <div className="self-start">
                     <button
                       type="button"
                       onClick={() => setThinkingCollapsed((c) => !c)}
-                      className="flex items-center gap-1.5 rounded-full border border-dark-600 bg-dark-800 px-2.5 py-1 text-[11px] text-dark-300 transition-colors hover:border-primary-400 hover:text-dark-100"
+                      className="flex items-center gap-1.5 rounded-full border border-dark-200 bg-white px-3 py-1 text-xs font-semibold text-dark-600 shadow-2xs transition-all hover:bg-dark-50 hover:border-primary-300"
                     >
-                      <FontAwesomeIcon icon={faBrain} className="h-3 w-3 text-primary-400/80" />
+                      <FontAwesomeIcon icon={faBrain} className="h-3 w-3 text-primary-500" />
                       <span>Reasoning</span>
                       <FontAwesomeIcon
                         icon={faChevronDown}
-                        className={`h-2.5 w-2.5 transition-transform duration-200 ${thinking_collapsed ? "" : "rotate-180"}`}
+                        className={`h-2.5 w-2.5 text-dark-400 transition-transform duration-200 ${thinking_collapsed ? "" : "rotate-180"}`}
                       />
                     </button>
                     {!thinking_collapsed && (
-                      <div className="mt-1.5 max-w-[85%] whitespace-pre-wrap rounded-xl rounded-bl-sm border border-dark-700 bg-dark-800/70 px-3 py-2 text-[11px] italic leading-relaxed text-dark-400">
+                      <div className="mt-1.5 max-w-[90%] whitespace-pre-wrap rounded-xl rounded-bl-sm border border-dark-200 bg-dark-50 p-3 text-xs italic font-mono leading-relaxed text-dark-600 shadow-2xs">
                         {thinking_text}
                       </div>
                     )}
                   </div>
                 ) : (
-                  /* live reasoning indicator while the model thinks */
-                  <div className="flex items-center gap-2 self-start rounded-xl rounded-bl-sm bg-dark-700 px-3 py-2">
-                    <FontAwesomeIcon icon={faBrain} className="h-3.5 w-3.5 animate-pulse text-primary-400" />
-                    <span className="text-xs text-dark-200">Thinking</span>
-                    <span className="flex gap-1">
-                      {[0, 1, 2].map((d) => (
-                        <span
-                          key={d}
-                          className="h-1 w-1 animate-pulse rounded-full bg-primary-400"
-                          style={{ animationDelay: `${d * 220}ms` }}
-                        />
-                      ))}
-                    </span>
+                  /* live reasoning indicator */
+                  <div className="flex items-center gap-2 self-start rounded-xl border border-primary-200 bg-primary-50 px-3.5 py-2 text-xs font-semibold text-primary-700 shadow-2xs">
+                    <FontAwesomeIcon icon={faBrain} className="h-3.5 w-3.5 animate-pulse text-primary-600" />
+                    <span>Analyzing plan parameters…</span>
                   </div>
                 )
               )}
+
               {items.length === 0 && !streaming && (
-                <div className="m-auto flex w-full max-w-[24rem] flex-col gap-3 text-center">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="grid h-12 w-12 place-content-center rounded-full bg-primary-500/15 text-primary-400">
+                <div className="m-auto flex w-full max-w-[24rem] flex-col gap-4 py-4 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 border border-primary-200/80 text-primary-600 shadow-xs">
                       <FontAwesomeIcon icon={faRobot} className="h-6 w-6" />
                     </div>
-                    <div className="text-sm font-semibold text-dark-50">Hi, I&apos;m your Fi-Plan assistant</div>
-                    <div className="text-xs leading-relaxed text-dark-300">
-                      I can read and update your financial plans, run what-if simulations, and answer
-                      questions — try one of these:
+                    <div className="text-base font-bold text-dark-900">How can I assist your plan?</div>
+                    <div className="text-xs leading-relaxed text-dark-500 max-w-xs">
+                      I can calculate financial runways, simulate what-if scenarios, optimize taxes, and adjust budget allocations.
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    {[
-                      "What's my current runway?",
-                      "Add a ₹30,000 side income from month 12",
-                      "Add a 10% hike to my salary from month 24",
-                      "Apply 6% inflation to my rent from month 6",
-                      "What if my salary doubles in month 24?",
-                    ].map((s) => (
+
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 px-1">Suggested prompts:</span>
+                    {starter_prompts.map((s, idx) => (
                       <button
-                        key={s}
+                        key={idx}
                         type="button"
-                        onClick={() => SendMessage(s)}
-                        className="rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-left text-xs text-dark-100 transition-colors hover:border-primary-400 hover:bg-dark-700 hover:text-dark-50"
+                        onClick={() => SendMessage(s.text)}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-dark-200 bg-white p-3 text-xs text-dark-700 shadow-2xs transition-all hover:border-primary-400 hover:bg-primary-50/40 hover:text-primary-800 hover:shadow-xs group"
                       >
-                        {s}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-dark-50 text-dark-500 group-hover:bg-primary-100 group-hover:text-primary-700 transition-colors">
+                            <FontAwesomeIcon icon={s.icon} className="text-[10px]" />
+                          </div>
+                          <span className="truncate font-medium">{s.text}</span>
+                        </div>
+                        <FontAwesomeIcon icon={faChevronRight} className="text-[10px] text-dark-300 group-hover:text-primary-600 transition-colors shrink-0" />
                       </button>
                     ))}
                   </div>
-                  <div className="text-[10px] leading-relaxed text-dark-400">
-                    Entities I touch appear as clickable chips below my replies (plan, net worth, share
-                    objects). Conversations auto-save — open the list icon to resume an older session.
-                  </div>
                 </div>
               )}
+
               {items.map((item) => {
                 if (item.kind === "message") {
                   const is_user = item.role === "user";
                   const is_streaming_item =
                     streaming && !is_user && item.id === items[items.length - 1]?.id;
+
                   return (
                     <div
                       key={item.id}
-                      className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                        is_user
-                          ? "self-end rounded-br-sm bg-primary-500 text-primary-50"
-                          : "self-start rounded-bl-sm bg-dark-700 text-dark-100"
-                      }`}
+                      className={`flex flex-col gap-1.5 ${is_user ? "items-end" : "items-start"}`}
                     >
-                      {is_user ? (
-                        <div className="whitespace-pre-wrap">{item.content}</div>
-                      ) : is_streaming_item ? (
-                        <div className="whitespace-pre-wrap">
-                          {item.content}
-                          <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse rounded-full bg-primary-400 align-middle" />
-                        </div>
-                      ) : (
-                        <MarkdownText text={item.content} />
-                      )}
-                      {!is_user && item.references && item.references.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {item.references.map((ref) => (
-                            <button
-                              key={ref.href}
-                              type="button"
-                              onClick={() => router.push(ref.href)}
-                              className="flex items-center gap-1.5 rounded-full border border-dark-600 bg-dark-800 px-2.5 py-1 text-[11px] text-dark-200 hover:border-primary-400 hover:text-primary-300"
-                            >
-                              <FontAwesomeIcon icon={ref_icon[ref.type]} className="h-2.5 w-2.5" />
-                              {ref.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {!is_user && (
-                        <div className="mt-1.5 flex justify-end">
-                          <CopyButton text={item.content} />
-                        </div>
-                      )}
+                      <div
+                        className={`rounded-2xl text-sm leading-relaxed ${
+                          is_user
+                            ? "max-w-[82%] rounded-tr-xs bg-primary-600 text-white px-4 py-2.5 shadow-xs font-medium"
+                            : "max-w-[90%] rounded-tl-xs bg-white border border-dark-200 px-4 py-3 text-dark-800 shadow-xs"
+                        }`}
+                      >
+                        {is_user ? (
+                          <div className="whitespace-pre-wrap">{item.content}</div>
+                        ) : is_streaming_item ? (
+                          <div className="whitespace-pre-wrap">
+                            {item.content}
+                            <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse rounded-full bg-primary-500 align-middle" />
+                          </div>
+                        ) : (
+                          <MarkdownText text={item.content} />
+                        )}
+
+                        {!is_user && item.references && item.references.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-dark-100 pt-2.5">
+                            {item.references.map((ref) => (
+                              <button
+                                key={ref.href}
+                                type="button"
+                                onClick={() => router.push(ref.href)}
+                                className="flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 shadow-2xs hover:bg-primary-100 hover:text-primary-800 transition-colors"
+                              >
+                                <FontAwesomeIcon icon={ref_icon[ref.type]} className="h-2.5 w-2.5" />
+                                {ref.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {!is_user && (
+                          <div className="mt-2 flex justify-end">
+                            <CopyButton text={item.content} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 }
+
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-2 self-start rounded-full border px-2.5 py-1 text-xs ${tool_badge[item.status]}`}
+                    className={`flex items-center gap-1.5 self-start rounded-full border px-3 py-1 text-xs font-semibold shadow-2xs ${tool_badge[item.status]}`}
                     title={item.error || undefined}
                   >
                     {item.status === "running" ? (
-                      <Spinner className="h-3 w-3 text-accent-300" />
+                      <Spinner className="h-3 w-3 text-amber-600" />
                     ) : item.status === "ok" ? (
-                      <FontAwesomeIcon icon={faCheck} className="h-3 w-3" />
+                      <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-emerald-600" />
                     ) : (
-                      <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+                      <FontAwesomeIcon icon={faXmark} className="h-3 w-3 text-rose-600" />
                     )}
-                    <FontAwesomeIcon icon={faWrench} className="h-3 w-3 opacity-70" />
-                    {item.name}
+                    <FontAwesomeIcon icon={faWrench} className="h-2.5 w-2.5 opacity-60" />
+                    <span>{item.name}</span>
                   </div>
                 );
               })}
-              {streaming && (
-                <div className="flex items-center gap-2 self-start text-xs text-dark-300">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-400" />
-                  thinking…
+
+              {streaming && !items.some((i) => i.kind === "message" && i.role === "assistant" && (i as any).streaming) && (
+                <div className="flex items-center gap-2 self-start rounded-xl border border-dark-200 bg-white px-3.5 py-2 text-xs font-medium text-dark-500 shadow-2xs">
+                  <Spinner className="h-3 w-3 text-primary-600" />
+                  <span>Thinking…</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* error banner */}
+          {/* Error Banner */}
           {error && (
-            <div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
+            <div className="mx-3.5 mb-2 flex items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs text-rose-700 shadow-xs">
               <span>{error}</span>
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1.5">
                 {last_user_ref.current && !streaming && (
                   <button
                     type="button"
                     aria-label="Retry last message"
                     onClick={() => RetryLast()}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-danger-200 transition-colors hover:bg-danger-500/20 hover:text-danger-100"
+                    className="flex items-center gap-1 rounded-md bg-white border border-rose-200 px-2 py-1 text-xs font-bold text-rose-700 shadow-2xs hover:bg-rose-100 transition-colors"
                   >
                     <FontAwesomeIcon icon={faRotateRight} className="h-3 w-3" />
                     Retry
@@ -884,17 +930,17 @@ export function ChatPanel() {
                 <button
                   type="button"
                   aria-label="Dismiss error"
-                  className="text-danger-300 hover:text-danger-200"
+                  className="flex h-5 w-5 items-center justify-center text-rose-500 hover:text-rose-700"
                   onClick={() => setError("")}
                 >
-                  <FontAwesomeIcon icon={faXmark} />
+                  <FontAwesomeIcon icon={faXmark} className="text-xs" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* input row */}
-          <div className="flex items-end gap-2 border-t border-dark-700 bg-dark-700/60 px-3 py-3">
+          {/* Lucid Input Row */}
+          <div className="flex items-end gap-2 border-t border-dark-100 bg-white p-3.5">
             <textarea
               rows={2}
               value={input}
@@ -906,14 +952,16 @@ export function ChatPanel() {
                   SendMessage(input);
                 }
               }}
-              className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-sm text-dark-50 placeholder-dark-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400"
+              className="max-h-24 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-dark-200 bg-dark-50/60 px-3.5 py-2 text-sm text-dark-800 placeholder-dark-400 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-100 focus:outline-none transition-all"
             />
+
             {streaming ? (
               <button
                 type="button"
                 aria-label="Stop generating"
                 onClick={Stop}
-                className="grid h-9 w-9 shrink-0 place-content-center rounded-lg border-2 border-danger-400 bg-danger-500 text-danger-50 hover:opacity-75"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-xs hover:bg-rose-600 active:scale-95 transition-all animate-pulse"
+                title="Stop Generating"
               >
                 <FontAwesomeIcon icon={faStop} className="h-3.5 w-3.5" />
               </button>
@@ -923,7 +971,8 @@ export function ChatPanel() {
                 aria-label="Send message"
                 disabled={!input.trim()}
                 onClick={() => SendMessage(input)}
-                className="grid h-9 w-9 shrink-0 place-content-center rounded-lg border-2 border-primary-400 bg-primary-500 text-primary-50 hover:opacity-75 disabled:opacity-40"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-600 text-white shadow-xs hover:bg-primary-700 active:scale-95 transition-all disabled:opacity-30 disabled:hover:bg-primary-600"
+                title="Send Message"
               >
                 <FontAwesomeIcon icon={faPaperPlane} className="h-3.5 w-3.5" />
               </button>
