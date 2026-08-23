@@ -138,40 +138,40 @@ export function LoanAmortizationTable({ plan, loan }: { plan: any; loan: any }) 
       </div>
 
       <div className="max-h-[260px] overflow-x-auto overflow-y-auto rounded-lg border border-dark-100">
-        <table className="w-full min-w-[460px] text-right text-xs tabular-nums">
+        <table className="w-full text-right text-[11px] sm:text-xs tabular-nums">
           <thead className="sticky top-0 z-10 bg-dark-50">
             <tr className="border-b border-dark-200 text-[10px] uppercase tracking-wider text-dark-500">
-              <th className="py-2 pl-3 pr-2 text-left font-semibold w-10">#</th>
-              <th className="py-2 text-left font-semibold">Date</th>
-              <th className="py-2 font-semibold">EMI</th>
-              <th className="py-2 font-semibold text-danger-500">Interest</th>
-              <th className="py-2 font-semibold text-primary-600">Principal</th>
-              {has_prepayments && <th className="py-2 font-semibold text-success-600">Prepay</th>}
-              <th className="py-2 pr-3 font-semibold">Balance</th>
+              <th className="py-2 pl-2 pr-1 text-left font-semibold w-7 sm:w-10">#</th>
+              <th className="py-2 px-1 text-left font-semibold">Date</th>
+              <th className="py-2 px-1 font-semibold">EMI</th>
+              <th className="py-2 px-1 font-semibold text-danger-500">Interest</th>
+              <th className="py-2 px-1 font-semibold text-primary-600">Principal</th>
+              {has_prepayments && <th className="py-2 px-1 font-semibold text-success-600">Prepay</th>}
+              <th className="py-2 pl-1 pr-2 font-semibold">Balance</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-100">
             {page_rows.map((row: any) => (
               <tr key={row.seq} className="text-dark-600 transition-colors hover:bg-dark-50/70">
-                <td className="py-1.5 pl-3 pr-2 text-left font-medium text-dark-400 w-10">{row.seq + 1}</td>
-                <td className="py-1.5 text-left text-[11px] font-semibold text-dark-600">
+                <td className="py-1.5 pl-2 pr-1 text-left font-medium text-dark-400 w-7 sm:w-10">{row.seq + 1}</td>
+                <td className="py-1.5 px-1 text-left text-[10px] sm:text-[11px] font-semibold text-dark-600 whitespace-nowrap">
                   {GetMMYYYY(loan.start_month + row.seq, plan.timestamp)}
                 </td>
-                <td className="py-1.5 font-medium text-dark-700">
+                <td className="py-1.5 px-1 font-medium text-dark-700">
                   <DisplayAmount amount={row.emi_paid} />
                 </td>
-                <td className="py-1.5 font-medium text-danger-500">
+                <td className="py-1.5 px-1 font-medium text-danger-500">
                   <DisplayAmount amount={row.interest_amount} />
                 </td>
-                <td className="py-1.5 font-medium text-primary-600">
+                <td className="py-1.5 px-1 font-medium text-primary-600">
                   <DisplayAmount amount={row.principal_amount} />
                 </td>
                 {has_prepayments && (
-                  <td className="py-1.5 font-semibold text-success-600">
+                  <td className="py-1.5 px-1 font-semibold text-success-600">
                     {row.prepayment > 0 ? <DisplayAmount amount={row.prepayment} /> : <span className="text-dark-300">—</span>}
                   </td>
                 )}
-                <td className="py-1.5 pr-3 font-semibold text-dark-800">
+                <td className="py-1.5 pl-1 pr-2 font-semibold text-dark-800">
                   <DisplayAmount amount={Math.max(0, row.closing_balance)} />
                 </td>
               </tr>
