@@ -223,9 +223,25 @@ function BalanceAndTxn({
             </div>
 
             {currentFdp?.strategy && (
-              <div className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+              <div className="group/strategy relative flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200 cursor-help">
                 <span>{currentFdp.strategy}</span>
                 <FontAwesomeIcon icon={faCircleExclamation} className="text-amber-500 text-[10px]" />
+
+                {/* Tooltip */}
+                <div className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden w-52 rounded-xl border border-dark-200 bg-white p-2.5 text-left text-xs font-normal text-dark-700 shadow-xl group-hover/strategy:block">
+                  <div className="flex items-center justify-between border-b border-dark-100 pb-1 mb-1.5">
+                    <span className="font-bold text-dark-800">{currentFdp.strategy}</span>
+                    <span className="rounded bg-amber-50 px-1 text-[10px] font-bold text-amber-600">Strategy</span>
+                  </div>
+                  <p className="mb-1.5 text-[11px] text-dark-500 leading-snug">
+                    Surplus cashflow allocation for this month:
+                  </p>
+                  <div className="grid grid-cols-3 gap-1 text-center text-[10px] font-bold">
+                    <span className="rounded bg-blue-50 py-0.5 text-blue-700">E: {currentFdp.e}%</span>
+                    <span className="rounded bg-amber-50 py-0.5 text-amber-700">S: {currentFdp.s}%</span>
+                    <span className="rounded bg-emerald-50 py-0.5 text-emerald-700">I: {currentFdp.i}%</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -249,15 +265,17 @@ function BalanceAndTxn({
                 amount={net_worth + (assetSummary?.total_value || 0)}
               />
               {assetSummary?.total_value > 0 && (
-                <span className="text-[10px] text-dark-400 whitespace-nowrap">
-                  incl. <DisplayAmount notation="compact" amount={assetSummary.total_value} /> assets
-                </span>
+                <div className="inline-flex items-center gap-1 text-[10px] text-dark-400">
+                  <span>incl.</span>
+                  <DisplayAmount notation="compact" amount={assetSummary.total_value} />
+                  <span>assets</span>
+                </div>
               )}
             </div>
-            <div className="flex flex-col text-right">
+            <div className="flex flex-col items-end text-right">
               <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Burn Rate</span>
               <DisplayAmount className="text-base font-bold text-dark-800" notation="compact" amount={avg_expense} />
-              <span className="text-[10px] text-dark-400">/ month avg</span>
+              <span className="text-[10px] text-dark-400 font-medium">/ month avg</span>
             </div>
           </div>
         </div>
