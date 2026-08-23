@@ -176,7 +176,7 @@ export function ProjectAssetMonths(
     const growth_gain = opening_value > 0 ? opening_value * ((asset.growth_rate || 0) / 100) / 12 : 0;
     value += growth_gain;
 
-    // Income
+    // Income — first credit lands one full period after purchase, then every period
     let income_gross = 0;
     let rent_gross: number | undefined;
     if (asset.rent) {
@@ -184,7 +184,7 @@ export function ProjectAssetMonths(
       rent_gross = asset.rent.monthly_rent * Math.pow(1 + (asset.rent.step_pct || 0) / 100, years);
       const net_ratio = 1 - (asset.rent.expense_ratio || 0) / 100;
       income_gross = rent_gross * net_ratio;
-    } else if ((asset.yield_rate || 0) > 0 && (m - start) % income_period === 0) {
+    } else if ((asset.yield_rate || 0) > 0 && m > start && (m - start) % income_period === 0) {
       const fraction = income_period / 12;
       income_gross = opening_value * ((asset.yield_rate || 0) / 100) * fraction;
     }
@@ -260,6 +260,43 @@ export function ComputeAssetSchedule(
     const rows = ProjectAssetMonths(asset, 1, duration, rules, plan.timestamp);
     const funding_account_id = findFundingAccount(plan, asset);
     let last_value = asset.principal || 0;
+    const start = Math.max(1, asset.purchase_month || 1);
+
+    /** Realize a capital gain at maturity/sale: emits the tax txn + feeds tax_summary. */
+    const recordCapGain = (sale_value: number, sale_month: number) => {
+      if (!isMarketClass(asset.asset_class) || !rules || !plan.timestamp) return;
+      const fy = MonthToAssessmentYear(plan.timestamp, sale_month);
+      if (!tax_summary[fy]) tax_summary[fy] = { interest_income: 0, rent_income: 0, dividends: 0, ltcg_realized: 0, stcg_realized: 0, tds_paid: 0 };
+      const profile_key = CG_PROFILE_BY_CLASS[asset.asset_class];
+      const profile = rules.capital_gains.profiles[profile_key];
+      if (!profile) return;
+      const holding_months = Math.max(1, sale_month - start + 1);
+      const invested = asset.principal || 0;
+      const gain = Math.max(0, sale_value - invested);
+      if (gain <= 0) return;
+      const result = ComputeCapitalGains({
+        rules,
+        profile,
+        purchase_value: invested,
+        sale_proceeds: sale_value,
+        holding_months,
+        purchase_fy: plan.timestamp ? MonthToAssessmentYear(plan.timestamp, start) : undefined,
+        sale_fy: fy,
+        purchase_date: asset.purchase_date,
+      });
+      if (result.is_long_term) tax_summary[fy].ltcg_realized += gain;
+      else if (result.treat_as_slab) tax_summary[fy].stcg_realized += gain;
+      else tax_summary[fy].stcg_realized += gain;
+      if (result.tax > 0 && funding_account_id) {
+        txns.push({
+          month: sale_month,
+          account_id: funding_account_id,
+          tran_type: "dr",
+          amount: round2(result.tax),
+          tran_desc: `${result.is_long_term ? "LTCG" : "STCG"} tax - ${asset.title}`,
+        });
+      }
+    };
 
     for (const row of rows) {
       last_value = row.closing_value;
@@ -292,11 +329,7 @@ export function ComputeAssetSchedule(
         }
         if (row.event === "matured") {
           txns.push({ month, account_id: funding_account_id, tran_type: "cr", amount: row.closing_value, tran_desc: `Maturity - ${asset.title}` });
-          // realized capital gain for market classes
-          if (isMarketClass(asset.asset_class) && rules && plan.timestamp) {
-            const gain_txn = realizeCapitalGain(asset, row.closing_value, month, plan, rules, funding_account_id);
-            if (gain_txn) txns.push(gain_txn);
-          }
+          recordCapGain(row.closing_value, month);
         }
       }
 
@@ -310,6 +343,12 @@ export function ComputeAssetSchedule(
         else bucket.interest_income += row.income_gross;
       }
       bucket.tds_paid += row.tds;
+    }
+
+    // Optional sale: credit the proceeds + realize capital gains at the sale month
+    if (asset.sale_month && asset.sale_month >= start && asset.sale_month <= duration && funding_account_id) {
+      txns.push({ month: asset.sale_month, account_id: funding_account_id, tran_type: "cr", amount: round2(last_value), tran_desc: `Sale - ${asset.title}` });
+      recordCapGain(last_value, asset.sale_month);
     }
 
     // aggregate by class
@@ -350,49 +389,6 @@ export function ComputeAssetSchedule(
     asset_summary: { by_class, total_value, total_invested, total_unrealized: round2(total_value - total_invested) },
     tax_summary,
     bucket_growth,
-  };
-}
-
-/** Realize the capital gain of a market-class asset at sale/maturity and emit the tax txn. */
-export function realizeCapitalGain(
-  asset: AssetLike,
-  sale_value: number,
-  sale_month: number,
-  plan: any,
-  rules: TaxRuleSet,
-  funding_account_id: string
-): AssetTxn | null {
-  const profile_key = CG_PROFILE_BY_CLASS[asset.asset_class];
-  if (!profile_key) return null;
-  const profile = rules.capital_gains.profiles[profile_key];
-  if (!profile) return null;
-  const holding_months = Math.max(1, sale_month - (asset.purchase_month || 1) + 1);
-  const invested = asset.principal || 0;
-  const gain = Math.max(0, sale_value - invested);
-  if (gain <= 0) return null;
-
-  const purchase_fy = plan.timestamp ? MonthToAssessmentYear(plan.timestamp, asset.purchase_month || 1) : undefined;
-  const sale_fy = plan.timestamp ? MonthToAssessmentYear(plan.timestamp, sale_month) : undefined;
-
-  const result = ComputeCapitalGains({
-    rules,
-    profile,
-    purchase_value: invested,
-    sale_proceeds: sale_value,
-    holding_months,
-    purchase_fy,
-    sale_fy,
-    purchase_date: asset.purchase_date,
-  });
-
-  if (result.tax <= 0) return null;
-  const fy = sale_fy || "current";
-  return {
-    month: sale_month,
-    account_id: funding_account_id,
-    tran_type: "dr",
-    amount: round2(result.tax),
-    tran_desc: `${result.is_long_term ? "LTCG" : "STCG"} tax - ${asset.title}`,
   };
 }
 
@@ -445,6 +441,7 @@ export function ComputeIncomeTaxExpenseSchedule(
       other_income: annual_asset_income,
     });
     const monthly = result.total_tax / Math.max(1, months_per_fy[fy] || 12);
+    if (monthly <= 0) continue;
     for (let m = 1; m <= duration; m++) {
       if (MonthToAssessmentYear(plan.timestamp, m) === fy) {
         rows.push({
