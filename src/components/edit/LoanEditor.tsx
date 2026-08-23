@@ -1095,7 +1095,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         )}
 
         {/* right analytics & chart column */}
-        <div className={`h-full flex-1 flex-col gap-3 transition-all duration-300 md:ml-auto md:border-l md:border-dark-100 md:pl-4 md:h-[580px] md:overflow-y-auto ${
+        <div className={`h-full flex-1 flex-col justify-start gap-3 transition-all duration-300 md:ml-auto md:border-l md:border-dark-100 md:pl-4 md:h-[580px] md:overflow-y-auto ${
           show_loan_command ? "hidden md:flex" : "flex"
         }`}>
           {/* loan list illustration state */}
@@ -1143,14 +1143,14 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
 
           {/* add / edit loan state: live metrics & doughnut chart preview */}
           {["add_loan", "edit_loan"].includes(stage) && (
-            <div className="flex w-full flex-col gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
+            <div className="flex w-full flex-col justify-start gap-3.5 rounded-xl border border-dark-200 bg-white p-4 shadow-xs">
               <div className="flex items-center gap-2 border-b border-dark-100 pb-2.5">
                 <FontAwesomeIcon icon={faChartPie} className="text-base text-primary-500" />
                 <span className="text-sm font-bold text-dark-800">Live Repayment Breakdown</span>
               </div>
 
               {emi_chart_data.datasets.length > 0 ? (
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pt-1">
                   {/* Left: 3 metric rows */}
                   <div className="flex flex-1 flex-col gap-2">
                     <div className="flex items-center justify-between rounded-lg border border-dark-100 bg-dark-50 p-2.5">
@@ -1168,8 +1168,10 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
                   </div>
 
                   {/* Right: Doughnut Chart & Legend */}
-                  <div className="flex flex-col items-center justify-center shrink-0 sm:pl-2">
-                    <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={150} width={150} />
+                  <div className="flex flex-col items-center justify-start shrink-0 sm:pl-2">
+                    <div className="relative h-[150px] w-[150px] flex items-center justify-center">
+                      <MyChart chart_type="doughnut" labels={emi_chart_data.labels} dataset={emi_chart_data.datasets} height={150} width={150} />
+                    </div>
                     <div className="mt-2 flex flex-col gap-1 text-xs font-medium text-dark-600">
                       <div className="flex items-center gap-1.5">
                         <span className="h-2.5 w-2.5 rounded-full bg-primary-400"></span>
