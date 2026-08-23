@@ -10,6 +10,8 @@
     "standalone": "tsx standalone/server.ts",
     "mcp:stdio": "tsx standalone/mcp-stdio.ts",
     "mcp:auth": "tsx standalone/mcp-auth.ts",
+    "seed:tax-rules": "tsx standalone/seed-tax-rules.ts",
+    "make:admin": "tsx standalone/make-admin.ts",
     "test": "vitest run --maxWorkers=3",
     "test:watch": "vitest --maxWorkers=3",
     "test:e2e": "cypress run",

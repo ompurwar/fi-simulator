@@ -3,6 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Container } from "../di/container";
 import { makeToolRegistry } from "./registry";
+import { resolveToolContext } from "./auth";
 import type { ToolContext } from "./types";
 
 export interface McpServerOptions {
@@ -27,7 +28,7 @@ export function makeMcpServer(container: Container, options: McpServerOptions = 
       async (args: any, extra: any) => {
         const user_id = extra?.authInfo?.extra?.user_id;
         const ctx: ToolContext | null =
-          user_id ? { user_id }
+          user_id ? await resolveToolContext(container, String(user_id))
           : options.staticAuth ? await options.staticAuth()
           : null;
         if (!ctx) {

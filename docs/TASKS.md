@@ -47,3 +47,11 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 2.27 | Snapshot wiring — prepayment rows into `emi_expense_cashflow` (`Prepayment #N - <title>`) → statements/balances/charts | DONE | — | Same seam as EMIs (planSnapshot.ts:76-96) |
 | 2.28 | Refinance — `ComputeRefinanceAnalysis` engine fn + Loan Manager panel (apply = end old loan + add new) | DONE | — | Read-only analysis first, then apply |
 | 2.29 | MCP wiring — loan_amortization(prepayments), add/update_loan(prepayments), simulate patch, `loan_refinance` tool + prompt | DONE | — | Plan doc §17.4 |
+| 3.1 | Tax rules in Mongo — `Tax_Rule_Store` (versioned AY 2023-24→2026-27 rule sets + PRESETS doc), repo/service with code fallback, seed script | DONE | — | Plan: `docs/asset-class-simulation.md` P1 |
+| 3.2 | Tax engine (pure) — `ComputeIncomeTax` (regimes/senior/HRA/deductions/87A+marginal relief/surcharge/cess), `ComputeCapitalGains` (112A/foreign/indexation/VDA), `ComputeSalaryNegotiation`, `MonthToAssessmentYear` | DONE | — | Verified against ClearTax worked examples; tests/tax.test.ts |
+| 3.3 | RBAC — user `role`, `make-admin.ts`, `ToolContext.role`, `ToolDefinition.requiresRole` enforced in `callRegistryTool` | DONE | — | System-level MCP mutations admin-only (`upsert_tax_rules`, `update_presets`) |
+| 3.4 | Tax MCP tools — `list/get_tax_rules`, `tax_calculation`, `salary_negotiation` + admin `upsert_tax_rules`, `update_presets` | DONE | — | tests/mcp/tax.test.ts, tests/mcp/rbac.test.ts |
+| 3.5 | Asset engine — `MakeAsset` + presets + `engine/assets.ts` projection + snapshot wiring (`asset_*`, `tax_summary`, `bucket_growth`) + auto income-tax expense | DONE | — | Plan P2; tests/assets.test.ts (15) |
+| 3.6 | Asset MCP tools + simulate patches + AI prompt | DONE | — | Plan P3; tests/mcp/assets.test.ts (9) |
+| 3.7 | UI — AssetEditor, plan-page panels, Tax Manager, Salary Negotiation | DONE | — | Plan P4; `/api/tax/negotiation` + `next build` green |
+| 3.8 | P5 polish — scenario bands (`asset_scenarios` ±1σ) + net-worth import (`import_networth_assets`, AssetEditor Import button) | DONE | — | BuildAssetsFromNetWorth mapping + idempotent merge; 272/272 tests |

@@ -182,6 +182,36 @@ describe("fdp tools", () => {
     expect(map[30].strategy).not.toBe("Custom");
   });
 
+  it("inactive strategies (active: false) are skipped — engine falls back to auto", async () => {
+    // the existing strategy (months 6-24) is active; freeze it and expect the
+    // engine to auto-compute for month 6 instead of applying "Custom"
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_fdp", {
+      plan_id,
+    });
+    const fdp = (list as any).data[0];
+
+    const update = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_fdp", {
+      plan_id,
+      fdp_id: fdp._id,
+      active: false,
+    });
+    expect(update.ok).toBe(true);
+
+    const snapshot = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+      duration: 30,
+    });
+    const map = (snapshot as any).data.account_balances_and_transactions.FDP_month_map;
+    expect(map[6].strategy).not.toBe("Custom");
+
+    // re-activate for later tests
+    await callRegistryTool(makeToolRegistry(t.container), ctx, "update_fdp", {
+      plan_id,
+      fdp_id: fdp._id,
+      active: true,
+    });
+  });
+
   it("supports both strategy-style and legacy FD-style add_fdp patches in simulate_plan", async () => {
     const withPercentages = await callRegistryTool(makeToolRegistry(t.container), ctx, "simulate_plan", {
       plan_id,

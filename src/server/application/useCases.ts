@@ -42,6 +42,7 @@ import {
 } from "../domain/errors";
 import { ComputePlanSnapshot } from "../engine/planSnapshot";
 import type { NetWorthService } from "../networth";
+import type { TaxRuleService } from "../tax";
 
 export interface UseCaseDeps {
   user_list: UserRepository;
@@ -55,6 +56,7 @@ export interface UseCaseDeps {
   api_token_list: ApiTokenRepository;
   chat_session_list: ChatSessionRepository;
   networth_service: NetWorthService;
+  tax_service: TaxRuleService;
   GenerateHash: (pass: string, salt: string) => string;
   CreateCredentials: (password: string) => { salt: string; hash: string };
   defaultPlanDuration: number;
@@ -156,6 +158,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     api_token_list,
     chat_session_list,
     networth_service,
+    tax_service,
     GenerateHash,
     CreateCredentials,
     defaultPlanDuration,
@@ -1216,7 +1219,11 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   /* ---------------------------- Engine snapshot ---------------------------- */
 
   async function PlanSnapshot({ plan, duration = 50 }: { plan: any; duration?: number }) {
-    return ComputePlanSnapshot(plan, duration);
+    const has_assets = Array.isArray(plan?.asset_list) && plan.asset_list.length > 0;
+    const has_tax = !!plan?.tax_settings?.income_tax_enabled;
+    if (!has_assets && !has_tax) return ComputePlanSnapshot(plan, duration);
+    const tax_rules = await tax_service.rulesForTimestamp(plan.timestamp || Date.now());
+    return ComputePlanSnapshot(plan, duration, { tax_rules });
   }
 
   return {

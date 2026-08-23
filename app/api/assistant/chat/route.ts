@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildContainer } from "@/server/di/container";
-import { makeToolRegistry } from "@/server/mcp";
+import { makeToolRegistry, resolveToolContext } from "@/server/mcp";
 import { runAgentLoop } from "@/server/ai/agent";
 import { classifyTopic, OFF_TOPIC_MESSAGES } from "@/server/ai/guardrails";
 import type { AiMessage } from "@/server/ai/types";
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
       );
       try {
         await runAgentLoop({
-          ctx: { user_id },
+          ctx: await resolveToolContext(container, user_id),
           messages: contextMessages,
           registry,
           provider: container.ai_provider,

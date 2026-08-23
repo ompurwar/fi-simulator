@@ -18,6 +18,12 @@ export interface PlanSnapshot {
   account_balances_and_transactions: any;
   aggregated_account_balances_and_transactions_by_month: any;
   balance_and_transaction_by_month: any[];
+  asset_month_map?: Record<number, any[]>;
+  asset_summary?: any;
+  tax_summary?: Record<string, any>;
+  tax_expense_cashflow?: any[];
+  bucket_growth?: Record<string, { value: number; growth_rate: number }>;
+  asset_scenarios?: any;
 }
 
 /** Server-side plan engine — fetches the full simulation snapshot from /engine/plan_snapshot. */
@@ -65,6 +71,12 @@ export function usePlanEngine(plan: Plan | null, duration = 50) {
       aggregated_account_balances_and_transactions_by_month:
         snapshot?.aggregated_account_balances_and_transactions_by_month || { result: {}, aggregates_transactions: {} },
       balance_and_transaction_by_month: snapshot?.balance_and_transaction_by_month || [],
+      asset_month_map: snapshot?.asset_month_map || undefined,
+      asset_summary: snapshot?.asset_summary || undefined,
+      tax_summary: snapshot?.tax_summary || undefined,
+      tax_expense_cashflow: snapshot?.tax_expense_cashflow || undefined,
+      bucket_growth: snapshot?.bucket_growth || undefined,
+      asset_scenarios: snapshot?.asset_scenarios || undefined,
     }),
     [snapshot, loading, fetchSnapshot]
   );

@@ -165,6 +165,9 @@ function BalanceAndTxn({
   expenseStatement,
   alignment = "v",
   onEdit,
+  assetSummary,
+  bucketGrowth,
+  assetScenarios,
 }: {
   balances: any[];
   month: number;
@@ -173,6 +176,9 @@ function BalanceAndTxn({
   expenseStatement?: any[];
   alignment?: "h" | "v";
   onEdit?: (account_id: string) => void;
+  assetSummary?: any;
+  bucketGrowth?: Record<string, { value: number; growth_rate: number }>;
+  assetScenarios?: any;
 }) {
   const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
   const sorted = useBalanceSeq(balances).sort(
@@ -184,6 +190,23 @@ function BalanceAndTxn({
   function getRoi(category: string) {
     return accountList?.find((a: any) => a.category === category)?.roi ?? "";
   }
+
+  function blendedRoi(category: string) {
+    const g = bucketGrowth?.[category];
+    return g && g.value > 0 ? g.growth_rate : undefined;
+  }
+
+  const ASSET_CLASS_LABELS: Record<string, string> = {
+    fd: "Fixed Deposits", bond: "Bonds", savings: "Savings", gold: "Gold / SGB", ppf: "PPF",
+    equity: "Equity (India)", equity_foreign: "Equity (Foreign)", mf: "Mutual Funds",
+    real_estate: "Real Estate", vda: "Crypto / VDA",
+  };
+  const ASSET_CLASS_COLORS: Record<string, string> = {
+    fd: "#8b5cf6", bond: "#6366f1", savings: "#10b981", gold: "#f59e0b", ppf: "#06b6d4",
+    equity: "#3b82f6", equity_foreign: "#ec4899", mf: "#14b8a6", real_estate: "#f97316", vda: "#ef4444",
+  };
+
+  const asset_by_class = assetSummary?.by_class ? Object.entries(assetSummary.by_class).filter(([, c]: any) => c.value > 0) : [];
 
   function netVariation(txn: any[] = []) {
     return txn.reduce((acc, t) => {
@@ -243,7 +266,16 @@ function BalanceAndTxn({
           <div className="flex justify-between pt-2">
             <div className="flex flex-col">
               <div className="md:text-xs">Net Worth</div>
-              <DisplayAmount className="text-lg font-bold text-dark-400" notation="compact" amount={net_worth} />
+              <DisplayAmount
+                className="text-lg font-bold text-dark-400"
+                notation="compact"
+                amount={net_worth + (assetSummary?.total_value || 0)}
+              />
+              {assetSummary?.total_value > 0 && (
+                <div className="text-[9px] text-dark-200 sm:text-[10px]">
+                  incl. <DisplayAmount notation="compact" amount={assetSummary.total_value} /> assets
+                </div>
+              )}
             </div>
             <div className="flex flex-col">
               <div className="md:text-xs">Burn Rate</div>
@@ -251,6 +283,48 @@ function BalanceAndTxn({
             </div>
           </div>
         </div>
+
+        {asset_by_class.length > 0 && (
+          <div className={`flex flex-col gap-2 rounded-2xl bg-dark-900 p-3 ${alignment === "h" ? "" : "w-full"}`}>
+            <div className="flex justify-between">
+              <div className="text-sm font-medium">Asset Mix</div>
+              <DisplayAmount className="text-sm font-bold text-primary-300" notation="compact" amount={assetSummary.total_value} />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-[110px] w-[110px] shrink-0">
+                <MyChart
+                  labels={asset_by_class.map(([k]: any) => ASSET_CLASS_LABELS[k] || k)}
+                  dataset={[
+                    {
+                      data: asset_by_class.map(([, c]: any) => c.value),
+                      backgroundColor: asset_by_class.map(([k]: any) => ASSET_CLASS_COLORS[k] || "#64748b"),
+                      borderWidth: 0,
+                      hoverOffset: 6,
+                    },
+                  ]}
+                  chart_type="doughnut"
+                  height={110}
+                />
+              </div>
+              <div className="flex w-full flex-col gap-1">
+                {asset_by_class.map(([k, c]: any) => (
+                  <div key={k} className="flex items-center gap-2 text-[11px] sm:text-xs">
+                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: ASSET_CLASS_COLORS[k] || "#64748b" }} />
+                    <span className="w-[6.5rem] truncate text-dark-200">{ASSET_CLASS_LABELS[k] || k}</span>
+                    <DisplayAmount className="ml-auto font-medium" notation="compact" amount={c.value} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {assetScenarios && (
+              <div className="flex flex-wrap justify-between gap-2 border-t border-dark-700 pt-2 text-[10px] sm:text-xs">
+                <span className="text-danger-300">Conservative <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
+                <span className="font-medium text-dark-100">Expected <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
+                <span className="text-success-300">Aggressive <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className={`flex flex-col gap-2 ${alignment === "h" ? "" : "w-full"}`}>
           {sorted.map((account: any, idx: number) => {
@@ -270,9 +344,12 @@ function BalanceAndTxn({
                     {!["s", "savings", "e", "emergency", "i", "investment"].includes(b.category) && (
                       <span className="text-xs font-bold text-dark-400">{b.category?.[0]?.toUpperCase()}</span>
                     )}
-                    {currentFdp && getRoi(b.category) && (
-                      <div className="absolute -right-1 -top-2 grid w-[1.6rem] place-content-center rounded-md border border-dark-200 bg-dark-50 px-4 text-[10px] font-semibold sm:w-[3em] sm:px-0 sm:text-xs sm:leading-[1.2rem]">
-                        {getRoi(b.category)}%
+                    {currentFdp && (blendedRoi(b.category) ?? getRoi(b.category)) && (
+                      <div
+                        className="absolute -right-1 -top-2 grid w-[1.6rem] place-content-center rounded-md border border-dark-200 bg-dark-50 px-4 text-[10px] font-semibold sm:w-[3em] sm:px-0 sm:text-xs sm:leading-[1.2rem]"
+                        title={blendedRoi(b.category) !== undefined ? "Blended asset growth" : "ROI"}
+                      >
+                        {blendedRoi(b.category) !== undefined ? `${blendedRoi(b.category)}%` : `${getRoi(b.category)}%`}
                       </div>
                     )}
                   </div>
@@ -480,7 +557,9 @@ function PlanPageInner() {
     order: [3, 2, 1][idx],
   }));
 
-  const aggregated_balance_for_month = current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0);
+  const aggregated_balance_for_month =
+    current_month_balances.reduce((acc: number, b: any) => acc + (b.balance?.[0]?.balance || 0), 0) +
+    (engine.asset_month_map?.[current_month] || []).reduce((acc: number, a: any) => acc + (a.value || 0), 0);
   const is_plan_synced = plan_synced_map[plan._id] !== false;
 
   // matching original ToDisplayableMoney + annotation
@@ -588,12 +667,22 @@ function PlanPageInner() {
               </div>
             </div>
           </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-blue-100">
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("asset", "")}>
+            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
+              <FontAwesomeIcon icon={faVault} className="text-2xl" />
+              <div className="absolute -right-1 -top-1 grid h-[1.2rem] w-[1.2rem] place-content-center rounded-md border border-primary-200 bg-dark-50 text-primary-300">{(plan?.asset_list || []).length}</div>
+            </div>
+            <div className="self-center w-full">
+              <div className="flex justify-between grow text-dark-300">
+                <div className="text-sm leading-tight w-[5rem] font-medium">Assets</div>
+              </div>
+            </div>
+          </div>
+          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-blue-100" onClick={() => HandleEdit("tax", "")}>
             <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-blue-100 p-2 text-blue-300">
               <FontAwesomeIcon icon={faFileInvoice} className="text-2xl" />
             </div>
-            <div className="relative self-center w-full">
-              <div className="absolute bottom-2 -right-3 rounded-md bg-purple-100 px-2 py-0.5 text-[9px] font-bold text-purple-400">Coming Soon</div>
+            <div className="self-center w-full">
               <div className="flex justify-between grow text-dark-300">
                 <div className="text-sm leading-tight w-[5rem] font-medium hover:text-blue-300">Tax Manager</div>
               </div>
@@ -765,6 +854,9 @@ function PlanPageInner() {
             expenseStatement={cashflow.expense_statement}
             alignment="v"
             onEdit={(account_id) => HandleEdit("account", "", account_id)}
+            assetSummary={engine.asset_summary}
+            bucketGrowth={engine.bucket_growth}
+            assetScenarios={engine.asset_scenarios}
           />
         </div>
       </div>

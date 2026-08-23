@@ -181,23 +181,43 @@ Claude Code: `claude mcp add fi-plan-local -- node_modules/.bin/tsx standalone/m
 
 ## 4. Tools
 
-43 tools across 10 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
+56 tools across 12 groups: identity/plans (`whoami`, `list_plans`, `get_plan`,
 `create_plan`, `update_plan`, `delete_plan`, `fork_plan`, `set_default_plan`),
-engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`), cashflows
+engine (`plan_snapshot`, `simulate_plan`, `loan_amortization`, `loan_refinance`), cashflows
 (income/expense list/add/update/delete), changes (`*_cashflow_change`), **loans
 (`list_loans`, `add_loan`, `update_loan`, `delete_loan`)**, **fdp
 (`list_fdp`, `add_fdp`, `update_fdp`, `delete_fdp` — persisted allocation
-strategies with `s + e + i = 100`, the Money Manager editor's model)**, **accounts
+strategies with `s + e + i = 100`, the Money Manager editor's model)**, **assets
+(`list_assets`, `add_asset`, `update_asset`, `delete_asset` — FD/bond/savings/
+gold/PPF/equity/foreign-equity/MF/real-estate/crypto holdings projected monthly
+with growth, yield, maturity, SIP and rent; `import_networth_assets` seeds them
+from the IndMoney snapshot; `update_tax_settings` toggles the plan's auto
+Income Tax expense and HRA/deduction inputs)**, **accounts
 (`list_accounts`, `add_account`, `update_account`, `delete_account` — incl.
-`roi` annual interest % and persistent `init_balance`)**, net worth
+`roi` annual interest % and persistent `init_balance`)**, **tax
+(`list_tax_rules`, `get_tax_rules`, `tax_calculation`, `salary_negotiation` for
+everyone; `upsert_tax_rules`, `update_presets` are admin-only)** — the tax rules
+are versioned per assessment year (AY 2023-24 → 2026-27) in MongoDB
+(`Tax_Rule_Store`), so future finance-act changes are data updates, not deploys;
+`tax_calculation`/`salary_negotiation` compute new/old regime slabs, 87A rebate
++ marginal relief, HRA, deductions, surcharge/cess, and LTCG/STCG (112A
+₹1.25L for Indian listed equity only, foreign equity 24-mo 12.5% with no
+exemption, indexation option for pre-23-Jul-24 property, crypto 30%) —, net worth
 (`networth_status|sync|connect_url`), indstocks (`indstocks_positions`), sharing
 (`*_share_object`).
+
+System-level mutations are role-gated: only users with the `admin` role (promote
+via `npm run make:admin -- --email you@example.com`) can call `upsert_tax_rules`
+and `update_presets`; all other tools work for any authenticated user.
 
 `simulate_plan` takes `{ plan_json, patches: [{op, ...}], duration }` — ops:
 `add_income`, `add_expense`, `add_cashflow_change`, `add_loan`, `add_fdp`
 (`fdp: { start_month, end_month, s, e, i }` with `s + e + i = 100`, or the legacy
-`{ amount, interest_rate, tenure }` fixed-deposit shape),
-`set_account_balance`. Pure — never writes to the database.
+`{ amount, interest_rate, tenure }` fixed-deposit shape), `add_asset` /
+`update_asset` / `sell_asset` (asset-class what-ifs — sales realize LTCG/STCG
+per the stored rules), `set_salary` (hikes flow through the income-tax slabs
+when the plan's auto-tax is on), `update_tax_settings` and `set_account_balance`.
+Pure — never writes to the database.
 
 Cashflow-change frequency semantics: one-time = `end_month` equal to `start_month`; recurring annual =
 `frequency: "y"`; default `frequency: "m"` with an open end compounds monthly.
@@ -213,3 +233,10 @@ Cashflow-change frequency semantics: one-time = `end_month` equal to `start_mont
 | `FIPLAN_API_TOKEN` | stdio single-user auth |
 | `MCP_ENABLED` | `true`/`false` gate for the MCP endpoint (false → 404) |
 | `MCP_ALLOWED_ORIGINS` | optional comma-separated extra browser origins allowed to call `/api/mcp`; server clients (no `Origin`) are always allowed |
+
+## 6. Ops scripts
+
+| Script | Purpose |
+|---|---|
+| `npm run seed:tax-rules` | Idempotent seed of the versioned tax rule sets + asset-class presets into `Tax_Rule_Store` (run once per env; re-run after finance-act changes) |
+| `npm run make:admin -- --email <e>` | Promote a user to `admin` (unlocks `upsert_tax_rules` / `update_presets`) |
