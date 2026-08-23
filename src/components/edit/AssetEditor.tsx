@@ -4,10 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
+import { MonthPicker } from "@/components/edit/MonthPicker";
 import { GetRandomString } from "@/lib/utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faXmark, faChevronRight, faVault, faPiggyBank, faCoins, faChartLine, faGlobe, faChartPie, faHouseChimney, faLandmark, faFileShield, faFileInvoiceDollar, faTrashCan, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { faFileLines } from "@fortawesome/free-regular-svg-icons";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthToLabel(month: number, plan_timestamp?: string | number) {
+  const start = new Date(plan_timestamp || Date.now());
+  const d = new Date(start.getFullYear(), start.getMonth() + (month - 1), 1);
+  return `${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
+}
 
 const CLASS_META: Record<string, { label: string; icon: any; growth: number; yield_rate: number; compounding: string; income_frequency: string; income_mode: string; maturity_years?: number }> = {
   fd: { label: "Fixed Deposit", icon: faVault, growth: 0, yield_rate: 6.75, compounding: "quarterly", income_frequency: "q", income_mode: "reinvest", maturity_years: 3 },
@@ -22,7 +31,7 @@ const CLASS_META: Record<string, { label: string; icon: any; growth: number; yie
   vda: { label: "Crypto / VDA", icon: faCoins, growth: 20, yield_rate: 0, compounding: "none", income_frequency: "m", income_mode: "credit" },
 };
 
-function AssetCard({ asset, children }: { asset: any; children?: React.ReactNode }) {
+function AssetCard({ plan, asset, children }: { plan: any; asset: any; children?: React.ReactNode }) {
   const meta = CLASS_META[asset.asset_class] || CLASS_META.fd;
   return (
     <div className="flex flex-col rounded-lg border border-l-2 border-l-primary-300 bg-dark-50 p-2 text-dark-200 shadow-sm hover:shadow-md">
@@ -32,6 +41,11 @@ function AssetCard({ asset, children }: { asset: any; children?: React.ReactNode
           <DisplayAmount className="w-fit font-medium sm:text-xl" notation="standard" amount={asset.principal} />
           <div className="flex w-fit gap-2 rounded-md py-1 text-[9px] uppercase text-dark-100 sm:text-xs">
             <span className="rounded-md bg-dark-100 px-1.5 py-0.5">{meta.label}</span>
+            {asset.maturity_month && (
+              <span className="rounded-md bg-warning-100 px-1.5 py-0.5 text-warning-500">
+                mat {monthToLabel(asset.maturity_month, plan?.timestamp)}
+              </span>
+            )}
           </div>
         </div>
         <div className="ml-auto text-right text-[10px] text-dark-500 sm:text-xs">
@@ -180,8 +194,13 @@ function AssetCommand({
             <input type="number" value={state.principal} onChange={(e) => setState((s: any) => ({ ...s, principal: Number(e.target.value) }))} required className={inputClass} />
           </div>
           <div className="w-full">
-            <span className={labelClass}>Purchase Month</span>
-            <input type="number" min={1} value={state.purchase_month} onChange={(e) => setState((s: any) => ({ ...s, purchase_month: Number(e.target.value) }))} required className={inputClass} />
+            <span className={labelClass}>Purchase Date</span>
+            <MonthPicker
+              plan_timestamp={plan.timestamp}
+              duration={plan?.duration || 600}
+              month={state.purchase_month || 1}
+              onChange={(m) => setState((s: any) => ({ ...s, purchase_month: m }))}
+            />
           </div>
         </div>
         <div className="flex w-full gap-3">
@@ -214,8 +233,25 @@ function AssetCommand({
         </div>
         <div className="flex w-full gap-3">
           <div className="w-full">
-            <span className={labelClass}>Maturity Month (FD/Bond)</span>
-            <input type="number" min={1} value={state.maturity_month || ""} onChange={(e) => setState((s: any) => ({ ...s, maturity_month: e.target.value === "" ? undefined : Number(e.target.value) }))} className={inputClass} />
+            <span className={labelClass}>Maturity Date (FD/Bond)</span>
+            {state.maturity_month ? (
+              <MonthPicker
+                plan_timestamp={plan.timestamp}
+                duration={plan?.duration || 600}
+                month={state.maturity_month}
+                min_month={state.purchase_month || 1}
+                onChange={(m) => setState((s: any) => ({ ...s, maturity_month: m }))}
+              />
+            ) : (
+              <Button variant="neutral" sub_variant="outline" size="md" className="w-full px-3 py-1" onClick={() => setState((s: any) => ({ ...s, maturity_month: (s.purchase_month || 1) + 36 }))}>
+                Set maturity date
+              </Button>
+            )}
+            {state.maturity_month && (
+              <div className="flex w-fit cursor-pointer px-1 py-0.5 text-[10px] text-danger-400" onClick={() => setState((s: any) => ({ ...s, maturity_month: undefined }))}>
+                Clear (no maturity)
+              </div>
+            )}
           </div>
           <div className="w-full">
             <span className={labelClass}>Bucket</span>
@@ -266,7 +302,6 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
   const asset_list = useMemo(() => {
     if (!plan) return [];
     return [...(plan.asset_list || [])].sort((a: any, b: any) => (a.purchase_month || 1) - (b.purchase_month || 1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
 
   const selected_asset = asset_list.find((a: any) => a._id === selected_id);
@@ -346,7 +381,7 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
             <div className="overflow-y-scroll pl-2 pr-1">
               {asset_list.map((asset: any) => (
                 <div key={asset._id} className="mb-3 snap-start rounded-md capitalize shadow-sm transition-all duration-200">
-                  <AssetCard asset={asset}>
+                  <AssetCard plan={plan} asset={asset}>
                     <div className="ml-auto self-center px-3 text-dark-300" onClick={() => SetState(stage, "view", asset._id)}>
                       <FontAwesomeIcon icon={faChevronRight} className="self-center" />
                     </div>
