@@ -132,12 +132,14 @@ describe("update_tax_settings + snapshot integration", () => {
       duration: 12,
     });
     const snap = (snapshot as any).data;
-    // plan starts at the current date → one FY holds 8 months, the other 4.
-    // The 8-month FY sees 8 × 3L = 24L income → taxable 23.25L → slab tax 2,81,250
-    // + 4% cess = ₹2,92,500/yr → ₹36,562.5/mo. The 4-month FY sees 12L → fully rebated → no rows.
+    // plan starts at the current date → one FY holds 8 plan months, the other 4.
+    // First-FY backfill (default on): the 8-month FY is taxed on the FULL year
+    // (8 × 3L + 4 backfilled × 3L = 36L → taxable 35.25L → slab 6,37,500 + 4%
+    // cess = ₹6,63,000/yr → ₹55,250/mo at the true monthly TDS). The 4-month
+    // FY sees 12L → fully rebated → no rows.
     expect(snap.tax_expense_cashflow).toHaveLength(8);
-    expect(snap.tax_expense_cashflow[0].amount).toBeCloseTo(292500 / 8, 0);
-    expect(snap.cashflow.expense_statement[0].total_expense).toBeGreaterThan(90000);
+    expect(snap.tax_expense_cashflow[0].amount).toBeCloseTo(663000 / 12, 0);
+    expect(snap.cashflow.expense_statement[0].total_expense).toBeGreaterThan(110000);
 
     // disable again so later tests are unaffected
     await callRegistryTool(makeToolRegistry(t.container), ctx, "update_tax_settings", {
@@ -265,11 +267,11 @@ describe("asset simulate patches", () => {
     const snap = (sim as any).data.snapshot;
     const month1 = snap.cashflow.income_statement[0];
     expect(month1.total_income).toBe(250000);
-    // 8-month FY: 8 × 2.5L = 20L → taxable 19.25L → slab tax 1,85,000 + 4% cess
-    // = ₹1,92,400/yr → ₹24,050/mo tax expense
-    expect(snap.cashflow.expense_statement[0].total_expense).toBeGreaterThan(80000);
+    // first-FY backfill: 8 plan months × 2.5L + 4 backfilled × 2.5L = 30L
+    // → taxable 29.25L → slab tax 4,57,500 + 4% cess = ₹4,75,800/yr → ₹39,650/mo
+    expect(snap.cashflow.expense_statement[0].total_expense).toBeGreaterThan(95000);
     expect(snap.tax_expense_cashflow.length).toBe(8);
-    expect(snap.tax_expense_cashflow[0].amount).toBeCloseTo(192400 / 8, 0);
+    expect(snap.tax_expense_cashflow[0].amount).toBeCloseTo(475800 / 12, 0);
   });
 
   it("FD TDS offsets the auto income tax in the persisted snapshot", async () => {

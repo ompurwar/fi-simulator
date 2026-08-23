@@ -261,6 +261,42 @@ describe("ComputePlanSnapshot integration", () => {
     expect(snapshot.tax_expense_cashflow).toBeUndefined();
   });
 
+  it("first-FY backfill: mid-year plan start taxes the full year at the true monthly TDS", () => {
+    // plan starts 1 Aug 2025 → FY 2025-26 has 8 plan months, FY 2026-27 has 4
+    const aug_ts = new Date(2025, 7, 1).getTime();
+    const base = basePlan({ timestamp: aug_ts });
+    const plan = basePlan({
+      timestamp: aug_ts,
+      cashflow_list: base.cashflow_list.map((c: any) =>
+        c.category === "i" ? { ...c, amount: 300000 } : c
+      ),
+      tax_settings: { income_tax_enabled: true, regime: "new", age_group: "below60" },
+    });
+    const snap = ComputePlanSnapshot(plan, 12, { tax_rules: FY_2025_26 });
+    // backfilled: 8 × 3L + 4 × 3L = 36L → taxable 35.25L → ₹6,63,000/yr → ₹55,250/mo
+    expect(snap.tax_expense_cashflow!.length).toBe(8);
+    expect(snap.tax_expense_cashflow![0].amount).toBeCloseTo(663000 / 12, 0);
+    // second FY (4 × 3L = 12L) fully rebated → no rows
+    expect(snap.tax_expense_cashflow!.some((r: any) => r.desc.includes("2026-27"))).toBe(false);
+  });
+
+  it("first-FY backfill can be disabled via tax_settings.backfill_first_fy = false", () => {
+    const aug_ts = new Date(2025, 7, 1).getTime();
+    const base = basePlan({ timestamp: aug_ts });
+    const plan = basePlan({
+      timestamp: aug_ts,
+      cashflow_list: base.cashflow_list.map((c: any) =>
+        c.category === "i" ? { ...c, amount: 300000 } : c
+      ),
+      tax_settings: { income_tax_enabled: true, regime: "new", age_group: "below60", backfill_first_fy: false },
+    });
+    const snap = ComputePlanSnapshot(plan, 12, { tax_rules: FY_2025_26 });
+    // without backfill: tax on the 8 visible months only (8 × 3L = 24L → ₹2,92,500)
+    // spread over those 8 months → ₹36,562.5/mo
+    expect(snap.tax_expense_cashflow!.length).toBe(8);
+    expect(snap.tax_expense_cashflow![0].amount).toBeCloseTo(292500 / 8, 0);
+  });
+
   it("asset income/maturity credits flow into account balances", () => {
     const plan = basePlan({
       asset_list: [

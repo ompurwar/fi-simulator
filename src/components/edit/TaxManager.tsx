@@ -127,14 +127,29 @@ export function TaxManager({ plan_id }: { plan_id: string }) {
     setLoadingNegotiation(true);
     setNegotiationError("");
     try {
-      const payload: any = {
-        current_gross: currentAnnualSalary(plan),
-        regime,
-        deductions,
-      };
-      if (custom_offer && typeof custom_offer === "number" && custom_offer > 0) {
-        payload.offers = [custom_offer];
+      const current = currentAnnualSalary(plan);
+      if (current <= 0) {
+        setNegotiationError("Add an income line first — negotiation needs a current salary.");
+        setLoadingNegotiation(false);
+        return;
       }
+      const scenarios =
+        custom_offer && typeof custom_offer === "number" && custom_offer > 0
+          ? [{ label: "Custom offer", new_gross: custom_offer }]
+          : [
+              { label: "+10%", new_gross: Math.round(current * 1.1) },
+              { label: "+20%", new_gross: Math.round(current * 1.2) },
+              { label: "+30%", new_gross: Math.round(current * 1.3) },
+              { label: "+50%", new_gross: Math.round(current * 1.5) },
+            ];
+      const payload: any = {
+        current_gross: current,
+        scenarios,
+        regime,
+        age_group,
+        deductions: Object.fromEntries(Object.entries(deductions).filter(([, v]) => Number(v) > 0)),
+        ...(salary_structure ? { salary_structure } : {}),
+      };
       const res = await fetch("/api/tax/negotiation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

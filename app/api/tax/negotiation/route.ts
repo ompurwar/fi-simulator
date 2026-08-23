@@ -51,8 +51,16 @@ export async function POST(req: NextRequest) {
     body = {};
   }
 
-  const { current_gross, scenarios, regime, assessment_year, age_group, deductions, salary_structure } = body || {};
-  if (typeof current_gross !== "number" || !Array.isArray(scenarios) || scenarios.length === 0) {
+  const { current_gross, scenarios: raw_scenarios, offers, regime, assessment_year, age_group, deductions, salary_structure } = body || {};
+  // Accept both vocabularies: the canonical `scenarios: [{label, new_gross}]`
+  // and a simple `offers: number[]` (mapped to "Offer N" labels).
+  const scenarios =
+    Array.isArray(raw_scenarios) && raw_scenarios.length > 0
+      ? raw_scenarios
+      : Array.isArray(offers) && offers.length > 0
+        ? offers.map((o: number, i: number) => ({ label: `Offer ${i + 1}`, new_gross: o }))
+        : [];
+  if (typeof current_gross !== "number" || scenarios.length === 0) {
     return NextResponse.json(
       { error: { message: "current_gross (number) and scenarios ([{label, new_gross}]) are required" } },
       { status: 400 }

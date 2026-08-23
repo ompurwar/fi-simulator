@@ -161,6 +161,9 @@ function BalanceAndTxn({
   assetSummary,
   bucketGrowth,
   assetScenarios,
+  currentAssetTotal = 0,
+  currentAssetByClass,
+  planDuration = 600,
 }: {
   balances: any[];
   month: number;
@@ -172,6 +175,9 @@ function BalanceAndTxn({
   assetSummary?: any;
   bucketGrowth?: Record<string, { value: number; growth_rate: number }>;
   assetScenarios?: any;
+  currentAssetTotal?: number;
+  currentAssetByClass?: Record<string, number>;
+  planDuration?: number;
 }) {
   const seq = { e: 1, emergency: 1, s: 2, savings: 2, i: 3, investment: 3 } as Record<string, number>;
   const sorted = useBalanceSeq(balances).sort(
@@ -199,7 +205,19 @@ function BalanceAndTxn({
     equity: "#3b82f6", equity_foreign: "#ec4899", mf: "#14b8a6", real_estate: "#f97316", vda: "#ef4444",
   };
 
-  const asset_by_class = assetSummary?.by_class ? Object.entries(assetSummary.by_class).filter(([, c]: any) => c.value > 0) : [];
+  // CURRENT month asset values (from asset_month_map) — never the end-of-plan
+  // projection (asset_summary aggregates the LAST projected month).
+  const asset_by_class: [string, number][] =
+    currentAssetByClass && Object.keys(currentAssetByClass).length > 0
+      ? Object.entries(currentAssetByClass).filter(([, v]) => v > 0)
+      : assetSummary?.by_class
+        ? Object.entries(assetSummary.by_class)
+            .map(([k, c]: any) => [k, c.value] as [string, number])
+            .filter(([, v]) => v > 0)
+        : [];
+  const asset_total_now = currentAssetTotal || asset_by_class.reduce((s, [, v]) => s + v, 0);
+  const asset_total_end = assetSummary?.total_value || 0;
+  const incl_investments_runway = avg_expense > 0 ? (net_worth + currentAssetTotal) / avg_expense : 0;
 
   function netVariation(txn: any[] = []) {
     return txn.reduce((acc, t) => {
@@ -253,7 +271,13 @@ function BalanceAndTxn({
               </span>
               <span className="text-sm font-bold text-dark-500">{runway < 12 ? "months" : "years"}</span>
             </div>
-            <span className="text-[11px] text-dark-400">Financial freedom coverage</span>
+            <span className="text-[11px] text-dark-400">Cash-runway coverage</span>
+            {currentAssetTotal > 0 && incl_investments_runway > 0 && (
+              <div className="text-[10px] text-dark-400">
+                incl. investments ≈{" "}
+                {incl_investments_runway < 12 ? `${incl_investments_runway.toFixed(1)} months` : `${(incl_investments_runway / 12).toFixed(1)} yrs`}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-dark-100 pt-3">
@@ -262,12 +286,12 @@ function BalanceAndTxn({
               <DisplayAmount
                 className="text-base font-bold text-dark-800"
                 notation="compact"
-                amount={net_worth + (assetSummary?.total_value || 0)}
+                amount={net_worth + asset_total_now}
               />
-              {assetSummary?.total_value > 0 && (
+              {asset_total_now > 0 && (
                 <div className="inline-flex items-center gap-1 text-[10px] text-dark-400">
                   <span>incl.</span>
-                  <DisplayAmount notation="compact" amount={assetSummary.total_value} />
+                  <DisplayAmount notation="compact" amount={asset_total_now} />
                   <span>assets</span>
                 </div>
               )}
@@ -289,18 +313,19 @@ function BalanceAndTxn({
                   <FontAwesomeIcon icon={faMoneyBillTrendUp} className="text-xs" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-dark-700">Asset Mix</span>
+                <span className="text-[10px] font-medium text-dark-400">(now)</span>
               </div>
-              <DisplayAmount className="text-xs font-bold text-primary-600 whitespace-nowrap" notation="compact" amount={assetSummary.total_value} />
+              <DisplayAmount className="text-xs font-bold text-primary-600 whitespace-nowrap" notation="compact" amount={asset_total_now} />
             </div>
 
             <div className="flex items-center gap-3">
               <div className="h-[100px] w-[100px] shrink-0">
                 <MyChart
-                  labels={asset_by_class.map(([k]: any) => ASSET_CLASS_LABELS[k] || k)}
+                  labels={asset_by_class.map(([k]) => ASSET_CLASS_LABELS[k] || k)}
                   dataset={[
                     {
-                      data: asset_by_class.map(([, c]: any) => c.value),
-                      backgroundColor: asset_by_class.map(([k]: any) => ASSET_CLASS_COLORS[k] || "#64748b"),
+                      data: asset_by_class.map(([, v]) => v),
+                      backgroundColor: asset_by_class.map(([k]) => ASSET_CLASS_COLORS[k] || "#64748b"),
                       borderWidth: 0,
                       hoverOffset: 4,
                     },
@@ -310,24 +335,29 @@ function BalanceAndTxn({
                 />
               </div>
               <div className="flex w-full flex-col gap-1 overflow-hidden">
-                {asset_by_class.map(([k, c]: any) => (
+                {asset_by_class.map(([k, v]) => (
                   <div key={k} className="flex items-center gap-1.5 text-[11px]">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ASSET_CLASS_COLORS[k] || "#64748b" }} />
                     <span className="truncate text-dark-600 font-medium flex-1">{ASSET_CLASS_LABELS[k] || k}</span>
                     <span className="text-[10px] text-dark-400 font-mono">
-                      {Math.round((c.value / assetSummary.total_value) * 100)}%
+                      {asset_total_now > 0 ? `${Math.round((v / asset_total_now) * 100)}%` : "0%"}
                     </span>
-                    <DisplayAmount className="font-bold text-dark-800" notation="compact" amount={c.value} />
+                    <DisplayAmount className="font-bold text-dark-800" notation="compact" amount={v} />
                   </div>
                 ))}
               </div>
             </div>
 
-            {assetScenarios && (
-              <div className="flex flex-wrap justify-between gap-1.5 border-t border-dark-100 pt-2 text-[10px]">
-                <span className="text-danger-600 font-medium">Cons: <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
-                <span className="text-dark-700 font-bold">Exp: <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
-                <span className="text-emerald-600 font-medium">Aggr: <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+            {assetScenarios && asset_total_end > 0 && (
+              <div className="flex flex-col gap-1 border-t border-dark-100 pt-2 text-[10px]">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-dark-400">
+                  At plan end (M{planDuration})
+                </span>
+                <div className="flex flex-wrap justify-between gap-1.5">
+                  <span className="text-danger-600 font-medium">Cons: <DisplayAmount notation="compact" amount={assetScenarios.conservative.total_value} /></span>
+                  <span className="text-dark-700 font-bold">Exp: <DisplayAmount notation="compact" amount={assetScenarios.expected.total_value} /></span>
+                  <span className="text-emerald-600 font-medium">Aggr: <DisplayAmount notation="compact" amount={assetScenarios.aggressive.total_value} /></span>
+                </div>
               </div>
             )}
           </div>
@@ -1040,6 +1070,12 @@ function PlanPageInner() {
             assetSummary={engine.asset_summary}
             bucketGrowth={engine.bucket_growth}
             assetScenarios={engine.asset_scenarios}
+            currentAssetTotal={(engine.asset_month_map?.[current_month] || []).reduce((acc: number, a: any) => acc + (a.value || 0), 0)}
+            currentAssetByClass={(engine.asset_month_map?.[current_month] || []).reduce((acc: Record<string, number>, a: any) => {
+              acc[a.asset_class] = (acc[a.asset_class] || 0) + (a.value || 0);
+              return acc;
+            }, {})}
+            planDuration={plan_duration}
           />
         </div>
       </div>
