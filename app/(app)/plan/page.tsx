@@ -652,150 +652,150 @@ function PlanPageInner() {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-4">
       {/* Left manager sidebar (desktop) */}
-      <div className="hidden md:flex md:flex-col w-56 lg:w-60 shrink-0 gap-1 rounded-2xl border border-dark-200 bg-white p-3 shadow-xs h-fit self-start sticky top-20">
+      <div className="hidden md:flex md:flex-col w-60 lg:w-64 shrink-0 gap-1 rounded-2xl border border-dark-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-xs h-fit self-start sticky top-20">
         <div className="flex items-center justify-between px-2 py-1 mb-1">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-dark-400">Plan Modules</span>
-          <span className="text-[10px] font-bold text-dark-400 bg-dark-100/80 px-1.5 py-0.5 rounded-md">7 Active</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-dark-400 dark:text-slate-400">Plan Modules</span>
+          <span className="text-[10px] font-bold text-dark-400 dark:text-slate-400 bg-dark-100/80 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">7 Active</span>
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => router.push("/networth")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faWallet} className="text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Net Worth</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Holdings & Sync</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Net Worth</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Holdings & Sync</span>
             </div>
           </div>
-          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("cashflow", "income")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Income Manager</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Inflows & Growth</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Income Manager</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Inflows & Growth</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {income_list.length > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1 text-[10px] font-bold">
+              <span className="flex h-5 min-w-[18px] items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-1.5 text-[10px] font-bold shrink-0">
                 {income_list.length}
               </span>
             )}
-            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
           </div>
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("cashflow", "expense")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Expense Manager</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Outflows & Spends</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Expense Manager</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Outflows & Spends</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {engine.expense_list.length > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-1 text-[10px] font-bold">
+              <span className="flex h-5 min-w-[18px] items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-1.5 text-[10px] font-bold shrink-0">
                 {engine.expense_list.length}
               </span>
             )}
-            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
           </div>
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("loan", "")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faLandmarkFlag} className="text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Loan Manager</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">EMIs & Payoffs</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Loan Manager</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">EMIs & Payoffs</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {loan_account_list.length > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-1 text-[10px] font-bold">
+              <span className="flex h-5 min-w-[18px] items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-1.5 text-[10px] font-bold shrink-0">
                 {loan_account_list.length}
               </span>
             )}
-            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
           </div>
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("fdp", "")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faSackDollar} className="text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Money Manager</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Buckets & ROI</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Money Manager</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Buckets & ROI</span>
             </div>
           </div>
-          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("asset", "")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faVault} className="text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Assets</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Mix & Growth</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Assets</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Mix & Growth</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {(plan?.asset_list || []).length > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-1 text-[10px] font-bold">
+              <span className="flex h-5 min-w-[18px] items-center justify-center rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 px-1.5 text-[10px] font-bold shrink-0">
                 {(plan?.asset_list || []).length}
               </span>
             )}
-            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
           </div>
         </div>
 
         <div
-          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
           onClick={() => HandleEdit("tax", "")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 transition-transform group-hover:scale-105">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 transition-transform group-hover:scale-105">
               <FontAwesomeIcon icon={faFileInvoice} className="text-sm" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Tax Manager</span>
-              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Old / New Regime</span>
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Tax Manager</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Old / New Regime</span>
             </div>
           </div>
-          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
         </div>
       </div>
 
