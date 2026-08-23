@@ -157,6 +157,7 @@ function LoanAccountCommand({
   mode,
   default_loan_title,
   default_loan_type,
+  onChange,
   onDone,
 }: {
   plan: any;
@@ -164,6 +165,7 @@ function LoanAccountCommand({
   mode: "add" | "edit";
   default_loan_title?: string;
   default_loan_type?: number;
+  onChange?: (draft: any) => void;
   onDone: (result: { action: string; loan_id?: string }) => void;
 }) {
   const update_plan_local = useFiPlanStore((s) => s.update_plan_local);
@@ -222,6 +224,21 @@ function LoanAccountCommand({
       setDurationInMonth(1);
     }
   }, [loan, default_loan_title, default_loan_type]);
+
+  useEffect(() => {
+    if (onChange) {
+      onChange({
+        title: state.title,
+        principal_amount: state.principal_amount,
+        start_month: state.start_month,
+        end_month: state.end_month,
+        interest_rate: state.interest_rate,
+        type: state.type,
+        deposit_to_bank: state.deposit_to_bank,
+        prepayments: state.prepayments,
+      });
+    }
+  }, [state.title, state.principal_amount, state.start_month, state.end_month, state.interest_rate, state.type, state.deposit_to_bank, state.prepayments]);
 
   function updateDuration(n: number) {
     setDurationInMonth(n);
@@ -328,18 +345,18 @@ function LoanAccountCommand({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-dark-500">Loan Type</span>
-        <div className="flex flex-wrap rounded-lg border border-dark-200 bg-dark-50 p-1 gap-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 rounded-lg border border-dark-200 bg-dark-50 p-1.5">
           {(loan_type_options as any[]).map((option, index) => {
             const isSelected = state.type === option.value;
             return (
               <button
                 key={index}
                 type="button"
-                className={`flex-1 min-w-[70px] rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`rounded-md px-2 py-2 text-xs font-semibold text-center transition-all duration-150 ${
                   isSelected
                     ? "bg-primary-500 text-white shadow-xs"
                     : "text-dark-600 hover:bg-dark-100 hover:text-dark-800"
-                }`}
+                } ${index === 4 ? "col-span-2 sm:col-span-1" : ""}`}
                 onClick={() => setState((s: any) => ({ ...s, type: option.value }))}
               >
                 {option.text}
@@ -569,6 +586,7 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   const [plan_sync_inprogress, setPlanSyncInprogress] = useState(false);
   const [show_refinance, setShowRefinance] = useState(false);
   const [refi, setRefi] = useState<any>({ new_rate: 8, new_tenure: 240, refinance_month: 13, foreclosure_charge: 0 });
+  const [live_draft, setLiveDraft] = useState<any>(null);
 
   const loan_list = useMemo(() => {
     if (!plan) return [];
@@ -576,8 +594,13 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   }, [plan]);
 
   const selected_loan = loan_list.find((l: any) => l._id === selected_loan_id);
-  const loan_being_edited = useMemo(
-    () =>
+  const show_loan_command = ["add_loan", "edit_loan"].includes(stage);
+
+  const loan_being_edited = useMemo(() => {
+    if (show_loan_command && live_draft) {
+      return live_draft;
+    }
+    return (
       selected_loan || {
         title: default_loan_title,
         principal_amount: 0,
@@ -585,9 +608,9 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         end_month: 1,
         interest_rate: 0,
         type: default_loan_type,
-      },
-    [selected_loan, default_loan_title, default_loan_type]
-  );
+      }
+    );
+  }, [show_loan_command, live_draft, selected_loan, default_loan_title, default_loan_type]);
 
   useEffect(() => {
     if (selected_loan) {
@@ -1045,13 +1068,14 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
 
         {/* command column (add / edit form) */}
         {show_loan_command && (
-          <div className="mb-10 flex h-full w-full flex-col md:mb-0 md:h-[580px] md:w-[380px] md:min-w-0 md:shrink-0 overflow-y-auto px-1">
+          <div className="mb-10 flex h-full w-full flex-col md:mb-0 md:h-[580px] md:w-[380px] md:min-w-0 md:shrink-0 overflow-y-auto px-1 pb-24 md:pb-0">
             <LoanAccountCommand
               plan={plan}
               loan={mode === "edit" ? selected_loan : undefined}
               mode={mode}
               default_loan_title={default_loan_title}
               default_loan_type={default_loan_type}
+              onChange={setLiveDraft}
               onDone={(r) => {
                 if (r.action === "deleted") SetState(stage, "deleted");
                 if (r.action === "added") {
@@ -1072,7 +1096,9 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         )}
 
         {/* right analytics & chart column */}
-        <div className="flex h-full flex-1 flex-col gap-3 transition-all duration-300 md:ml-auto md:border-l md:border-dark-100 md:pl-4 md:h-[580px] md:overflow-y-auto">
+        <div className={`h-full flex-1 flex-col gap-3 transition-all duration-300 md:ml-auto md:border-l md:border-dark-100 md:pl-4 md:h-[580px] md:overflow-y-auto ${
+          show_loan_command ? "hidden md:flex" : "flex"
+        }`}>
           {/* loan list illustration state */}
           {stage === "loan_list" && (
             <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
