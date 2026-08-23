@@ -122,14 +122,14 @@ export function LoanAmortizationTable({ plan, loan }: { plan: any; loan: any }) 
   const paid_early = has_prepayments && schedule.payoff < schedule.rows.length;
 
   return (
-    <div className="flex w-full flex-col gap-2 rounded-lg border border-l-2 border-l-primary-300 bg-dark-50 p-3 shadow-sm">
+    <div className="flex w-full flex-col gap-2 rounded-xl border border-dark-200 bg-white p-3 shadow-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-2 self-center font-medium text-dark-600">
-          <FontAwesomeIcon icon={faTableList} className="self-center text-xl text-primary-500" />
-          <span className="self-center">Amortization schedule</span>
+        <div className="flex gap-2 self-center font-semibold text-dark-700">
+          <FontAwesomeIcon icon={faTableList} className="self-center text-lg text-primary-500" />
+          <span className="self-center">Amortization Schedule</span>
         </div>
         {paid_early && (
-          <div className="ml-auto flex gap-2 self-center rounded-md bg-success-400/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-success-400">
+          <div className="ml-auto flex gap-2 self-center rounded-md bg-success-50 border border-success-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-success-600">
             <span>Paid off in {schedule.payoff} of {schedule.rows.length} months</span>
             <span className="text-dark-300">·</span>
             <span>Interest saved ₹{Math.round(schedule.interest_saved).toLocaleString("en-IN")}</span>
@@ -137,41 +137,41 @@ export function LoanAmortizationTable({ plan, loan }: { plan: any; loan: any }) 
         )}
       </div>
 
-      <div className="max-h-[300px] overflow-y-auto">
+      <div className="max-h-[260px] overflow-y-auto rounded-lg border border-dark-100">
         <table className="w-full text-right text-xs tabular-nums">
           <thead className="sticky top-0 z-10 bg-dark-50">
-            <tr className="border-b border-dark-200/40 text-[9px] uppercase tracking-wider text-dark-500">
-              <th className="py-1 pl-1 text-left font-semibold">#</th>
-              <th className="py-1 text-left font-semibold">Date</th>
-              <th className="py-1 font-semibold">EMI</th>
-              <th className="py-1 font-semibold text-danger-300">Interest</th>
-              <th className="py-1 font-semibold text-primary-300">Principal</th>
-              {has_prepayments && <th className="py-1 font-semibold text-success-400">Prepay</th>}
-              <th className="py-1 pr-1 font-semibold">Balance</th>
+            <tr className="border-b border-dark-200 text-[10px] uppercase tracking-wider text-dark-500">
+              <th className="py-2 pl-2 text-left font-semibold">#</th>
+              <th className="py-2 text-left font-semibold">Date</th>
+              <th className="py-2 font-semibold">EMI</th>
+              <th className="py-2 font-semibold text-danger-500">Interest</th>
+              <th className="py-2 font-semibold text-primary-600">Principal</th>
+              {has_prepayments && <th className="py-2 font-semibold text-success-600">Prepay</th>}
+              <th className="py-2 pr-2 font-semibold">Balance</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-dark-200/20">
+          <tbody className="divide-y divide-dark-100">
             {page_rows.map((row: any) => (
-              <tr key={row.seq} className="text-dark-300 hover:bg-dark-100/30">
-                <td className="py-1 pl-1 text-left font-medium text-dark-500">{row.seq + 1}</td>
-                <td className="py-1 text-left text-[10px] uppercase text-dark-500">
+              <tr key={row.seq} className="text-dark-600 transition-colors hover:bg-dark-50/70">
+                <td className="py-1.5 pl-2 text-left font-medium text-dark-400">{row.seq + 1}</td>
+                <td className="py-1.5 text-left text-[11px] font-medium text-dark-500">
                   {GetMMYYYY(loan.start_month + row.seq, plan.timestamp)}
                 </td>
-                <td className="py-1">
+                <td className="py-1.5 font-medium text-dark-700">
                   <DisplayAmount amount={row.emi_paid} />
                 </td>
-                <td className="py-1 text-danger-300">
+                <td className="py-1.5 font-medium text-danger-500">
                   <DisplayAmount amount={row.interest_amount} />
                 </td>
-                <td className="py-1 text-primary-300">
+                <td className="py-1.5 font-medium text-primary-600">
                   <DisplayAmount amount={row.principal_amount} />
                 </td>
                 {has_prepayments && (
-                  <td className="py-1 text-success-400">
+                  <td className="py-1.5 font-semibold text-success-600">
                     {row.prepayment > 0 ? <DisplayAmount amount={row.prepayment} /> : <span className="text-dark-300">—</span>}
                   </td>
                 )}
-                <td className="py-1 pr-1 font-semibold text-dark-200">
+                <td className="py-1.5 pr-2 font-semibold text-dark-800">
                   <DisplayAmount amount={Math.max(0, row.closing_balance)} />
                 </td>
               </tr>
@@ -180,50 +180,50 @@ export function LoanAmortizationTable({ plan, loan }: { plan: any; loan: any }) 
         </table>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-dark-200/40 pt-2 text-[10px] uppercase tracking-wide text-dark-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-dark-100 pt-2 text-[11px] tracking-wide text-dark-500">
         <span className="flex gap-1">
-          <span className="self-center">Total paid</span>
-          <DisplayAmount className="self-center font-semibold text-dark-200" amount={schedule.total_emi} />
+          <span className="self-center text-dark-400">Total Paid:</span>
+          <DisplayAmount className="self-center font-bold text-dark-700" amount={schedule.total_emi} />
         </span>
         <span className="flex gap-1">
-          <span className="self-center text-danger-300">Interest</span>
-          <DisplayAmount className="self-center font-semibold text-danger-300" amount={schedule.total_interest} />
+          <span className="self-center text-dark-400">Interest:</span>
+          <DisplayAmount className="self-center font-bold text-danger-500" amount={schedule.total_interest} />
         </span>
         <span className="flex gap-1">
-          <span className="self-center text-primary-300">Principal</span>
-          <DisplayAmount className="self-center font-semibold text-primary-300" amount={schedule.total_principal} />
+          <span className="self-center text-dark-400">Principal:</span>
+          <DisplayAmount className="self-center font-bold text-primary-600" amount={schedule.total_principal} />
         </span>
         {has_prepayments && (
           <span className="flex gap-1">
-            <span className="self-center text-success-400">Prepaid</span>
-            <DisplayAmount className="self-center font-semibold text-success-400" amount={schedule.total_prepaid} />
+            <span className="self-center text-dark-400">Prepaid:</span>
+            <DisplayAmount className="self-center font-bold text-success-600" amount={schedule.total_prepaid} />
           </span>
         )}
         <span className="ml-auto flex gap-1">
-          <span className="self-center">Remaining</span>
-          <DisplayAmount className="self-center font-bold text-dark-200" amount={Math.max(0, schedule.rows[schedule.rows.length - 1]?.closing_balance || 0)} />
+          <span className="self-center text-dark-400">Remaining:</span>
+          <DisplayAmount className="self-center font-bold text-dark-800" amount={Math.max(0, schedule.rows[schedule.rows.length - 1]?.closing_balance || 0)} />
         </span>
       </div>
 
       {total_pages > 1 && (
-        <div className="flex items-center justify-between border-t border-dark-200/40 pt-2 text-[10px] uppercase tracking-wide text-dark-500">
-          <div className="self-center">
-            Rows {page_start + 1}–{Math.min(page_start + PAGE_SIZE, schedule.rows.length)} of {schedule.rows.length}
+        <div className="flex items-center justify-between border-t border-dark-100 pt-2 text-[11px] text-dark-500">
+          <div className="self-center font-medium">
+            Page {page + 1} of {total_pages} (Months {page_start + 1}–{Math.min(page_start + PAGE_SIZE, schedule.rows.length)})
           </div>
           <div className="flex gap-2 self-center">
             <button
-              className="rounded-md border border-dark-300 bg-dark-50 px-2 py-1 text-dark-400 transition-all duration-200 hover:border-primary-300 hover:text-primary-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md border border-dark-200 bg-dark-50 px-2.5 py-1 text-dark-600 transition-all duration-200 hover:border-primary-400 hover:bg-white hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
             >
-              <FontAwesomeIcon icon={faChevronLeft} className="self-center" />
+              <FontAwesomeIcon icon={faChevronLeft} className="self-center text-xs" />
             </button>
             <button
-              className="rounded-md border border-dark-300 bg-dark-50 px-2 py-1 text-dark-400 transition-all duration-200 hover:border-primary-300 hover:text-primary-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md border border-dark-200 bg-dark-50 px-2.5 py-1 text-dark-600 transition-all duration-200 hover:border-primary-400 hover:bg-white hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
               onClick={() => setPage((p) => Math.min(total_pages - 1, p + 1))}
               disabled={page >= total_pages - 1}
             >
-              <FontAwesomeIcon icon={faChevronRight} className="self-center" />
+              <FontAwesomeIcon icon={faChevronRight} className="self-center text-xs" />
             </button>
           </div>
         </div>
