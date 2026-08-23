@@ -19,5 +19,7 @@ standalone/*
 !standalone/mcp-stdio.ts
 !standalone/migrate-cashflows.ts
 !standalone/verify-migration.ts
+!standalone/make-admin.ts
+!standalone/seed-tax-rules.ts
 cypress/videos/
 cypress/screenshots/
