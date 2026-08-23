@@ -27,12 +27,16 @@ const envSchema = z.object({
   MCP_ENABLED: z.enum(["true", "false"]).default("true"),
   /** Comma-separated extra origins allowed to call /api/mcp from browsers (DNS-rebinding protection); server clients send no Origin and are always allowed. */
   MCP_ALLOWED_ORIGINS: z.string().optional(),
-  AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
+  AI_PROVIDER: z.enum(["anthropic", "gemini"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),
   /** Anthropic-format endpoint; works with any compatible gateway, e.g. DeepSeek: https://api.deepseek.com/anthropic */
   AI_BASE_URL: z.string().default("https://api.anthropic.com"),
   /** Anthropic-format model name; DeepSeek maps claude-* names or accepts deepseek-v4-flash/-pro directly */
   AI_MODEL: z.string().default("claude-3-5-sonnet-latest"),
+  /** Google Gemini API configuration */
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_BASE_URL: z.string().default("https://generativelanguage.googleapis.com"),
   FIPLAN_API_TOKEN: z.string().optional(),
 });
 

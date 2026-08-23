@@ -46,6 +46,7 @@ import {
   type NetWorthService,
 } from "../networth";
 import { makeAnthropicProvider } from "../ai/provider";
+import { makeGeminiProvider } from "../ai/geminiProvider";
 import type { AiProvider } from "../ai/types";
 import { makeOAuthService, makeOAuthStore, type OAuthService, type OAuthStore } from "../mcp/oauth";
 
@@ -131,10 +132,15 @@ export async function buildContainer(
 
   const ai_provider =
     overrides.aiProvider ??
-    makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
-      model: env.AI_MODEL,
-      baseURL: env.AI_BASE_URL,
-    });
+    (env.AI_PROVIDER === "gemini"
+      ? makeGeminiProvider(env.GEMINI_API_KEY || "", {
+          model: env.GEMINI_MODEL,
+          baseURL: env.GEMINI_BASE_URL,
+        })
+      : makeAnthropicProvider(env.ANTHROPIC_API_KEY || "", {
+          model: env.AI_MODEL,
+          baseURL: env.AI_BASE_URL,
+        }));
 
   const mailConfig: MailConfig = {
     apiKeyPublic: env.MJ_APIKEY_PUBLIC,
