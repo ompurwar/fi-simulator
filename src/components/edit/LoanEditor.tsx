@@ -751,13 +751,15 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
           <FontAwesomeIcon className="text-base font-bold" icon={faArrowLeft} />
         </button>
         <div className="h-5 w-[2px] rounded-full bg-primary-400" />
-        <div className="flex items-center gap-1.5 overflow-hidden">
+        <div className="flex items-center gap-1 overflow-hidden">
           {breadcrumb_data.map((btext: string, index: number) => (
-            <div
-              key={index}
-              className="flex items-center text-xs font-semibold text-dark-600 first-letter:uppercase after:ml-1.5 after:text-dark-300 after:content-['/'] last:after:content-[''] sm:text-sm md:text-lg"
-            >
-              <span className="truncate max-w-[150px] sm:max-w-[200px]">{btext}</span>
+            <div key={index} className="flex items-center">
+              <span className="truncate max-w-[150px] text-xs font-semibold text-dark-600 first-letter:uppercase sm:max-w-[220px] sm:text-sm md:text-lg">
+                {btext}
+              </span>
+              {index < breadcrumb_data.length - 1 && (
+                <span className="mx-1.5 font-medium text-dark-300 text-xs sm:text-sm md:text-base">/</span>
+              )}
             </div>
           ))}
         </div>
