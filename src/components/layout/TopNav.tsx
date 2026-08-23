@@ -68,17 +68,18 @@ export function TopNav() {
     "gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-md hover:opacity-75 font-medium border-2 hover:shadow-sm";
 
   return (
-    <header className="fixed z-20 flex justify-between w-full gap-2 px-2 py-3 text-right shadow-sm bg-dark-50">
-      <div className="flex gap-3">
-        <Logo className="text-3xl sm:text-4xl" />
+    <header className="fixed z-20 flex justify-between items-center w-full gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 shadow-sm bg-dark-50 dark:bg-slate-900 border-b border-dark-100 dark:border-slate-800">
+      <div className="flex items-center gap-2 shrink-0">
+        <Logo className="text-2xl sm:text-3xl" />
       </div>
 
-      <div className="flex self-center justify-end gap-1.5 md:gap-2 ml-auto h-fit grow">
+      <div className="flex items-center justify-end gap-1.5 sm:gap-2 ml-auto h-fit shrink-0">
         {show_create && (
           <button
             type="button"
             onClick={() => setPlanComponentState("open")}
-            className="flex items-center justify-center gap-1.5 h-9 px-3.5 self-center rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs border border-emerald-500/40 transition-all ml-auto shrink-0"
+            className="flex items-center justify-center gap-1.5 h-8 px-2.5 sm:h-9 sm:px-3.5 self-center rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs border border-emerald-500/40 transition-all shrink-0"
+            title="Create Plan"
           >
             <span className="hidden sm:inline font-bold leading-none">Create Plan</span>
             <FontAwesomeIcon icon={faFire} className="text-amber-300 text-xs hidden sm:inline" />
@@ -92,42 +93,42 @@ export function TopNav() {
         {/* Plan switcher (desktop) */}
         {plans.length > 0 && show_create && (
           <Listbox value={selected_plan?._id} onChange={handlePlanSwitch}>
-            <div className="self-center hidden w-full- md:inline-flex w-[18.5rem]">
+            <div className="hidden md:inline-flex w-[16rem] lg:w-[18.5rem]">
               <div className="relative w-full">
-                <Listbox.Button className="w-full relative h-[2.5rem] cursor-default rounded-md bg-dark-50 py-2 pl-3 pr-10 text-left shadow-sm border-2 border-dark-100 hover:border-dark-200 focus:outline-none focus-visible:border-dark-500 focus-visible:ring-2 focus-visible:ring-dark-50 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
-                  <span className="block truncate font-inter text-dark-500 first-letter:uppercase">
+                <Listbox.Button className="w-full relative h-9 cursor-default rounded-lg bg-white dark:bg-slate-800 py-1.5 pl-3 pr-8 text-left shadow-2xs border border-dark-200 dark:border-slate-700 hover:border-dark-300 focus:outline-none sm:text-xs">
+                  <span className="block truncate font-inter font-semibold text-dark-800 dark:text-slate-100 first-letter:uppercase">
                     {selected_plan?.title || "Select..."}
                   </span>
-                  <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-dark-500">
-                    <FontAwesomeIcon icon={faSort} />
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-dark-400">
+                    <FontAwesomeIcon icon={faSort} className="text-xs" />
                   </span>
                 </Listbox.Button>
-                <Listbox.Options className="absolute z-50 w-full py-1 overflow-auto text-base rounded-md shadow-lg mt-11 bg-dark-50 max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                <Listbox.Options className="absolute z-50 w-full py-1 overflow-auto text-xs rounded-xl shadow-xl mt-1.5 bg-white dark:bg-slate-800 border border-dark-200 dark:border-slate-700 max-h-60 focus:outline-none">
                   {plans.map((plan) => (
                     <Listbox.Option
                       key={plan._id}
                       value={plan._id}
                       className={({ active }) =>
                         `${
-                          plan._id === selected_plan?._id || active ? "bg-dark-100 text-dark-600" : "text-dark-500"
-                        } relative flex justify-between cursor-default select-none py-2 px-4`
+                          plan._id === selected_plan?._id || active ? "bg-dark-100/80 dark:bg-slate-700 text-dark-900 dark:text-white" : "text-dark-600 dark:text-slate-300"
+                        } relative flex justify-between items-center cursor-pointer select-none py-2 px-3`
                       }
                     >
                       <span
                         className={`${
-                          plan._id === selected_plan?._id ? "font-medium" : "font-normal"
+                          plan._id === selected_plan?._id ? "font-bold text-primary-600 dark:text-primary-400" : "font-medium"
                         } block truncate text-left`}
                       >
                         {plan.title}
                       </span>
                       {plan.parent_id && (
-                        <span className="relative inset-y-0 left-0 flex items-center pl-3 text-dark-500">
-                          <FontAwesomeIcon className="self-center text-lg" icon={faCodeBranch} />
+                        <span className="relative flex items-center pl-2 text-dark-400">
+                          <FontAwesomeIcon className="text-xs" icon={faCodeBranch} />
                         </span>
                       )}
                       {plan._id === selected_plan?._id && (
-                        <span className="relative inset-y-0 left-0 flex items-center pl-3 text-amber-600">
-                          <FontAwesomeIcon icon={faCircleCheck} />
+                        <span className="relative flex items-center pl-2 text-primary-600 dark:text-primary-400">
+                          <FontAwesomeIcon icon={faCircleCheck} className="text-xs" />
                         </span>
                       )}
                     </Listbox.Option>
@@ -144,42 +145,32 @@ export function TopNav() {
           aria-label="Toggle dark/light theme"
           title={`Theme: ${theme} (Click to toggle)`}
           onClick={toggleTheme}
-          className="flex h-[40px] w-[40px] self-center items-center justify-center rounded-md border-2 border-dark-100 bg-dark-50 text-dark-500 hover:text-primary-600 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
+          className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-dark-600 dark:text-slate-200 hover:text-primary-600 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
         >
           {mounted && resolvedTheme === "dark" ? (
-            <FontAwesomeIcon icon={faSun} className="text-amber-400 text-base" />
+            <FontAwesomeIcon icon={faSun} className="text-amber-400 text-sm sm:text-base" />
           ) : (
-            <FontAwesomeIcon icon={faMoon} className="text-slate-600 text-base" />
+            <FontAwesomeIcon icon={faMoon} className="text-slate-600 dark:text-slate-300 text-sm sm:text-base" />
           )}
         </button>
 
-        {/* Assistant launcher (mobile only — desktop uses the floating FAB) */}
-        <button
-          type="button"
-          aria-label="Open Fi-Plan Assistant"
-          onClick={OpenAssistant}
-          className="grid h-[40px] w-[40px] self-center place-content-center rounded-md border-2 border-primary-400/40 bg-primary-500/10 text-primary-400 transition-colors hover:bg-primary-500/20 md:hidden"
-        >
-          <FontAwesomeIcon icon={faRobot} className="text-lg" />
-        </button>
-
         {/* Profile menu */}
-        <Popover className="relative flex">
-          <Popover.Button className="box-border inline-flex items-center self-center gap-1 text-lg font-medium rounded-md text-dark-400 group hover:text-opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75">
-            <div className="w-[40px] h-[40px] overflow-hidden rounded-md p-1 bg-dark-50">
+        <Popover className="relative flex shrink-0">
+          <Popover.Button className="box-border inline-flex items-center gap-1 rounded-lg text-dark-500 hover:text-dark-800 focus:outline-none">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 overflow-hidden rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 items-center justify-center shadow-2xs">
               {profile?.photos?.length ? (
                 <img
                   src={profile.photos[profile.photos.length - 1]}
                   alt=""
-                  className="h-full aspect-square"
+                  className="h-full w-full object-cover rounded-md"
                 />
               ) : (
-                <div className="font-bold uppercase font-exo2">{username[0] || "?"}</div>
+                <div className="font-bold uppercase text-xs sm:text-sm font-exo2 text-dark-700 dark:text-slate-200">{username[0] || "?"}</div>
               )}
             </div>
             <FontAwesomeIcon
               icon={faEllipsisVertical}
-              className="ml-1 transition duration-150 ease-in-out text-dark-400 group-hover:text-opacity-80"
+              className="text-xs text-dark-400 group-hover:text-dark-600 transition-colors"
             />
           </Popover.Button>
 

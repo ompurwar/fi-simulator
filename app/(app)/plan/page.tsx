@@ -900,26 +900,33 @@ function PlanPageInner() {
         </div>
 
         {/* Mobile wealth card */}
-        <div className="flex flex-col p-4 mt-2 rounded-2xl border border-dark-200 bg-white shadow-xs md:hidden">
-          <div className="flex justify-between items-center pb-2 border-b border-dark-100 mb-2">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400">Net Worth</span>
-              <DisplayAmount className="text-lg font-extrabold text-dark-800" amount={aggregated_balance_for_month} />
+        <div className="flex flex-col p-3.5 mt-2 rounded-2xl border border-dark-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs md:hidden">
+          <div className="flex flex-col gap-2 pb-2.5 border-b border-dark-100 dark:border-slate-800 mb-2">
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
+                <DisplayAmount className="text-lg font-extrabold text-dark-800 dark:text-white truncate" amount={aggregated_balance_for_month} />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                <span className="rounded-md bg-dark-50 dark:bg-slate-800 border border-dark-100 dark:border-slate-700 px-2 py-0.5 text-xs font-bold text-dark-700 dark:text-slate-200">
+                  {GetMonthAndYear(plan, current_month)}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-bold text-dark-600">{GetMonthAndYear(plan, current_month)}</div>
+
+            <div className="flex items-center justify-end gap-2 w-full">
               <button
                 type="button"
-                className="flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-[10px] font-bold text-primary-700 hover:bg-primary-100 transition-all"
+                className="flex items-center gap-1.5 rounded-lg border border-primary-300 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-1 text-xs font-bold text-primary-700 dark:text-primary-300 hover:bg-primary-100 transition-all"
                 onClick={() => setWhatifOpen(true)}
               >
-                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs" />
-                What-if
+                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs text-primary-500" />
+                <span>What-if</span>
               </button>
               {is_plan_synced ? (
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 rounded-lg border border-dark-200 bg-dark-50 px-2.5 py-1 text-xs font-semibold text-dark-700 hover:bg-dark-100"
+                  className="flex items-center gap-1.5 rounded-lg border border-dark-200 dark:border-slate-700 bg-dark-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-dark-700 dark:text-slate-200 hover:bg-dark-100"
                   onClick={OnCompare}
                 >
                   <FontAwesomeIcon icon={faScaleBalanced} className="text-primary-600 text-xs" />
@@ -928,7 +935,7 @@ function PlanPageInner() {
               ) : (
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-primary-600"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-primary-700"
                   onClick={Save}
                 >
                   <FontAwesomeIcon icon={faFloppyDisk} className="text-xs" />
@@ -1236,13 +1243,13 @@ function PlanPageInner() {
         document.getElementById("share-button") &&
         createPortal(
           <button
+            type="button"
             onClick={OnShare}
-            className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-md hover:opacity-75 font-medium border-2 hover:shadow-sm border-primary-400 text-primary-500 bg-primary-50 h-[2.5rem] px-3"
+            className="flex items-center justify-center gap-1.5 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 rounded-lg border border-primary-300 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 shadow-2xs transition-all active:scale-95 text-xs font-bold shrink-0"
+            title="Share Plan"
           >
-            <div className="flex gap-2">
-              <span className="self-center hidden md:inline">Share</span>
-              <FontAwesomeIcon icon={faShareNodes} className="self-center text-lg font-bold" />
-            </div>
+            <span className="hidden sm:inline font-bold leading-none">Share</span>
+            <FontAwesomeIcon icon={faShareNodes} className="text-xs text-primary-600 dark:text-primary-400" />
           </button>,
           document.getElementById("share-button")!
         )}
