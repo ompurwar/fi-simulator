@@ -76,20 +76,13 @@ export function TopNav() {
       <div className="flex self-center justify-end gap-1.5 md:gap-2 ml-auto h-fit grow">
         {show_create && (
           <button
+            type="button"
             onClick={() => setPlanComponentState("open")}
-            className={`${btnClass} h-[2.5rem] px-2 md:px-3 ml-auto self-center border-primary-500 border-[2px] text-primary-50 bg-primary-500`}
+            className="flex items-center justify-center gap-1.5 h-9 px-3.5 self-center rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs border border-emerald-500/40 transition-all ml-auto shrink-0"
           >
-            <div className="flex gap-2">
-              <div className="text-[10px] sm:text-xs hidden sm:inline">
-                Create <span>Plan</span>
-              </div>
-              <span className="sm:hidden">
-                <FontAwesomeIcon icon={faPlus} className="self-center text-warning-50" />
-              </span>
-              <span className="hidden sm:inline">
-                <FontAwesomeIcon icon={faFire} className="self-center text-warning-50" />
-              </span>
-            </div>
+            <span className="hidden sm:inline font-bold leading-none">Create Plan</span>
+            <FontAwesomeIcon icon={faFire} className="text-amber-300 text-xs hidden sm:inline" />
+            <FontAwesomeIcon icon={faPlus} className="sm:hidden text-white text-xs" />
           </button>
         )}
 

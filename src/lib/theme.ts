@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -99,7 +99,7 @@ export function useTheme() {
       ? "light"
       : theme === "system"
       ? getSystemTheme()
-      : theme;
+      : (theme as ResolvedTheme);
 
   return {
     theme,
