@@ -602,82 +602,150 @@ function PlanPageInner() {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-4">
       {/* Left manager sidebar (desktop) */}
-      <div className="flex-wrap justify-between hidden w-56 gap-3 px-2 mt-24 bg-transparent md:flex md:mt-0 md:flex-col md:border-r md:px-0 md:p-2">
-        <div className="fixed">
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => router.push("/networth")}>
-            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
-              <FontAwesomeIcon icon={faWallet} className="text-2xl" />
+      <div className="hidden md:flex md:flex-col w-56 lg:w-60 shrink-0 gap-1 rounded-2xl border border-dark-200 bg-white p-3 shadow-xs h-fit self-start sticky top-20">
+        <div className="flex items-center justify-between px-2 py-1 mb-1">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-dark-400">Plan Modules</span>
+          <span className="text-[10px] font-bold text-dark-400 bg-dark-100/80 px-1.5 py-0.5 rounded-md">7 Active</span>
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => router.push("/networth")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faWallet} className="text-sm" />
             </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium">Net Worth</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 border-none p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("cashflow", "income")}>
-            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-success-100 p-2 text-success-300">
-              <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-success-200 bg-dark-50 text-primary-300">{income_list.length}</div>
-            </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium">Income Manager</div>
-              </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Net Worth</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Holdings & Sync</span>
             </div>
           </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-danger-100" onClick={() => HandleEdit("cashflow", "expense")}>
-            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-danger-100 p-2 text-danger-300">
-              <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-danger-200 bg-dark-50 text-danger-300">{engine.expense_list.length}</div>
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("cashflow", "income")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-sm" />
             </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium">Expense Manager</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-dark-100" onClick={() => HandleEdit("loan", "")}>
-            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-dark-100 p-2 text-dark-300">
-              <FontAwesomeIcon icon={faLandmarkFlag} className="text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-dark-200 bg-dark-50 text-dark-300">{loan_account_list.length}</div>
-            </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium">Loan Manager</div>
-              </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Income Manager</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Inflows & Growth</span>
             </div>
           </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-warning-100" onClick={() => HandleEdit("fdp", "")}>
-            <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-warning-100 p-2 text-warning-300">
-              <FontAwesomeIcon icon={faSackDollar} className="text-2xl" />
+          <div className="flex items-center gap-1.5">
+            {income_list.length > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1 text-[10px] font-bold">
+                {income_list.length}
+              </span>
+            )}
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+          </div>
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("cashflow", "expense")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-sm" />
             </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium hover:text-warning-300">Money Manager</div>
-              </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Expense Manager</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Outflows & Spends</span>
             </div>
           </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-primary-100" onClick={() => HandleEdit("asset", "")}>
-            <div className="relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-primary-100 p-2 text-primary-600">
-              <FontAwesomeIcon icon={faVault} className="text-2xl" />
-              <div className="absolute -right-1 -top-1 grid h-[1.2rem] min-w-[1.2rem] px-1 text-[0.7rem] place-content-center rounded-md border border-primary-200 bg-dark-50 text-primary-300">{(plan?.asset_list || []).length}</div>
+          <div className="flex items-center gap-1.5">
+            {engine.expense_list.length > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-1 text-[10px] font-bold">
+                {engine.expense_list.length}
+              </span>
+            )}
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+          </div>
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("loan", "")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faLandmarkFlag} className="text-sm" />
             </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium">Assets</div>
-              </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Loan Manager</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">EMIs & Payoffs</span>
             </div>
           </div>
-          <div className="flex h-fit w-[210px] cursor-pointer gap-3 p-2 px-2 hover:bg-blue-100" onClick={() => HandleEdit("tax", "")}>
-            <div className="grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md bg-blue-100 p-2 text-blue-300">
-              <FontAwesomeIcon icon={faFileInvoice} className="text-2xl" />
+          <div className="flex items-center gap-1.5">
+            {loan_account_list.length > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-1 text-[10px] font-bold">
+                {loan_account_list.length}
+              </span>
+            )}
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+          </div>
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("fdp", "")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faSackDollar} className="text-sm" />
             </div>
-            <div className="self-center w-full">
-              <div className="flex justify-between grow text-dark-300">
-                <div className="text-sm leading-tight w-[5rem] font-medium hover:text-blue-300">Tax Manager</div>
-              </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Money Manager</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Buckets & ROI</span>
             </div>
           </div>
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("asset", "")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faVault} className="text-sm" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Assets</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Mix & Growth</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {(plan?.asset_list || []).length > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-1 text-[10px] font-bold">
+                {(plan?.asset_list || []).length}
+              </span>
+            )}
+            <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]" />
+          </div>
+        </div>
+
+        <div
+          className="group flex items-center justify-between gap-2.5 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200"
+          onClick={() => HandleEdit("tax", "")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faFileInvoice} className="text-sm" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-bold text-dark-700 group-hover:text-dark-900 leading-tight">Tax Manager</span>
+              <span className="text-[10px] text-dark-400 font-medium leading-none mt-0.5">Old / New Regime</span>
+            </div>
+          </div>
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
         </div>
       </div>
 
@@ -687,38 +755,92 @@ function PlanPageInner() {
         <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:bottom-2 md:flex md:w-full md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-xl md:bg-dark-900 md:m-1 mb-3 shadow-warning-200 shadow-lg md:shadow-dark-400 md:shadow-md border md:border-0 transition-all duration-250">
           <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
           <Popover className="absolute top-[-1.5rem] flex justify-center rounded-full self-center md:hidden">
-            <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 bg-dark-800 text-2xl font-medium text-dark-50 md:bg-accent-400">
+            <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 border-primary-400 bg-white text-2xl font-medium text-primary-600 shadow-md">
               <FontAwesomeIcon icon={faGauge} className="md:hidden" />
             </Popover.Button>
-            <Popover.Panel className="absolute z-10 mt-3 w-[100vw] -translate-y-[105%] transform md:w-fit">
-              <div className="mx-3 overflow-hidden border rounded-lg border-dark-600 bg-dark-800 shadow-4xl">
+            <Popover.Panel className="absolute z-10 mt-3 w-[95vw] -translate-y-[105%] transform md:w-fit">
+              <div className="mx-2 overflow-hidden border border-dark-200 rounded-2xl bg-white shadow-2xl">
                 <div className="relative flex flex-col gap-3 p-4">
-                  <div className="flex gap-2">
-                    <div className="font-bold text-dark-100">Cockpit</div>
-                    <Popover.Button className="ml-auto grid h-[25px] w-[25px] place-content-center rounded-md bg-dark-600 text-dark-200">
-                      <FontAwesomeIcon icon={faXmark} />
+                  <div className="flex items-center justify-between border-b border-dark-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary-50 text-primary-600">
+                        <FontAwesomeIcon icon={faGauge} className="text-xs" />
+                      </div>
+                      <span className="text-sm font-bold text-dark-800">Plan Cockpit</span>
+                    </div>
+                    <Popover.Button className="flex h-7 w-7 items-center justify-center rounded-lg bg-dark-100 text-dark-500 hover:bg-dark-200">
+                      <FontAwesomeIcon icon={faXmark} className="text-xs" />
                     </Popover.Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["income", "expense"].map((c) => (
-                      <div key={c} className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("cashflow", c)}>
-                        <div className={`grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md p-2 sm:h-[3rem] ${c === "income" ? "bg-success-100 text-success-300" : "bg-danger-100 text-danger-300"}`}>
-                          <FontAwesomeIcon icon={c === "income" ? faArrowRightToBracket : faArrowRightFromBracket} className={`text-xl sm:text-2xl ${c === "income" ? "rotate-[135deg]" : "rotate-[-45deg]"}`} />
-                        </div>
-                        <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">{c === "income" ? "Income Manager" : "Expense Manager"}</div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => router.push("/networth")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                        <FontAwesomeIcon icon={faWallet} className="text-xs" />
                       </div>
-                    ))}
-                    <div key="loan" className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("loan", "")}>
-                      <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-dark-100 p-2 text-dark-300 sm:h-[3rem]">
-                        <FontAwesomeIcon icon={faLandmarkFlag} className="text-xl sm:text-2xl" />
-                      </div>
-                      <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">Loan Manager</div>
+                      <span className="text-xs font-bold text-dark-700">Net Worth</span>
                     </div>
-                    <div key="fdp" className="flex cursor-pointer gap-1.5 rounded-lg border border-dark-600 bg-dark-700 p-2 sm:gap-3" onClick={() => HandleEdit("fdp", "")}>
-                      <div className="grid h-[2.3rem] w-[3.6rem] place-content-center rounded-md bg-warning-100 p-2 text-warning-300 sm:h-[3rem]">
-                        <FontAwesomeIcon icon={faSackDollar} className="text-xl sm:text-2xl" />
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("cashflow", "income")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                        <FontAwesomeIcon icon={faArrowRightToBracket} className="rotate-[135deg] text-xs" />
                       </div>
-                      <div className="self-center text-[10px] font-medium text-dark-200 sm:text-sm">Money Manager</div>
+                      <span className="text-xs font-bold text-dark-700">Income</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("cashflow", "expense")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                        <FontAwesomeIcon icon={faArrowRightFromBracket} className="rotate-[-45deg] text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Expense</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("loan", "")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                        <FontAwesomeIcon icon={faLandmarkFlag} className="text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Loans</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("fdp", "")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                        <FontAwesomeIcon icon={faSackDollar} className="text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Money</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("asset", "")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                        <FontAwesomeIcon icon={faVault} className="text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Assets</span>
+                    </div>
+
+                    <div
+                      className="col-span-2 flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("tax", "")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                        <FontAwesomeIcon icon={faFileInvoice} className="text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Tax Manager</span>
                     </div>
                   </div>
                 </div>
