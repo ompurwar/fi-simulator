@@ -627,7 +627,6 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   const is_plan_synced = plan_synced_map[plan_id] !== false;
   const show_loan_list = ["loan_list", "add_loan"].includes(stage);
   const show_loan_meta_card = ["view_loan", "edit_loan"].includes(stage) && !!selected_loan;
-  const show_loan_command = ["add_loan", "edit_loan"].includes(stage);
 
   // EMI figures (port of LoanEngine amortization + EmiScheduleTOChartData)
   const emi_figures = useMemo(() => {
