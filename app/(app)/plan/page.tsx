@@ -272,7 +272,7 @@ function BalanceAndTxn({
                 amount={net_worth + (assetSummary?.total_value || 0)}
               />
               {assetSummary?.total_value > 0 && (
-                <div className="text-[9px] text-dark-200 sm:text-[10px]">
+                <div className="text-[9px] text-dark-200 sm:text-[10px] whitespace-nowrap">
                   incl. <DisplayAmount notation="compact" amount={assetSummary.total_value} /> assets
                 </div>
               )}
@@ -286,16 +286,16 @@ function BalanceAndTxn({
 
         {asset_by_class.length > 0 && (
           <div className={`flex flex-col gap-2 rounded-2xl bg-dark-900 p-3 ${alignment === "h" ? "" : "w-full"}`}>
-            <div className="flex justify-between items-baseline">
-              <div className="text-sm font-medium flex gap-1 items-baseline">
-                Asset Mix
+            <div className="flex justify-between items-baseline gap-2">
+              <div className="text-sm font-medium flex items-baseline gap-1.5 min-w-0">
+                <span className="whitespace-nowrap">Asset Mix</span>
                 {assetSummary.total_invested > 0 && (
-                  <span className="text-[9px] text-dark-300 hidden sm:inline-block">
+                  <span className="text-[9px] text-dark-300 hidden sm:inline-flex items-baseline gap-0.5 whitespace-nowrap">
                     (inv: <DisplayAmount amount={assetSummary.total_invested} notation="compact" />)
                   </span>
                 )}
               </div>
-              <DisplayAmount className="text-sm font-bold text-primary-300" notation="compact" amount={assetSummary.total_value} />
+              <DisplayAmount className="text-sm font-bold text-primary-300 whitespace-nowrap shrink-0" notation="compact" amount={assetSummary.total_value} />
             </div>
             <div className="flex items-center gap-3">
               <div className="h-[110px] w-[110px] shrink-0">
@@ -899,35 +899,35 @@ function PlanPageInner() {
             return (
               <div
                 key={d.month}
-                className={`relative my-2 flex w-full cursor-pointer flex-col rounded-md border p-4 shadow-sm snap-start overflow-x-clip snap-always hover:bg-dark-200 ${
+                className={`relative my-2 flex w-full cursor-pointer flex-col rounded-md border px-3 py-2.5 shadow-sm snap-start overflow-x-clip snap-always hover:bg-dark-200 ${
                   d.month === current_month
                     ? "border-primary-100 bg-primary-100 shadow-md shadow-primary-100"
                     : "bg-dark-50"
                 }`}
                 onClick={() => setCurrentMonth(d.month)}
               >
-                <div className="flex flex-col md:flex-row justify-between w-full md:items-center">
+                <div className="flex flex-col md:flex-row justify-between w-full md:items-center gap-1 md:gap-2">
                   <div className="w-full md:w-auto shrink-0">
-                    <div className={`w-[70px] py-1 text-center text-dark-500 ${d.month === current_month ? "font-bold" : ""}`}>
+                    <div className={`w-[60px] xl:w-[68px] py-0.5 text-center text-dark-500 text-xs xl:text-sm ${d.month === current_month ? "font-bold" : ""}`}>
                       {GetMonthAndYear(plan, d.month)}
                     </div>
                   </div>
-                  <div className="w-full md:w-auto">
+                  <div className="w-full md:w-auto min-w-0">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px] xl:text-xs">Income </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-400 text-sm xl:text-base" amount={d.income?.total_income || 0} />
+                      <span className="text-dark-300 text-[10px]">Income</span>
+                      <DisplayAmount className="font-bold text-dark-400 text-xs xl:text-sm" amount={d.income?.total_income || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-auto">
+                  <div className="w-full md:w-auto min-w-0">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px] xl:text-xs">Expense </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-400 text-sm xl:text-base" amount={d.expense?.total_expense || 0} />
+                      <span className="text-dark-300 text-[10px]">Expense</span>
+                      <DisplayAmount className="font-bold text-dark-400 text-xs xl:text-sm" amount={d.expense?.total_expense || 0} />
                     </div>
                   </div>
-                  <div className="w-full md:w-auto">
+                  <div className="w-full md:w-auto min-w-0">
                     <div className="flex flex-col">
-                      <span className="text-dark-300 text-[10px] xl:text-xs">Net </span>
-                      <DisplayAmount className="mr-2 font-bold text-dark-600 text-sm xl:text-base" amount={d.net_cashflow?.total || 0} />
+                      <span className="text-dark-300 text-[10px]">Net</span>
+                      <DisplayAmount className="font-bold text-dark-600 text-xs xl:text-sm" amount={d.net_cashflow?.total || 0} />
                     </div>
                   </div>
                 </div>
