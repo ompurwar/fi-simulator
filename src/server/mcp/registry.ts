@@ -7,11 +7,13 @@ import { makeEngineTools } from "./tools/engine";
 import { makeCashflowTools } from "./tools/cashflows";
 import { makeChangeTools } from "./tools/changes";
 import { makeLoanTools } from "./tools/loans";
+import { makeFdpTools } from "./tools/fdp";
+import { makeAccountTools } from "./tools/accounts";
 import { makeNetWorthTools } from "./tools/networth";
 import { makeIndStocksTools } from "./tools/indstocks";
 import { makeShareTools } from "./tools/share";
 
-/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, networth, indstocks, share. */
+/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, fdp, accounts, networth, indstocks, share. */
 export function makeToolRegistry(container: Container): ToolDefinition[] {
   return [
     ...makePlanTools(container),
@@ -19,6 +21,8 @@ export function makeToolRegistry(container: Container): ToolDefinition[] {
     ...makeCashflowTools(container),
     ...makeChangeTools(container),
     ...makeLoanTools(container),
+    ...makeFdpTools(container),
+    ...makeAccountTools(container),
     ...makeNetWorthTools(container),
     ...makeIndStocksTools(container),
     ...makeShareTools(container),

@@ -591,14 +591,18 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
   }, [plan]);
 
   const selected_loan = loan_list.find((l: any) => l._id === selected_loan_id);
-  const loan_being_edited = selected_loan || {
-    title: default_loan_title,
-    principal_amount: 0,
-    start_month: 1,
-    end_month: 1,
-    interest_rate: 0,
-    type: default_loan_type,
-  };
+  const loan_being_edited = useMemo(
+    () =>
+      selected_loan || {
+        title: default_loan_title,
+        principal_amount: 0,
+        start_month: 1,
+        end_month: 1,
+        interest_rate: 0,
+        type: default_loan_type,
+      },
+    [selected_loan, default_loan_title, default_loan_type]
+  );
 
   const is_plan_synced = plan_synced_map[plan_id] !== false;
   const show_loan_list = ["loan_list", "add_loan"].includes(stage);

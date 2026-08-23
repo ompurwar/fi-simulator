@@ -47,6 +47,7 @@ import {
 } from "../networth";
 import { makeAnthropicProvider } from "../ai/provider";
 import type { AiProvider } from "../ai/types";
+import { makeOAuthService, makeOAuthStore, type OAuthService, type OAuthStore } from "../mcp/oauth";
 
 export interface Container {
   env: Env;
@@ -61,6 +62,8 @@ export interface Container {
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
   chat_session_list: ChatSessionRepository;
+  oauth_store: OAuthStore;
+  oauth_service: OAuthService;
   app: ApplicationLayer;
   networth_repo: NetWorthRepository;
   networth_provider: NetWorthProvider;
@@ -109,6 +112,13 @@ export async function buildContainer(
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
   const chat_session_list = makeChatSessionRepository(db);
+  const oauth_store = makeOAuthStore(db);
+  const oauth_service = makeOAuthService({
+    store: oauth_store,
+    cookieSecret: env.COOKIE_SECRET,
+    GenerateHash,
+    GenerateRandomString,
+  });
 
   const networth_repo = makeNetWorthRepository(db);
   const networth_provider =
@@ -173,6 +183,8 @@ export async function buildContainer(
     common_collection_list,
     api_token_list,
     chat_session_list,
+    oauth_store,
+    oauth_service,
     app,
     networth_repo,
     networth_provider,

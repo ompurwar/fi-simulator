@@ -182,22 +182,39 @@ function ApplyAddFdp(plan: any, patch: any): void {
   if (!fdp || typeof fdp !== "object")
     throw new InvalidPropertyError("invalid: fdp should be an object");
 
-  const { name, amount, interest_rate, tenure, start_month, account_id } = fdp;
-  if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
-    throw new InvalidPropertyError("invalid: fdp tenure should be a positive number");
-
+  const { name, amount, interest_rate, start_month, end_month, tenure, account_id, active } = fdp;
   const start = start_month ?? 1;
+  if (typeof start !== "number" || !Number.isFinite(start) || start < 1)
+    throw new InvalidPropertyError("invalid: fdp start_month should be a positive number");
+  let end = end_month;
+  if (end === undefined) {
+    if (typeof tenure !== "number" || !Number.isFinite(tenure) || tenure <= 0)
+      throw new InvalidPropertyError(
+        "invalid: fdp needs end_month or a positive tenure (start_month + tenure - 1)"
+      );
+    end = start + tenure - 1;
+  }
+  if (end < start)
+    throw new InvalidPropertyError("invalid: fdp end_month should be >= start_month");
+
+  // Strategy-style patches may set the s/e/i split directly; FD-style patches
+  // (amount/interest_rate) keep the legacy all-investment default. The entity
+  // validates that s + e + i sum to exactly 100.
   const entry = MakeFundDistributionPercentage({
     start_month: start,
-    end_month: start + tenure - 1,
-    s: 0,
-    e: 0,
-    i: 100,
+    end_month: end,
+    s: fdp.s ?? 0,
+    e: fdp.e ?? 0,
+    i: fdp.i ?? 100,
     name: name || "Fixed Deposit",
     amount,
     interest_rate,
     account_id,
+    active: active ?? true,
   });
+  for (const key of Object.keys(entry)) {
+    if (entry[key] === undefined) delete entry[key];
+  }
 
   plan.fund_distribution_percentage = plan.fund_distribution_percentage || [];
   plan.fund_distribution_percentage.push(entry);
@@ -236,7 +253,7 @@ const PATCH_APPLICATORS: Record<string, PatchApplicator> = {
  * Error messages carry the expected patch shape so agents self-correct.
  */
 export const PATCH_SCHEMA_HINT =
-  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}, {"op":"update_loan","loan_id":"<loan _id>","prepayments":[{"start_month":40,"amount":25000,"frequency":"m","step_pct":10,"step_frequency":"y"}]}, {"op":"set_account_balance","account_id":"<account _id>","month":12,"balance":500000}] — flat fields are also accepted (op inferred, fields auto-wrapped)';
+  'scenario patches look like: [{"op":"add_cashflow_change","change":{"cashflow_id":"<line _id>","change_category":"i|e","change_type":"p|f","value":10,"start_month":24}}, {"op":"add_income","cashflow":{"desc":"...","amount":30000,"start_month":12}}, {"op":"add_loan","loan":{"amount":400000,"interest_rate":9,"tenure":60,"start_month":24,"deposit_to_bank":false}}, {"op":"add_fdp","fdp":{"start_month":12,"end_month":36,"s":20,"e":30,"i":50}}, {"op":"update_loan","loan_id":"<loan _id>","prepayments":[{"start_month":40,"amount":25000,"frequency":"m","step_pct":10,"step_frequency":"y"}]}, {"op":"set_account_balance","account_id":"<account _id>","month":12,"balance":500000}] — flat fields are also accepted (op inferred, fields auto-wrapped)';
 
 /** Infer the op and wrap flat fields into the nested shapes the applicators expect. */
 function normalizePatch(patch: any, index: number): any {
@@ -289,7 +306,9 @@ function normalizePatch(patch: any, index: number): any {
   }
   if (op === "add_fdp" && !patch.fdp) {
     out.fdp = {};
-    for (const k of ["name", "amount", "interest_rate", "tenure", "start_month", "account_id"]) {
+    // Both vocabularies: the legacy FD shape (name/amount/interest_rate/tenure/account_id)
+    // and the strategy shape (start_month/end_month/s/e/i/active).
+    for (const k of ["name", "amount", "interest_rate", "tenure", "start_month", "end_month", "account_id", "s", "e", "i", "active"]) {
       if (patch[k] !== undefined) out.fdp[k] = patch[k];
     }
   }

@@ -25,6 +25,7 @@ function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sid = searchParams.get("sid");
+  const oauth = searchParams.get("oauth");
   const modeParam = searchParams.get("mode");
 
   const [mode, setMode] = useState<"login" | "signup">(
@@ -118,6 +119,24 @@ function LoginInner() {
             { $email: values.email, name: full_name, last_login_date: new Date().toISOString(), inc: { login_count: 1 } }
           );
 
+          // OAuth MCP sign-in (IndMoney-style): the /login?oauth=<id> flow —
+          // after login the server issues the authorization code and redirects
+          // back to the MCP client.
+          if (oauth) {
+            const res = await fetch("/api/mcp/oauth/authorize", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              redirect: "manual",
+              body: JSON.stringify({ oauth_id: oauth }),
+            });
+            const location = res.headers.get("location");
+            if (location) {
+              window.location.href = location;
+              return;
+            }
+          }
+
           if (!sid) {
             if (profile.ob_params) router.push("/plan");
             else router.push("/onboarding");
@@ -149,7 +168,7 @@ function LoginInner() {
       const { email, password, name } = values;
       setLoggingInWithOutGoogle(true);
       commit(null);
-      let [first_name, last_name = ""] = name.split(" ");
+      const [first_name, last_name = ""] = name.split(" ");
       const full_name = name.toLowerCase().trim();
       await api.Signup(email, password, first_name, last_name);
       setLoggingInWithOutGoogle(false);
