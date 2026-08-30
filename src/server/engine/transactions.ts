@@ -33,6 +33,10 @@ export interface FDPLike {
   i: number;
   strategy?: string;
   active?: boolean;
+  /** set when the engine's auto-computed strategy was used (no explicit FDP covered the month) */
+  auto?: boolean;
+  /** set when the auto strategy was rebalanced so the 'i' share funds scheduled SIPs */
+  sip_aware?: boolean;
 }
 
 export interface Transaction {
@@ -116,13 +120,40 @@ function GetDistributionPercentageForMonth(
   expense_statement: MonthlyStatement[] = [],
   account_balances: AccountBalance[] = [],
   fund_distribution_percentage_list: FDPLike[] = [],
-  account_list: AccountLike[] = []
+  account_list: AccountLike[] = [],
+  sip_obligation_by_month?: Record<number, number>
 ): FDPLike {
   let distribution = fund_distribution_percentage_list.find(
     (_) => _.active !== false && (_.start_month ?? 0) <= month && month <= (_.end_month ?? 0)
   );
   if (distribution) distribution.strategy = "Custom";
-  if (!distribution) distribution = ComputeDistributionPercentage(income_statement, expense_statement, account_balances, month, account_list);
+  if (!distribution) {
+    distribution = ComputeDistributionPercentage(income_statement, expense_statement, account_balances, month, account_list);
+    distribution.auto = true;
+    // Scheduled SIPs are obligations: when the auto strategy would under-route
+    // surplus to the investment bucket, rebalance it (from 'e' first, then 's')
+    // so positive-net months fund their SIP instalments instead of skipping.
+    const net =
+      (income_statement[month - 1]?.total_income ?? 0) -
+      (expense_statement[month - 1]?.total_expense ?? 0);
+    const sip_due = sip_obligation_by_month?.[month] ?? 0;
+    if (sip_due > 0 && net > 0) {
+      const needed_pct = Math.min(100, (sip_due / net) * 100);
+      const deficit = needed_pct - distribution.i;
+      if (deficit > 0) {
+        const from_e = Math.min(distribution.e, deficit);
+        distribution.e -= from_e;
+        distribution.i += from_e;
+        const rest = deficit - from_e;
+        if (rest > 0) {
+          const from_s = Math.min(distribution.s, rest);
+          distribution.s -= from_s;
+          distribution.i += from_s;
+        }
+        distribution.sip_aware = true;
+      }
+    }
+  }
   return distribution;
 }
 function ComputeDistributionPercentage(
@@ -264,7 +295,9 @@ export function GenerateTransactionsAndAccountBalances(
    * pure; the asset pass applies its own txns once. Pass undefined when there
    * are no assets.
    */
-  pool_extra?: (account_id: string, month: number) => number
+  pool_extra?: (account_id: string, month: number) => number,
+  /** scheduled SIP instalment per month (config-derived) — funds the auto-strategy rebalance */
+  sip_obligation_by_month?: Record<number, number>
 ): TxnResult {
   const transaction_list: Transaction[] = [];
   let account_balances: AccountBalance[] = [];
@@ -325,7 +358,8 @@ export function GenerateTransactionsAndAccountBalances(
       expense_statement,
       account_balances,
       fund_distribution_percentage_list,
-      account_list
+      account_list,
+      sip_obligation_by_month
     );
     if (!FDP_month_map[month]) FDP_month_map[month] = fund_distribution_percentage;
 
