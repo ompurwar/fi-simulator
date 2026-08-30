@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+- Mobile top nav overflow — the project's custom `sm` breakpoint is 390px (exact phone width), so the responsive sizes never kicked in on phones: Create Plan / Share jammed the theme + avatar off-screen. Buttons now use the `md` boundary: **mobile nav = brand + assistant + theme + avatar** (always visible), and **Create Plan + Share moved into the Plan Cockpit** (new highlighted actions). Sizes compacted below md.
+- Plan Gaps card / Asset Mix polish: compact pill layout with hover explanations (works in light + dark mode), 0% holdings dimmed in the legend, caption shortened ("now · top segment"), Runway column widened to 20.5rem, chart-header nav no longer overlaps the Net Worth amount (wraps instead).
+
+## [Unreleased]
+
 ### Added
 - **Engine bug reports (agents → triage queue).** New `Bug_Report_Store` collection + `BugReport` entity (`title`, `description`, `category` engine|snapshot|mcp|ui|other, `severity`, `steps_to_reproduce`, `expected_behavior`/`actual_behavior`, optional `plan_id`/`session_id`, `status` open|resolved|duplicate, `fingerprint`, timestamps). MCP tools: `report_engine_bug` (any user — requires concrete expected-vs-actual values; open duplicates are detected via a sha1 fingerprint and the existing id is returned), `list_engine_bugs` (admins: all, users: own), `get_engine_bug` (full repro contract — the hook a fixing agent uses), `resolve_engine_bug` (reporter or admin; optional resolution note + reopen). HTTP mirrors: `POST /bug/report|list|resolve`. The assistant system prompt now directs agents to report concrete engine discrepancies instead of letting them vanish.
 - **Skipped SIPs are visible in the month's breakdown.** A missed instalment now emits a ₹0 marker txn (`SIP skipped - <title>`) on the funding account's transaction list, so a month that shows "+inflow / −paid SIP / balance 0" no longer hides why a second SIP was missed; the Plan Gaps card explains the skip reason on hover (funding account + ladder first, emergency bucket protected by default — enable "Use emergency money for SIPs" in Withdraw Order to change it).
