@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 
 /** Logo — port of logo/Logo.vue ("Fi-Plan" wordmark with Beta badge). */
-export function Logo({ className = "" }: { className?: string }) {
+export function Logo({ className = "", badge = true }: { className?: string; badge?: boolean }) {
   const router = useRouter();
   const selected_plan_id = useFiPlanStore((s) => s.selected_plan_id);
   return (
@@ -23,9 +23,11 @@ export function Logo({ className = "" }: { className?: string }) {
           <span>-</span>
           <span>Plan</span>
         </span>
-        <span className="border border-blue-400 box-border rounded-sm px-1 self-center ml-1 font-normal h-fit bg-blue-50 text-center text-blue-700 grid">
-          <span className="text-[.4ch] font-bold py-0.5 leading-3 uppercase">Beta</span>
-        </span>
+        {badge && (
+          <span className="border border-blue-400 box-border rounded-sm px-1 self-center ml-1 font-normal h-fit bg-blue-50 text-center text-blue-700 grid">
+            <span className="text-[.4ch] font-bold py-0.5 leading-3 uppercase">Beta</span>
+          </span>
+        )}
       </span>
     </Link>
   );

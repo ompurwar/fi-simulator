@@ -69,21 +69,20 @@ export function TopNav() {
 
   return (
     <header className="fixed z-20 flex justify-between items-center w-full gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 shadow-sm bg-dark-50 dark:bg-slate-900 border-b border-dark-100 dark:border-slate-800">
-      <div className="flex items-center gap-2 shrink-0">
-        <Logo className="text-2xl sm:text-3xl" />
+      <div className="flex items-center gap-2 shrink-0 min-w-0">
+        <Logo className="text-xl md:text-3xl" badge={false} />
       </div>
 
-      <div className="flex items-center justify-end gap-1.5 sm:gap-2 ml-auto h-fit shrink-0">
+      <div className="flex items-center justify-end gap-1 sm:gap-2 ml-auto h-fit shrink-0">
         {show_create && (
           <button
             type="button"
             onClick={() => setPlanComponentState("open")}
-            className="flex items-center justify-center gap-1.5 h-8 px-2.5 sm:h-9 sm:px-3.5 self-center rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs border border-emerald-500/40 transition-all shrink-0"
+            className="hidden md:flex items-center justify-center gap-1.5 h-7 md:h-9 md:px-3.5 self-center rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs border border-emerald-500/40 transition-all shrink-0"
             title="Create Plan"
           >
-            <span className="hidden sm:inline font-bold leading-none">Create Plan</span>
-            <FontAwesomeIcon icon={faFire} className="text-amber-300 text-xs hidden sm:inline" />
-            <FontAwesomeIcon icon={faPlus} className="sm:hidden text-white text-xs" />
+            <span className="font-bold leading-none">Create Plan</span>
+            <FontAwesomeIcon icon={faFire} className="text-amber-300 text-xs" />
           </button>
         )}
 
@@ -139,25 +138,36 @@ export function TopNav() {
           </Listbox>
         )}
 
+        {/* Assistant launcher — always reachable on mobile (the floating FAB is desktop-only) */}
+        <button
+          type="button"
+          aria-label="Open Fi-Plan Assistant"
+          title="Fi-Plan Assistant"
+          onClick={OpenAssistant}
+          className="flex h-7 w-7 md:h-9 md:w-9 md:hidden shrink-0 items-center justify-center rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
+        >
+          <FontAwesomeIcon icon={faRobot} className="text-xs sm:text-sm" />
+        </button>
+
         {/* Quick Theme Toggle Button */}
         <button
           type="button"
           aria-label="Toggle dark/light theme"
           title={`Theme: ${theme} (Click to toggle)`}
           onClick={toggleTheme}
-          className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-dark-600 dark:text-slate-200 hover:text-primary-600 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
+          className="flex h-7 w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-dark-600 dark:text-slate-200 hover:text-primary-600 hover:border-primary-300 dark:hover:border-primary-400 shadow-2xs transition-all active:scale-95"
         >
           {mounted && resolvedTheme === "dark" ? (
-            <FontAwesomeIcon icon={faSun} className="text-amber-400 text-sm sm:text-base" />
+            <FontAwesomeIcon icon={faSun} className="text-amber-400 text-xs sm:text-base" />
           ) : (
-            <FontAwesomeIcon icon={faMoon} className="text-slate-600 dark:text-slate-300 text-sm sm:text-base" />
+            <FontAwesomeIcon icon={faMoon} className="text-slate-600 dark:text-slate-300 text-xs sm:text-base" />
           )}
         </button>
 
         {/* Profile menu */}
         <Popover className="relative flex shrink-0">
           <Popover.Button className="box-border inline-flex items-center gap-1 rounded-lg text-dark-500 hover:text-dark-800 focus:outline-none">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 overflow-hidden rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 items-center justify-center shadow-2xs">
+            <div className="flex h-7 w-7 md:h-9 md:w-9 overflow-hidden rounded-lg border border-dark-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 items-center justify-center shadow-2xs">
               {profile?.photos?.length ? (
                 <img
                   src={profile.photos[profile.photos.length - 1]}
@@ -170,7 +180,7 @@ export function TopNav() {
             </div>
             <FontAwesomeIcon
               icon={faEllipsisVertical}
-              className="text-xs text-dark-400 group-hover:text-dark-600 transition-colors"
+              className="hidden md:inline text-xs text-dark-400 group-hover:text-dark-600 transition-colors"
             />
           </Popover.Button>
 
@@ -328,3 +338,4 @@ export function TopNav() {
     </header>
   );
 }
+
