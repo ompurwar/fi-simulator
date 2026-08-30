@@ -80,6 +80,70 @@ describe("account tools", () => {
     expect(updated.title).toBe("Investment (real net worth)");
   });
 
+  it("persists init_balance = 0 (regression: falsy values must not be dropped)", async () => {
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_accounts", {
+      plan_id,
+    });
+    const investment = (list as any).data.find((a: any) => a.category === "i");
+
+    const initBalanceTxnOf = (snap: any) => {
+      const month1 = (snap as any).data.balance_and_transaction_by_month.find(
+        (m: any) => m.month === 1
+      );
+      const entry = (month1?.data || []).find((d: any) => (d.balance || []).some((b: any) => b.category === "i"));
+      return (entry?.txn || []).find((t: any) => t.tran_desc === "Initial Balance")?.amount;
+    };
+    const snapBefore = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+    });
+    expect(initBalanceTxnOf(snapBefore)).toBe(3688000);
+
+    const update = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_account", {
+      plan_id,
+      account_id: investment._id,
+      init_balance: 0,
+    });
+    expect(update.ok).toBe(true);
+    expect((update as any).data?.updated).toBe(true);
+
+    const after = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_accounts", {
+      plan_id,
+    });
+    const updated = (after as any).data.find((a: any) => a._id === investment._id);
+    expect(updated.init_balance).toBe(0);
+
+    const snapAfter = await callRegistryTool(makeToolRegistry(t.container), ctx, "plan_snapshot", {
+      plan_id,
+    });
+    expect(initBalanceTxnOf(snapAfter)).toBe(0);
+  });
+
+  it("patches only the target account — sibling accounts keep their fields untouched", async () => {
+    const list = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_accounts", {
+      plan_id,
+    });
+    const savings = (list as any).data.find((a: any) => a.category === "s");
+    const investment = (list as any).data.find((a: any) => a.category === "i");
+    const emergencyBefore = (list as any).data.find((a: any) => a.category === "e");
+
+    const update = await callRegistryTool(makeToolRegistry(t.container), ctx, "update_account", {
+      plan_id,
+      account_id: savings._id,
+      init_balance: 222000,
+    });
+    expect(update.ok).toBe(true);
+
+    const after = await callRegistryTool(makeToolRegistry(t.container), ctx, "list_accounts", {
+      plan_id,
+    });
+    const updatedSavings = (after as any).data.find((a: any) => a._id === savings._id);
+    const investmentAfter = (after as any).data.find((a: any) => a._id === investment._id);
+    const emergencyAfter = (after as any).data.find((a: any) => a._id === emergencyBefore._id);
+    expect(updatedSavings.init_balance).toBe(222000);
+    expect(investmentAfter.init_balance).toBe(investment.init_balance);
+    expect(emergencyAfter.init_balance).toBe(emergencyBefore.init_balance);
+  });
+
   it("adds a new account and shows it in list_accounts", async () => {
     const add = await callRegistryTool(makeToolRegistry(t.container), ctx, "add_account", {
       plan_id,

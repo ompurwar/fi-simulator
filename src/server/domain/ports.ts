@@ -31,6 +31,12 @@ export interface PlanTemplateRepository {
   FindById(plan_id: string): Promise<PlanTemplate | null>;
   FindByUserId(user_id: string): Promise<PlanTemplate[]>;
   Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
+  /** Patches one account document inside a plan with a targeted $set — no whole-document rewrite. */
+  UpdateAccount(info: {
+    plan_id: string;
+    account_id: string;
+    changes: Record<string, any>;
+  }): Promise<{ success: boolean }>;
   Delete(plan_id: string): Promise<{ success: boolean }>;
   RemoveCashflowAndAccount(info: {
     _id: string;
