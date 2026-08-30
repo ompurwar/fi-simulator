@@ -410,6 +410,35 @@ function RequestedSipAmount(st: AssetState, month: number): number {
   return sip.amount * Math.pow(1 + step / 100, step_units);
 }
 
+/**
+ * Total scheduled SIP instalment per month, derived purely from asset config
+ * (same due/amount rules the asset pass uses). Drives the auto-FDP rebalance
+ * so the fallback strategy routes enough surplus to fund SIPs in months with
+ * positive net cashflow.
+ */
+export function ScheduledSipTotalByMonth(plan: any, duration: number): Record<number, number> {
+  const map: Record<number, number> = {};
+  for (const asset of plan?.asset_list || []) {
+    if (!asset || asset.active === false || !asset.sip) continue;
+    const sip = asset.sip;
+    const sip_start = sip.start_month || 1;
+    const start = Math.max(1, asset.purchase_month || 1, sip_start);
+    const end = Math.min(
+      duration,
+      asset.sale_month && asset.sale_month > 0 ? asset.sale_month - 1 : duration,
+      sip.end_month && sip.end_month > 0 ? sip.end_month : duration
+    );
+    const period = GetPeriodMonths(sip.frequency);
+    for (let m = start; m <= end; m++) {
+      if ((m - sip_start) % period !== 0) continue;
+      const step = sip.step_pct || 0;
+      const step_units = Math.floor((m - sip_start) / 12);
+      map[m] = (map[m] || 0) + sip.amount * Math.pow(1 + step / 100, step_units);
+    }
+  }
+  return map;
+}
+
 export function ComputeAssetSchedule(
   plan: any,
   duration: number,
