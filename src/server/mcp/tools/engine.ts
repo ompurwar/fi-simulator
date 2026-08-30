@@ -45,13 +45,16 @@ function toSummary(snapshot: any, milestones = false) {
       .reduce((s: number, b: any) => s + (b.balance || 0), 0);
     return { month: t.month, net_worth: bucket_total + (assets_by_month[t.month] || 0) };
   });
-  // plan gaps: months the accounts could not fully fund (expense shortfalls)
-  // and SIP instalments skipped because the withdrawal ladder ran dry.
+  // plan gaps: months the accounts could not fully fund (expense shortfalls),
+  // SIP instalments skipped because the withdrawal ladder ran dry, and months
+  // the auto FDP strategy had to cover because no explicit FDP did.
   const unfunded_expenses = snapshot.unfunded_expenses || [];
   const skipped_sips = snapshot.skipped_sips || [];
+  const fdp_fallback_months = snapshot.fdp_fallback_months || [];
   const gaps = {
     unfunded_expenses,
     skipped_sips,
+    fdp_fallback_months,
     unfunded_total: Math.round(
       unfunded_expenses.reduce((s: number, g: any) => s + g.amount, 0) * 100
     ) / 100,

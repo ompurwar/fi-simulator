@@ -17,7 +17,7 @@ import {
   MakeLoanScheduleByMonthToCashFlow,
   MakePrepaymentScheduleByMonthToCashFlow,
 } from "./loan";
-import { ComputeAssetSchedule, ComputeAssetScenarios, ComputeIncomeTaxExpenseSchedule } from "./assets";
+import { ComputeAssetSchedule, ComputeAssetScenarios, ComputeIncomeTaxExpenseSchedule, ScheduledSipTotalByMonth } from "./assets";
 import { createBalanceLedger, resolveWithdrawalOrder } from "./funding";
 import type { TaxRuleSet } from "../tax/schema";
 import type { CashFlowLike, CashFlowChangeLike } from "./statements";
@@ -75,6 +75,12 @@ export interface PlanSnapshot {
    * (only present when there is at least one unfunded month).
    */
   unfunded_expenses?: { month: number; amount: number }[];
+  /**
+   * Months where no explicit FDP covered the plan and the auto strategy
+   * engaged — a distinct gap warning (only present when the plan declares
+   * explicit FDP entries).
+   */
+  fdp_fallback_months?: { month: number; strategy?: string; sip_aware: boolean }[];
 }
 
 export function ComputePlanSnapshot(
@@ -212,13 +218,19 @@ export function ComputePlanSnapshot(
     (a: any, b: any) => a.start_month - b.start_month
   );
 
+  const sip_obligation_by_month = has_assets
+    ? ScheduledSipTotalByMonth(_plan, plan_duration)
+    : undefined;
+
   let account_balances_and_transactions = GenerateTransactionsAndAccountBalances(
     cashflow.income_statement,
     cashflow.expense_statement,
     fund_distribution_percentage_list,
     account_list,
     loan_account_list,
-    _plan.withdrawal_order
+    _plan.withdrawal_order,
+    undefined,
+    sip_obligation_by_month
   );
 
   // PHASE B+C (fixed-point) — SIP funding and expense funding must see the SAME
@@ -256,7 +268,8 @@ export function ComputePlanSnapshot(
               }
               return sum;
             }
-          : undefined
+          : undefined,
+        sip_obligation_by_month
       );
       account_balances_and_transactions = bucket_run;
 
@@ -334,6 +347,23 @@ export function ComputePlanSnapshot(
   }));
   if (unfunded_months.length > 0) {
     snapshot.unfunded_expenses = unfunded_months;
+  }
+
+  // Distinct gap warning: months the auto strategy had to cover because no
+  // explicit FDP did. Only surfaced for plans that declare explicit FDPs —
+  // for FDP-less plans the auto strategy IS the design default.
+  if (fund_distribution_percentage_list.length > 0) {
+    const FDP_month_map = account_balances_and_transactions.FDP_month_map || {};
+    const fdp_fallback_months = Object.entries(FDP_month_map)
+      .filter(([, fdp]: any) => fdp?.auto === true)
+      .map(([month, fdp]: any) => ({
+        month: Number(month),
+        strategy: fdp.strategy,
+        sip_aware: !!fdp.sip_aware,
+      }));
+    if (fdp_fallback_months.length > 0) {
+      snapshot.fdp_fallback_months = fdp_fallback_months;
+    }
   }
 
   // Asset/tax fields only when the plan uses them — old plans stay byte-identical.
