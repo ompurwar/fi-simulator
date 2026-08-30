@@ -2,6 +2,7 @@
 
 import { ComputeCapitalGains, ComputeIncomeTax, MonthToAssessmentYear } from "../tax/engine";
 import type { TaxRuleSet } from "../tax/schema";
+import { resolveDebit, sipWithdrawalLadder, type OrderableAccount } from "./funding";
 
 export interface AssetSipLike {
   amount: number;
@@ -54,6 +55,8 @@ export interface AssetMonthRow {
   closing_value: number;
   rent_gross?: number;
   event?: "none" | "matured";
+  /** the month's SIP instalment could not be funded → skipped entirely */
+  sip_skipped?: boolean;
 }
 
 export interface AssetTxn {
@@ -102,11 +105,30 @@ export interface AssetScheduleResult {
     total_value: number;
     total_invested: number;
     total_unrealized: number;
+    skipped_sip_months: number;
   };
   /** per assessment year: taxable income streams + realized capital gains + TDS */
   tax_summary: Record<string, AssetTaxSummaryYear>;
   /** value-weighted blended growth per bucket (the derived e/s/i growth %) */
   bucket_growth: Record<"e" | "s" | "i", { value: number; growth_rate: number }>;
+  /** SIP instalments that could not be funded (month, asset, requested amount) */
+  skipped_sips: { month: number; asset_id: string; title: string; amount: number }[];
+}
+
+/**
+ * When provided, SIP instalments must be serviceable: the funding account is
+ * drawn first, then the rest of the withdrawal ladder, and the instalment is
+ * SKIPPED (never partially funded, never overdrawing) if the ladder cannot
+ * cover it. Without a context the schedule assumes full funding (legacy
+ * behaviour — used by the ±1σ scenario bands).
+ */
+export interface AssetScheduleOptions {
+  ctx?: {
+    getBalance: (month: number, account_id: string) => number;
+    applyTxn: (txn: AssetTxn) => void;
+    orderedAccounts: OrderableAccount[];
+    protectEmergency: boolean;
+  };
 }
 
 const PERIOD_MONTHS: Record<string, number> = { m: 1, q: 3, h: 6, y: 12 };
@@ -270,83 +292,383 @@ function findFundingAccount(plan: any, asset: AssetLike): string | null {
   return bucket ? String(bucket._id) : null;
 }
 
+interface AssetState {
+  asset: AssetLike;
+  funding_account_id: string | null;
+  start: number;
+  end: number;
+  value: number;
+  invested: number;
+  current_fy: string;
+  fy_interest: number;
+  income_period: number;
+  sip_period: number;
+  rows: AssetMonthRow[];
+  matured: boolean;
+}
+
+interface RowComputation {
+  row: AssetMonthRow;
+  next_value: number;
+  next_invested: number;
+  next_fy_interest: number;
+}
+
+/**
+ * Month math for one asset against its state. `sip_amount` is the amount the
+ * ladder agreed to fund THIS month (0 → skipped); exactly like the legacy
+ * monthly projection, the contribution joins the same-month growth/income.
+ */
+function ComputeMonthRow(
+  st: AssetState,
+  month: number,
+  sip_amount: number,
+  plan_timestamp?: number,
+  rules?: TaxRuleSet
+): RowComputation {
+  const asset = st.asset;
+  let value = st.value + sip_amount;
+  const opening_value = value;
+  const growth_gain =
+    opening_value > 0 ? (opening_value * ((asset.growth_rate || 0) / 100)) / 12 : 0;
+  value += growth_gain;
+
+  let income_gross = 0;
+  let rent_gross: number | undefined;
+  if (asset.rent) {
+    const years = Math.floor((month - st.start) / 12);
+    rent_gross =
+      asset.rent.monthly_rent * Math.pow(1 + (asset.rent.step_pct || 0) / 100, years);
+    const net_ratio = 1 - (asset.rent.expense_ratio || 0) / 100;
+    income_gross = rent_gross * net_ratio;
+  } else if (
+    (asset.yield_rate || 0) > 0 &&
+    month > st.start &&
+    (month - st.start) % st.income_period === 0
+  ) {
+    const fraction = st.income_period / 12;
+    income_gross = opening_value * ((asset.yield_rate || 0) / 100) * fraction;
+  }
+
+  const fy = plan_timestamp ? MonthToAssessmentYear(plan_timestamp, month) : "";
+  let fy_interest = st.current_fy === fy ? st.fy_interest : 0;
+  let tds = 0;
+  if (income_gross > 0) {
+    fy_interest += income_gross;
+    const is_fd = asset.asset_class === "fd";
+    const tds_rule = rules?.tds?.fd;
+    const tds_threshold = tds_rule?.threshold;
+    if (is_fd && tds_rule && tds_threshold && fy_interest > tds_threshold) {
+      tds = income_gross * (tds_rule.rate / 100);
+    }
+  }
+
+  const income_net = Math.max(0, income_gross - tds);
+  if (asset.income_mode !== "credit" || asset.rent) {
+    value += income_net;
+  }
+
+  const invested = st.invested + sip_amount;
+  const matured = !!asset.maturity_month && month === asset.maturity_month;
+
+  const row: AssetMonthRow = {
+    month,
+    opening_value: round2(opening_value),
+    growth_gain: round2(growth_gain),
+    income_gross: round2(income_gross),
+    income_net: round2(income_net),
+    tds: round2(tds),
+    sip_added: round2(sip_amount),
+    invested: round2(invested),
+    closing_value: round2(value),
+    ...(rent_gross !== undefined ? { rent_gross: round2(rent_gross) } : {}),
+    event: matured ? "matured" : "none",
+  };
+
+  return {
+    row,
+    next_value: value,
+    next_invested: invested,
+    next_fy_interest: fy_interest,
+  };
+}
+
+function IsSipDue(st: AssetState, month: number): boolean {
+  const sip = st.asset.sip;
+  if (!sip) return false;
+  const start = sip.start_month || 1;
+  if (month < start) return false;
+  if (sip.end_month && month > sip.end_month) return false;
+  return (month - start) % st.sip_period === 0;
+}
+
+function RequestedSipAmount(st: AssetState, month: number): number {
+  const sip = st.asset.sip!;
+  const start = sip.start_month || 1;
+  const step = sip.step_pct || 0;
+  const step_units = Math.floor((month - start) / 12);
+  return sip.amount * Math.pow(1 + step / 100, step_units);
+}
+
 export function ComputeAssetSchedule(
   plan: any,
   duration: number,
-  rules?: TaxRuleSet
+  rules?: TaxRuleSet,
+  options?: AssetScheduleOptions
 ): AssetScheduleResult {
+  const ctx = options?.ctx;
   const assets: AssetLike[] = (plan.asset_list || []).filter((a: any) => a.active !== false);
   const txns: AssetTxn[] = [];
   const asset_month_map: Record<number, any[]> = {};
   const by_class: Record<string, { count: number; value: number; invested: number }> = {};
   const tax_summary: AssetScheduleResult["tax_summary"] = {};
-  // 112A ₹1.25L exemption is shared across ALL equity sales in the same FY.
   const exemption_remaining_per_fy: Record<string, number> = {};
   const bucket_values: Record<"e" | "s" | "i", { value: number; growth: number }> = {
     e: { value: 0, growth: 0 },
     s: { value: 0, growth: 0 },
     i: { value: 0, growth: 0 },
   };
+  const skipped_sips: AssetScheduleResult["skipped_sips"] = [];
 
-  for (const asset of assets) {
-    const rows = ProjectAssetMonths(asset, 1, duration, rules, plan.timestamp);
-    const funding_account_id = findFundingAccount(plan, asset);
-    let last_value = asset.principal || 0;
+  const states: AssetState[] = assets.map((asset) => {
     const start = Math.max(1, asset.purchase_month || 1);
+    const end = Math.min(
+      duration,
+      asset.sale_month && asset.sale_month > 0 ? asset.sale_month - 1 : duration
+    );
+    return {
+      asset,
+      funding_account_id: findFundingAccount(plan, asset),
+      start,
+      end,
+      value: asset.principal || 0,
+      invested: asset.principal || 0,
+      current_fy: plan.timestamp ? MonthToAssessmentYear(plan.timestamp, start) : "",
+      fy_interest: 0,
+      income_period: GetPeriodMonths(asset.income_frequency),
+      sip_period: GetPeriodMonths(asset.sip?.frequency),
+      rows: [],
+      matured: false,
+    };
+  });
 
-    /** Realize a capital gain at maturity/sale: emits the tax txn + feeds tax_summary. */
-    const recordCapGain = (sale_value: number, sale_month: number) => {
-      if (!isMarketClass(asset.asset_class) || !rules || !plan.timestamp) return;
-      const fy = MonthToAssessmentYear(plan.timestamp, sale_month);
-      if (!tax_summary[fy]) tax_summary[fy] = emptyTaxSummaryYear();
-      const profile_key = CG_PROFILE_BY_CLASS[asset.asset_class];
-      const profile = rules.capital_gains.profiles[profile_key];
-      if (!profile) return;
-      const holding_months = Math.max(1, sale_month - start + 1);
-      const invested = asset.principal || 0;
-      const gain = Math.max(0, sale_value - invested);
-      if (gain <= 0) return;
-      // per-FY 112A exemption pool (only profiles that carry one participate)
-      let remaining_exemption: number | undefined;
-      if (profile.exemption_112a > 0) {
-        remaining_exemption = exemption_remaining_per_fy[fy] ?? profile.exemption_112a;
-      }
-      const result = ComputeCapitalGains({
-        rules,
-        profile,
-        purchase_value: invested,
-        sale_proceeds: sale_value,
-        holding_months,
-        purchase_fy: plan.timestamp ? MonthToAssessmentYear(plan.timestamp, start) : undefined,
-        sale_fy: fy,
-        purchase_date: asset.purchase_date,
-        remaining_exemption,
+  function recordCapGain(asset: AssetLike, sale_value: number, sale_month: number): void {
+    const start = Math.max(1, asset.purchase_month || 1);
+    const funding_account_id = findFundingAccount(plan, asset);
+    if (!isMarketClass(asset.asset_class) || !rules || !plan.timestamp) return;
+    const fy = MonthToAssessmentYear(plan.timestamp, sale_month);
+    if (!tax_summary[fy]) tax_summary[fy] = emptyTaxSummaryYear();
+    const profile_key = CG_PROFILE_BY_CLASS[asset.asset_class];
+    const profile = rules.capital_gains.profiles[profile_key];
+    if (!profile) return;
+    const holding_months = Math.max(1, sale_month - start + 1);
+    const invested = asset.principal || 0;
+    const gain = Math.max(0, sale_value - invested);
+    if (gain <= 0) return;
+    let remaining_exemption: number | undefined;
+    if (profile.exemption_112a > 0) {
+      remaining_exemption = exemption_remaining_per_fy[fy] ?? profile.exemption_112a;
+    }
+    const result = ComputeCapitalGains({
+      rules,
+      profile,
+      purchase_value: invested,
+      sale_proceeds: sale_value,
+      holding_months,
+      purchase_fy: plan.timestamp ? MonthToAssessmentYear(plan.timestamp, start) : undefined,
+      sale_fy: fy,
+      purchase_date: asset.purchase_date,
+      remaining_exemption,
+    });
+    if (remaining_exemption !== undefined) {
+      exemption_remaining_per_fy[fy] = Math.max(0, remaining_exemption - result.exemption_used);
+      tax_summary[fy].ltcg_112a_exemption_used += result.exemption_used;
+    }
+    if (result.treat_as_slab) {
+      tax_summary[fy].slab_taxable_gains += gain;
+      return;
+    }
+    if (result.is_long_term) tax_summary[fy].ltcg_realized += gain;
+    else tax_summary[fy].stcg_realized += gain;
+    if (result.tax > 0 && funding_account_id) {
+      txns.push({
+        month: sale_month,
+        account_id: funding_account_id,
+        tran_type: "dr",
+        amount: round2(result.tax),
+        tran_desc: `${result.is_long_term ? "LTCG" : "STCG"} tax - ${asset.title}`,
       });
-      if (remaining_exemption !== undefined) {
-        exemption_remaining_per_fy[fy] = Math.max(0, remaining_exemption - result.exemption_used);
-        tax_summary[fy].ltcg_112a_exemption_used += result.exemption_used;
+    }
+  }
+
+  const ladderIndex = (st: AssetState): number => {
+    if (!ctx || !st.funding_account_id) return 9999;
+    const idx = ctx.orderedAccounts.findIndex(
+      (a) => String(a._id) === String(st.funding_account_id)
+    );
+    return idx === -1 ? 9999 : idx;
+  };
+
+  const emitSaleAtMonth = (month: number, emit: (txn: AssetTxn) => void, sales: { st: AssetState; txn: AssetTxn }[]) => {
+    for (const st of states) {
+      const asset = st.asset;
+      if (
+        asset.sale_month && asset.sale_month === month &&
+        asset.sale_month >= st.start && asset.sale_month <= duration && st.funding_account_id
+      ) {
+        const txn: AssetTxn = {
+          month,
+          account_id: st.funding_account_id,
+          tran_type: "cr",
+          amount: round2(st.value),
+          tran_desc: `Sale - ${asset.title}`,
+        };
+        emit(txn);
+        sales.push({ st, txn });
       }
-      if (result.treat_as_slab) {
-        // gains taxed at slab — added into the annual Income Tax computation
-        tax_summary[fy].slab_taxable_gains += gain;
-        return;
-      }
-      if (result.is_long_term) tax_summary[fy].ltcg_realized += gain;
-      else tax_summary[fy].stcg_realized += gain;
-      if (result.tax > 0 && funding_account_id) {
-        txns.push({
-          month: sale_month,
-          account_id: funding_account_id,
-          tran_type: "dr",
-          amount: round2(result.tax),
-          tran_desc: `${result.is_long_term ? "LTCG" : "STCG"} tax - ${asset.title}`,
-        });
-      }
+    }
+  };
+
+  for (let month = 1; month <= duration; month++) {
+    const active = states.filter(
+      (st) => !st.matured && month >= st.start && month <= st.end
+    );
+    const month_txns: AssetTxn[] = [];
+    const emit = (txn: AssetTxn) => {
+      month_txns.push(txn);
+      txns.push(txn);
+      ctx?.applyTxn(txn);
     };
 
-    for (const row of rows) {
-      last_value = row.closing_value;
-      const month = row.month;
+    if (active.length === 0) {
+      const sales: { st: AssetState; txn: AssetTxn }[] = [];
+      emitSaleAtMonth(month, emit, sales);
+      for (const s of sales) recordCapGain(s.st.asset, s.txn.amount, month);
+      continue;
+    }
+
+    // Phase 1 — provisional rows (sip included) so month income/TDS is known.
+    const candidates = new Map<string, RowComputation>();
+    for (const st of active) {
+      const sip = IsSipDue(st, month) ? RequestedSipAmount(st, month) : 0;
+      candidates.set(
+        String(st.asset._id),
+        ComputeMonthRow(st, month, sip, plan.timestamp, rules)
+      );
+    }
+
+    // Phase 1b — SETTLE ALL CREDITS FIRST: income, maturity and sale proceeds
+    // land in the accounts before any debit is processed, so same-month credits
+    // can fund a same-month SIP.
+    const credit_refs = new Map<string, { kind: "income" | "maturity" | "sale"; txn: AssetTxn }[]>();
+    for (const st of active) {
+      const row = candidates.get(String(st.asset._id))!.row;
+      const funding_account_id = st.funding_account_id;
+      if (!funding_account_id) continue;
+      if (row.income_net > 0 && (st.asset.income_mode === "credit" || st.asset.rent)) {
+        const label = st.asset.rent ? "Rent" : CLASS_LABELS[st.asset.asset_class] || "Income";
+        const txn = { month, account_id: funding_account_id, tran_type: "cr" as const, amount: row.income_net, tran_desc: `${label} - ${st.asset.title}` };
+        emit(txn);
+        const refs = credit_refs.get(String(st.asset._id)) || [];
+        refs.push({ kind: "income", txn });
+        credit_refs.set(String(st.asset._id), refs);
+      }
+      if (row.event === "matured") {
+        const txn = { month, account_id: funding_account_id, tran_type: "cr" as const, amount: row.closing_value, tran_desc: `Maturity - ${st.asset.title}` };
+        emit(txn);
+        const refs = credit_refs.get(String(st.asset._id)) || [];
+        refs.push({ kind: "maturity", txn });
+        credit_refs.set(String(st.asset._id), refs);
+      }
+    }
+    const sales: { st: AssetState; txn: AssetTxn }[] = [];
+    emitSaleAtMonth(month, emit, sales);
+    for (const s of sales) {
+      const refs = credit_refs.get(String(s.st.asset._id)) || [];
+      refs.push({ kind: "sale", txn: s.txn });
+      credit_refs.set(String(s.st.asset._id), refs);
+    }
+
+    // Phase 1c — resolve SIP funding against the ladder (all-or-nothing).
+    // Debits are applied immediately, but only after every credit above.
+    const sip_assets = active
+      .filter((st) => IsSipDue(st, month))
+      .sort((a, b) => ladderIndex(a) - ladderIndex(b) || String(a.asset._id).localeCompare(String(b.asset._id)));
+    if (ctx) {
+      for (const st of sip_assets) {
+        const requested = RequestedSipAmount(st, month);
+        const ladder = sipWithdrawalLadder(st.funding_account_id, ctx.orderedAccounts, {
+          protectEmergency: ctx.protectEmergency,
+        });
+        const resolution = resolveDebit(requested, ladder, (id) => ctx.getBalance(month, id));
+        if (resolution.shortfall > 0) {
+          // skipped entirely — no partial funding, no negative balances
+          const recomputed = ComputeMonthRow(st, month, 0, plan.timestamp, rules);
+          recomputed.row.sip_skipped = true;
+          candidates.set(String(st.asset._id), recomputed);
+          skipped_sips.push({
+            month,
+            asset_id: st.asset._id,
+            title: st.asset.title,
+            amount: round2(requested),
+          });
+          // visible marker so the month's breakdown explains the miss (₹0 —
+          // no money moved; it shows in the account's transaction list)
+          emit({
+            month,
+            account_id: st.funding_account_id || ctx.orderedAccounts[0]?._id || "",
+            tran_type: "dr",
+            amount: 0,
+            tran_desc: `SIP skipped - ${st.asset.title}`,
+          });
+          // the settled credit amounts assumed the same-month sip back the
+          // instalment — re-settle them at the no-sip amounts (internal ledger
+          // adjustment; the emitted txns keep their honest final amounts)
+          const refs = credit_refs.get(String(st.asset._id)) || [];
+          for (const ref of refs) {
+            const final_amount =
+              ref.kind === "income"
+                ? recomputed.row.income_net
+                : ref.kind === "maturity"
+                  ? recomputed.row.closing_value
+                  : ref.txn.amount;
+            const delta = round2(final_amount) - ref.txn.amount;
+            if (delta !== 0) {
+              ctx.applyTxn({
+                month,
+                account_id: ref.txn.account_id,
+                tran_type: delta > 0 ? "cr" : "dr",
+                amount: round2(Math.abs(delta)),
+                tran_desc: "SIP credit adjustment",
+              });
+              ref.txn.amount = round2(final_amount);
+            }
+          }
+          continue;
+        }
+        for (const d of resolution.debits) {
+          emit({
+            month,
+            account_id: d.account_id,
+            tran_type: "dr",
+            amount: round2(d.amount),
+            tran_desc: `SIP - ${st.asset.title}`,
+          });
+        }
+      }
+    }
+
+    // Phase 2 — commit rows, emit the remaining per-asset debits, handle maturity.
+    for (const st of active) {
+      const cand = candidates.get(String(st.asset._id));
+      if (!cand) continue;
+      const row = cand.row;
+      const asset = st.asset;
+      st.value = cand.next_value;
+      st.invested = cand.next_invested;
+      st.fy_interest = cand.next_fy_interest;
+      st.current_fy = plan.timestamp ? MonthToAssessmentYear(plan.timestamp, month) : st.current_fy;
+      st.rows.push(row);
 
       if (!asset_month_map[month]) asset_month_map[month] = [];
       asset_month_map[month].push({
@@ -357,29 +679,39 @@ export function ComputeAssetSchedule(
         value: row.closing_value,
         invested: row.invested,
         income_gross: row.income_gross,
+        sip_added: row.sip_added,
         tds: row.tds,
         event: row.event,
+        ...(row.sip_skipped ? { sip_skipped: true } : {}),
       });
 
-      // Cash-flow transactions against the funding bucket account
+      const funding_account_id = st.funding_account_id;
       if (funding_account_id) {
-        if (row.sip_added > 0) {
-          txns.push({ month, account_id: funding_account_id, tran_type: "dr", amount: row.sip_added, tran_desc: `SIP - ${asset.title}` });
-        }
-        if (row.income_net > 0 && (asset.income_mode === "credit" || asset.rent)) {
-          const label = asset.rent ? "Rent" : (CLASS_LABELS[asset.asset_class] || "Income");
-          txns.push({ month, account_id: funding_account_id, tran_type: "cr", amount: row.income_net, tran_desc: `${label} - ${asset.title}` });
+        // without a funding context the legacy full-funding txn is emitted here
+        if (row.sip_added > 0 && !ctx) {
+          emit({
+            month,
+            account_id: funding_account_id,
+            tran_type: "dr",
+            amount: row.sip_added,
+            tran_desc: `SIP - ${asset.title}`,
+          });
         }
         if (row.tds > 0) {
-          txns.push({ month, account_id: funding_account_id, tran_type: "dr", amount: row.tds, tran_desc: `TDS on ${asset.title}` });
+          emit({
+            month,
+            account_id: funding_account_id,
+            tran_type: "dr",
+            amount: row.tds,
+            tran_desc: `TDS on ${asset.title}`,
+          });
         }
         if (row.event === "matured") {
-          txns.push({ month, account_id: funding_account_id, tran_type: "cr", amount: row.closing_value, tran_desc: `Maturity - ${asset.title}` });
-          recordCapGain(row.closing_value, month);
+          recordCapGain(asset, row.closing_value, month);
+          st.matured = true;
         }
       }
 
-      // per-assessment-year income streams for tax_summary
       const fy = plan.timestamp ? MonthToAssessmentYear(plan.timestamp, month) : "current";
       if (!tax_summary[fy]) tax_summary[fy] = emptyTaxSummaryYear();
       const bucket = tax_summary[fy];
@@ -391,20 +723,19 @@ export function ComputeAssetSchedule(
       bucket.tds_paid += row.tds;
     }
 
-    // Optional sale: credit the proceeds + realize capital gains at the sale month
-    if (asset.sale_month && asset.sale_month >= start && asset.sale_month <= duration && funding_account_id) {
-      txns.push({ month: asset.sale_month, account_id: funding_account_id, tran_type: "cr", amount: round2(last_value), tran_desc: `Sale - ${asset.title}` });
-      recordCapGain(last_value, asset.sale_month);
-    }
+    // sales' capital gains are realized on the final (post-correction) amounts
+    for (const s of sales) recordCapGain(s.st.asset, s.txn.amount, month);
+  }
 
-    // aggregate by class
+  for (const st of states) {
+    const asset = st.asset;
+    const last_value = st.rows.length ? round2(st.value) : asset.principal || 0;
     const entry = by_class[asset.asset_class] || { count: 0, value: 0, invested: 0 };
     entry.count += 1;
     entry.value += last_value;
-    entry.invested += rows.length ? rows[rows.length - 1].invested : asset.principal || 0;
+    entry.invested += st.rows.length ? st.rows[st.rows.length - 1].invested : asset.principal || 0;
     by_class[asset.asset_class] = entry;
 
-    // bucket growth (value-weighted total return)
     const bucket = bucket_values[asset.category] || bucket_values.i;
     bucket.value += last_value;
     bucket.growth += last_value * ((asset.growth_rate || 0) + (asset.yield_rate || 0));
@@ -434,9 +765,16 @@ export function ComputeAssetSchedule(
   return {
     txns,
     asset_month_map,
-    asset_summary: { by_class, total_value, total_invested, total_unrealized: round2(total_value - total_invested) },
+    asset_summary: {
+      by_class,
+      total_value,
+      total_invested,
+      total_unrealized: round2(total_value - total_invested),
+      skipped_sip_months: skipped_sips.length,
+    },
     tax_summary,
     bucket_growth,
+    skipped_sips,
   };
 }
 

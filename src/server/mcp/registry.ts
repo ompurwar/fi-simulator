@@ -14,8 +14,9 @@ import { makeTaxTools } from "./tools/tax";
 import { makeNetWorthTools } from "./tools/networth";
 import { makeIndStocksTools } from "./tools/indstocks";
 import { makeShareTools } from "./tools/share";
+import { makeBugReportTools } from "./tools/bugs";
 
-/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, fdp, assets, accounts, tax, networth, indstocks, share. */
+/** Build the ordered registry: identity/plans, engine, cashflows, changes, loans, fdp, assets, accounts, tax, networth, indstocks, share, bugs. */
 export function makeToolRegistry(container: Container): ToolDefinition[] {
   return [
     ...makePlanTools(container),
@@ -30,6 +31,7 @@ export function makeToolRegistry(container: Container): ToolDefinition[] {
     ...makeNetWorthTools(container),
     ...makeIndStocksTools(container),
     ...makeShareTools(container),
+    ...makeBugReportTools(container),
   ];
 }
 

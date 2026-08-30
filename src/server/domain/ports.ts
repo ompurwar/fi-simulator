@@ -97,6 +97,19 @@ export interface ChatSessionRepository {
   Delete(session_id: string): Promise<{ success: boolean }>;
 }
 
+/** Engine/agent bug reports (Bug_Report_Store). */
+export interface BugReportRepository {
+  Add(info: Record<string, any>): Promise<{ success: boolean; created: any }>;
+  FindById(bug_id: string): Promise<any | null>;
+  Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
+  FindOpenByFingerprint(fingerprint: string): Promise<any | null>;
+  FindByUser(
+    user_id: string,
+    query: { status?: string; severity?: string }
+  ): Promise<any[]>;
+  FindAll(query: { status?: string; severity?: string }): Promise<any[]>;
+}
+
 export interface CommonCollectionRepository {
   GetCommonCollectionList(): Promise<any>;
 }

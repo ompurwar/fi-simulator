@@ -24,6 +24,8 @@ export interface PlanSnapshot {
   tax_expense_cashflow?: any[];
   bucket_growth?: Record<string, { value: number; growth_rate: number }>;
   asset_scenarios?: any;
+  skipped_sips?: { month: number; asset_id: string; title: string; amount: number }[];
+  unfunded_expenses?: { month: number; amount: number }[];
 }
 
 /** Server-side plan engine — fetches the full simulation snapshot from /engine/plan_snapshot. */
@@ -77,6 +79,8 @@ export function usePlanEngine(plan: Plan | null, duration = 50) {
       tax_expense_cashflow: snapshot?.tax_expense_cashflow || undefined,
       bucket_growth: snapshot?.bucket_growth || undefined,
       asset_scenarios: snapshot?.asset_scenarios || undefined,
+      skipped_sips: snapshot?.skipped_sips || [],
+      unfunded_expenses: snapshot?.unfunded_expenses || [],
     }),
     [snapshot, loading, fetchSnapshot]
   );

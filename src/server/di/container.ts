@@ -2,6 +2,7 @@ import type { Env } from "../config/env";
 import { loadEnv } from "../config/env";
 import type {
   ApiTokenRepository,
+  BugReportRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
   ChatSessionRepository,
@@ -25,6 +26,7 @@ import {
 } from "../infrastructure/crypto";
 import {
   makeApiTokenRepository,
+  makeBugReportRepository,
   makeCashFlowChangeRepository,
   makeCashFlowRepository,
   makeChatSessionRepository,
@@ -66,6 +68,7 @@ export interface Container {
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
   chat_session_list: ChatSessionRepository;
+  bug_report_list: BugReportRepository;
   oauth_store: OAuthStore;
   oauth_service: OAuthService;
   app: ApplicationLayer;
@@ -118,6 +121,7 @@ export async function buildContainer(
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
   const chat_session_list = makeChatSessionRepository(db);
+  const bug_report_list = makeBugReportRepository(db);
   const oauth_store = makeOAuthStore(db);
   const oauth_service = makeOAuthService({
     store: oauth_store,
@@ -171,6 +175,7 @@ export async function buildContainer(
     common_collection_list,
     api_token_list,
     chat_session_list,
+    bug_report_list,
     networth_service,
     tax_service,
     GenerateHash,
@@ -198,6 +203,7 @@ export async function buildContainer(
     common_collection_list,
     api_token_list,
     chat_session_list,
+    bug_report_list,
     oauth_store,
     oauth_service,
     app,

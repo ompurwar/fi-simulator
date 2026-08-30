@@ -760,6 +760,42 @@ export function MakeControllers(app: ApplicationLayer) {
     };
   };
 
+  /* ------------------------ Engine bug reports ------------------------ */
+
+  const BugReportCreate = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const result = await app.SubmitEngineBug({ user_id, ...http_request.body.data });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const BugReportList = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const { status, severity } = http_request.body.data || {};
+    const result = await app.ListEngineBugs({ user_id, status, severity });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
+  const BugReportResolve = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    RequireData(http_request);
+    const { user_id } = http_request.session!;
+    const result = await app.ResolveEngineBug({ user_id, ...http_request.body.data });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: result, status: "success", error: null },
+    };
+  };
+
   return {
     Login,
     IsLoggedIn,
@@ -801,6 +837,9 @@ export function MakeControllers(app: ApplicationLayer) {
     ChatSessionList,
     ChatSessionGet,
     ChatSessionDelete,
+    BugReportCreate,
+    BugReportList,
+    BugReportResolve,
     PlanSnapshot,
     GetNetWorthStatus,
     ConnectNetWorth,

@@ -75,6 +75,12 @@ standalone/server.ts             # future standalone service (npm run standalone
   statements via `POST /engine/plan_snapshot` (instead of `usePlanEngine` running client-side in the Vue app).
 - **Fixed original bugs:** `/income/add` and `/expense/add` no longer drop `end_month`; `/user/onboard` no longer
   leaks `credentials`; the share-object delete ownership check now works; cashflow `_id` handling normalized.
+- **Withdrawal policy:** outflows (expense/EMI/prepayment shortfalls and SIP funding) drain a user-set
+  `withdrawal_order` (first = drained first; defaults to savings → emergency → investment). SIP instalments are
+  funded from the asset's funding account first, then the ladder, and are **skipped** (marked `sip_skipped`,
+  excluded from asset value) when the ladder cannot cover them — balances never go negative. The emergency bucket
+  is protected from SIP top-ups by default (`withdrawal_settings.protect_emergency_for_sip`, toggle in the
+  Withdraw Order editor).
 - **Preserved quirks:** coded errors still return HTTP 200 with `status: 'error'` (API compatibility);
   session cookie overrides the `auth-token` header; `/get/share_object` stays public.
 

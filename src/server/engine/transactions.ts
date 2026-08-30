@@ -1,6 +1,7 @@
 /** Transaction + account balance simulation (ported from transctions.js). */
 
 import { GetHashmap, GetDate } from "./utils";
+import { resolveWithdrawalOrder } from "./funding";
 import type { MonthlyStatement } from "./statements";
 
 export interface AccountLike {
@@ -56,6 +57,8 @@ export interface TxnResult {
   transaction_list: Transaction[];
   account_balances: AccountBalance[];
   FDP_month_map: Record<number, FDPLike>;
+  /** per-month expense shortfall the accounts could NOT cover (planning gaps) */
+  unfunded_expense_by_month: Record<number, number>;
 }
 
 function InitiateTransaction(month: number, account_id: string, tran_type: "cr" | "dr", amount: number, tran_desc: string): Transaction {
@@ -209,16 +212,13 @@ function GenerateCreditTxnForMonth(
 function GenerateDebitTxnForMonth(
   net_expense: number,
   month: number,
-  account_list: AccountLike[] = [],
+  accounts_in_order: AccountLike[] = [],
   account_balances: AccountBalance[] = [],
-  account_map_for_current_month_running_balance: Record<string, number>
-): Transaction[] {
+  account_map_for_current_month_running_balance: Record<string, number>,
+  pool_extra?: (account_id: string, month: number) => number
+): { txns: Transaction[]; unfunded: number } {
   const transaction_list: Transaction[] = [];
   let amount_to_debit = Math.abs(net_expense);
-  const emergency = GetAccountByCategory("e", account_list);
-  const savings = GetAccountByCategory("s", account_list);
-  const investment = GetAccountByCategory("i", account_list);
-  const accounts_in_order = [savings, emergency, investment];
 
   for (const account of accounts_in_order) {
     if (!account) continue;
@@ -229,7 +229,11 @@ function GenerateDebitTxnForMonth(
       total_running_balance += account_map_for_current_month_running_balance[account._id];
 
     if (balance) {
-      const money_available = balance.balance + total_running_balance;
+      // Asset-awareness: out-of-band (asset-pass) net flows are injected into
+      // the pool — earlier months' full net (already settled), this month's
+      // credits first and this month's SIP debits settled before expenses.
+      const asset_pool = pool_extra ? pool_extra(account._id, month) : 0;
+      const money_available = Math.max(0, balance.balance + total_running_balance + asset_pool);
       if (money_available >= amount_to_debit) {
         transaction_list.push(InitiateTransaction(month, account._id, "dr", amount_to_debit, "To fund expenses"));
         amount_to_debit = 0;
@@ -240,7 +244,9 @@ function GenerateDebitTxnForMonth(
       }
     }
   }
-  return transaction_list;
+  // Expenses are obligations — they are never "skipped"; the remainder only
+  // reveals the plan's gap (surfaced as unfunded_expenses in the snapshot).
+  return { txns: transaction_list, unfunded: amount_to_debit };
 }
 
 export function GenerateTransactionsAndAccountBalances(
@@ -248,17 +254,32 @@ export function GenerateTransactionsAndAccountBalances(
   expense_statement: MonthlyStatement[] = [],
   fund_distribution_percentage_list: FDPLike[] = [],
   account_list: AccountLike[] = [],
-  loan_accounts: LoanLike[] = []
+  loan_accounts: LoanLike[] = [],
+  withdrawal_order?: string[],
+  /**
+   * Out-of-band (asset-pass) net flow into an account's funding pool for the
+   * CURRENT month: prior months' full net (already settled) + this month's
+   * credits − this month's SIP debits. Used ONLY to make the
+   * expense/EMI/prepayment funding pool asset-aware — balance entries stay
+   * pure; the asset pass applies its own txns once. Pass undefined when there
+   * are no assets.
+   */
+  pool_extra?: (account_id: string, month: number) => number
 ): TxnResult {
   const transaction_list: Transaction[] = [];
   let account_balances: AccountBalance[] = [];
   const account_map = GetHashmap(account_list, (account: any) => account._id);
   const FDP_month_map: Record<number, FDPLike> = {};
-  if (income_statement.length !== expense_statement.length) return { transaction_list, account_balances, FDP_month_map };
+  const unfunded_expense_by_month: Record<number, number> = {};
+  if (income_statement.length !== expense_statement.length)
+    return { transaction_list, account_balances, FDP_month_map, unfunded_expense_by_month };
 
   const emergency = GetAccountByCategory("e", account_list);
   const savings = GetAccountByCategory("s", account_list);
   const investment = GetAccountByCategory("i", account_list);
+  // Withdrawal ladder for expense/EMI/prepayment shortfalls (user-set order,
+  // default savings → emergency → investment).
+  const accounts_in_order = resolveWithdrawalOrder(account_list, withdrawal_order);
 
   income_statement.forEach((income, index) => {
     if (index + 1 === 1) {
@@ -344,10 +365,18 @@ export function GenerateTransactionsAndAccountBalances(
         ...GenerateCreditTxnForMonth(net_income, month, fund_distribution_percentage, account_list),
       ];
     } else {
-      txn_for_current_month = [
-        ...txn_for_current_month,
-        ...GenerateDebitTxnForMonth(net_income, month, account_list, account_balances, account_map_for_current_month_running_balance),
-      ];
+      const debit_result = GenerateDebitTxnForMonth(
+        net_income,
+        month,
+        accounts_in_order,
+        account_balances,
+        account_map_for_current_month_running_balance,
+        pool_extra
+      );
+      txn_for_current_month = [...txn_for_current_month, ...debit_result.txns];
+      if (debit_result.unfunded > 0) {
+        unfunded_expense_by_month[month] = Math.round(debit_result.unfunded * 100) / 100;
+      }
     }
 
     txn_for_current_month.forEach((txn) => {
@@ -373,7 +402,7 @@ export function GenerateTransactionsAndAccountBalances(
     }
   });
 
-  return { transaction_list, account_balances, FDP_month_map };
+  return { transaction_list, account_balances, FDP_month_map, unfunded_expense_by_month };
 }
 
 export function AggregateBalanceAndTransactionsByMonth(
