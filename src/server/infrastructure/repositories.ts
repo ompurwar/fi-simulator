@@ -9,6 +9,7 @@ import {
   MakeShareObject,
   MakeApiToken,
   MakeChatSession,
+  MakeBugReport,
 } from "../domain/entities";
 import {
   CASHFLOW_CHANGE_CONSTANTS,
@@ -28,6 +29,7 @@ import type {
   CommonCollectionRepository,
   ApiTokenRepository,
   ChatSessionRepository,
+  BugReportRepository,
   TaxRuleRepository,
 } from "../domain/ports";
 import { DbInsertFailedError } from "../domain/errors";
@@ -42,6 +44,7 @@ const resetSessionCollection = "Change_Pass_Session";
 const commonCollection = "Common_Collection";
 const apiTokenCollection = "Api_Token_Store";
 const chatSessionCollection = "Chat_Session_Store";
+const bugReportCollection = "Bug_Report_Store";
 
 function DocToUser(user_info: Record<string, any>): any {
   return MakeUser(user_info, GenerateHash);
@@ -611,6 +614,82 @@ export function makeChatSessionRepository(database: Database): ChatSessionReposi
           { $set: { status: "deleted" } }
         );
       return { success: acknowledged };
+    },
+  };
+}
+
+/* ------------------------------ BugReport ------------------------------ */
+
+export function makeBugReportRepository(database: Database): BugReportRepository {
+  const db = database;
+  function DocToBugReport(bug_info: Record<string, any>): any {
+    return MakeBugReport({
+      ...bug_info,
+      _id: bug_info._id.toString(),
+      user_id: bug_info.user_id.toString(),
+      ...(bug_info.plan_id ? { plan_id: bug_info.plan_id.toString() } : {}),
+    });
+  }
+  function ToQuery(query: { status?: string; severity?: string } = {}) {
+    const filter: Record<string, any> = {};
+    if (query.status) filter.status = query.status;
+    else filter.status = { $in: ["open", "resolved", "duplicate"] };
+    if (query.severity) filter.severity = query.severity;
+    return filter;
+  }
+  return {
+    async Add(bug_info: Record<string, any>) {
+      const doc: Record<string, any> = { ...bug_info };
+      // Let Mongo assign the ObjectId (matching makeUserRepository).
+      delete doc._id;
+      if (doc.user_id) doc.user_id = db.MakeId(doc.user_id);
+      if (doc.plan_id) doc.plan_id = db.MakeId(doc.plan_id);
+      doc.status = doc.status || "open";
+      doc.created_at = Date.now();
+      doc.updated_at = doc.created_at;
+      const { acknowledged, insertedId } = await db
+        .collection(bugReportCollection)
+        .insertOne(doc);
+      const created = DocToBugReport({ ...doc, _id: insertedId.toString() });
+      return { success: acknowledged, created };
+    },
+    async FindById(bug_id: string) {
+      const found = await db
+        .collection(bugReportCollection)
+        .findOne({ _id: db.MakeId(bug_id) });
+      return found ? DocToBugReport(found) : null;
+    },
+    async Update({ _id, ...bug_info }) {
+      if (bug_info.plan_id) bug_info.plan_id = db.MakeId(bug_info.plan_id);
+      bug_info.updated_at = Date.now();
+      const { acknowledged } = await db
+        .collection(bugReportCollection)
+        .updateMany({ _id: db.MakeId(_id) }, { $set: bug_info });
+      return { success: acknowledged };
+    },
+    async FindOpenByFingerprint(fingerprint: string) {
+      const found = await db
+        .collection(bugReportCollection)
+        .find({ fingerprint, status: "open" })
+        .sort({ created_at: -1 })
+        .toArray();
+      return found.length ? DocToBugReport(found[0]) : null;
+    },
+    async FindByUser(user_id: string, query: { status?: string; severity?: string }) {
+      const list = await db
+        .collection(bugReportCollection)
+        .find({ user_id: db.MakeId(user_id), ...ToQuery(query) })
+        .sort({ created_at: -1 })
+        .toArray();
+      return list.map(DocToBugReport);
+    },
+    async FindAll(query: { status?: string; severity?: string }) {
+      const list = await db
+        .collection(bugReportCollection)
+        .find(ToQuery(query))
+        .sort({ created_at: -1 })
+        .toArray();
+      return list.map(DocToBugReport);
     },
   };
 }

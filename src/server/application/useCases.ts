@@ -1,5 +1,6 @@
 import type {
   ApiTokenRepository,
+  BugReportRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
   ChatSessionRepository,
@@ -21,6 +22,7 @@ import {
 import {
   MakeAccount,
   MakeApiToken,
+  MakeBugReport,
   MakeCashFlow,
   MakeCashFlowChange,
   MakePlan,
@@ -31,8 +33,10 @@ import {
   MakeChatSession,
   GenerateRandomString,
 } from "../domain/entities";
+import { createHash } from "crypto";
 import {
   DbInsertFailedError,
+  DbUpdateFailedError,
   InvalidAuthTokenError,
   InvalidOperationError,
   InvalidPropertyError,
@@ -55,6 +59,7 @@ export interface UseCaseDeps {
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
   chat_session_list: ChatSessionRepository;
+  bug_report_list: BugReportRepository;
   networth_service: NetWorthService;
   tax_service: TaxRuleService;
   GenerateHash: (pass: string, salt: string) => string;
@@ -137,6 +142,15 @@ export interface ApplicationLayer {
     content: string;
     tools?: string[];
   }): Promise<any>;
+  SubmitEngineBug(input: Record<string, any>): Promise<any>;
+  ListEngineBugs(input: {
+    user_id: string;
+    role?: string;
+    status?: string;
+    severity?: string;
+  }): Promise<any>;
+  GetEngineBug(input: { user_id: string; role?: string; bug_id: string }): Promise<any>;
+  ResolveEngineBug(input: Record<string, any>): Promise<any>;
   PlanSnapshot(input: { plan: any; duration?: number }): Promise<any>;
   GetNetWorthStatus(input: { user_id: string }): Promise<any>;
   ConnectNetWorth(input: { user_id: string; redirect_url: string }): Promise<any>;
@@ -157,6 +171,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     common_collection_list,
     api_token_list,
     chat_session_list,
+    bug_report_list,
     networth_service,
     tax_service,
     GenerateHash,
@@ -661,6 +676,9 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       loan_accounts,
       cashflow_change_list,
       fund_distribution_percentage,
+      asset_list,
+      withdrawal_order,
+      withdrawal_settings,
     } = plan_to_be_forked;
 
     const plan_object = MakePlan({
@@ -674,6 +692,9 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       account_list,
       loan_accounts,
       fund_distribution_percentage,
+      asset_list,
+      withdrawal_order,
+      withdrawal_settings,
       category,
     });
     const { success, created } = await plan_list.Add(plan_object);
@@ -1216,6 +1237,108 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     throw new InvalidOperationError("Something went wrong.");
   }
 
+  /* ---------------------------- Engine bug reports ---------------------------- */
+
+  function BugFingerprint(
+    category: string,
+    title: string,
+    description: string,
+    severity: string
+  ): string {
+    return createHash("sha1")
+      .update(`${category}|${title.toLowerCase().trim()}|${description.slice(0, 120).toLowerCase()}|${severity}`)
+      .digest("hex");
+  }
+
+  async function SubmitEngineBug(input: Record<string, any>) {
+    const {
+      user_id,
+      title,
+      description,
+      category = "engine",
+      severity = "medium",
+      steps_to_reproduce,
+      expected_behavior,
+      actual_behavior,
+      plan_id,
+      session_id,
+    } = input;
+    if (plan_id && typeof plan_id === "string" && plan_id.length) {
+      const plan = await plan_list.FindById(plan_id);
+      if (!plan) throw new InvalidPropertyError("invalid: plan_id not found");
+    }
+    const fingerprint = BugFingerprint(category, title || "", description || "", severity);
+    const existing = await bug_report_list.FindOpenByFingerprint(fingerprint);
+    if (existing) {
+      return {
+        status: "duplicate",
+        bug_id: existing._id,
+        duplicate_of: existing._id,
+        existing: {
+          severity: existing.severity,
+          category: existing.category,
+          created_at: existing.created_at,
+        },
+      };
+    }
+    const bug = MakeBugReport({
+      user_id,
+      title,
+      description,
+      category,
+      severity,
+      steps_to_reproduce,
+      expected_behavior,
+      actual_behavior,
+      plan_id,
+      session_id,
+      fingerprint,
+    });
+    const { success, created } = await bug_report_list.Add(bug);
+    if (!success) throw new DbInsertFailedError("Failed to create bug report");
+    return { status: "open", bug_id: created._id };
+  }
+
+  async function GetEngineBug({ user_id, role, bug_id }: { user_id: string; role?: string; bug_id: string }) {
+    const bug = await bug_report_list.FindById(bug_id);
+    if (!bug) throw new InvalidOperationError("Bug not found!");
+    if (role !== "admin" && String(bug.user_id) !== String(user_id))
+      throw new UnAuthorizedAccessToPlan("You can only view your own bug reports");
+    return bug;
+  }
+
+  async function ListEngineBugs({
+    user_id,
+    role,
+    status,
+    severity,
+  }: {
+    user_id: string;
+    role?: string;
+    status?: string;
+    severity?: string;
+  }) {
+    const query = { status, severity };
+    if (role === "admin") return bug_report_list.FindAll(query);
+    return bug_report_list.FindByUser(user_id, query);
+  }
+
+  async function ResolveEngineBug(input: Record<string, any>) {
+    const { user_id, role, bug_id, resolution_note, reopen } = input;
+    const bug = await bug_report_list.FindById(bug_id);
+    if (!bug) throw new InvalidOperationError("Bug not found!");
+    if (role !== "admin" && String(bug.user_id) !== String(user_id))
+      throw new UnAuthorizedAccessToPlan("Only the reporter or an admin can update this bug");
+    const { success } = await bug_report_list.Update({
+      _id: bug_id,
+      status: reopen ? "open" : "resolved",
+      ...(reopen ? {} : { resolved_at: Date.now() }),
+      ...(resolution_note !== undefined ? { resolution_note } : {}),
+    });
+    if (!success) throw new DbUpdateFailedError("Failed to update bug report");
+    return { status: reopen ? "open" : "resolved", bug_id };
+  }
+
   /* ---------------------------- Engine snapshot ---------------------------- */
 
   async function PlanSnapshot({ plan, duration = 50 }: { plan: any; duration?: number }) {
@@ -1269,6 +1392,10 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     GetChatSession,
     DeleteChatSession,
     AppendChatMessage,
+    SubmitEngineBug,
+    ListEngineBugs,
+    GetEngineBug,
+    ResolveEngineBug,
     PlanSnapshot,
     GetNetWorthStatus: (input: { user_id: string }) => networth_service.GetStatus(input),
     ConnectNetWorth: (input: { user_id: string; redirect_url: string }) =>

@@ -567,6 +567,106 @@ export function MakeAsset(input: Record<string, any>): Asset {
   return { _id, title, asset_class, category, principal, purchase_month, growth_rate, ...other } as Asset;
 }
 
+/* ------------------------------ BugReport ------------------------------ */
+
+export interface BugReport {
+  _id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  category: "engine" | "snapshot" | "mcp" | "ui" | "other";
+  severity: "low" | "medium" | "high" | "critical";
+  steps_to_reproduce: string;
+  expected_behavior: string;
+  actual_behavior: string;
+  plan_id?: string;
+  session_id?: string;
+  status: "open" | "resolved" | "duplicate";
+  duplicate_of?: string;
+  resolution_note?: string;
+  fingerprint: string;
+  created_at: number;
+  updated_at: number;
+  resolved_at?: number;
+}
+
+export const BUG_CATEGORIES = ["engine", "snapshot", "mcp", "ui", "other"] as const;
+export const BUG_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export const BUG_STATUSES = ["open", "resolved", "duplicate"] as const;
+
+export function MakeBugReport(input: Record<string, any>): BugReport {
+  const {
+    _id = GenerateRandomString(10),
+    user_id,
+    title,
+    description,
+    category = "engine",
+    severity = "medium",
+    steps_to_reproduce,
+    expected_behavior,
+    actual_behavior,
+    plan_id,
+    session_id,
+    status = "open",
+    duplicate_of,
+    resolution_note,
+    fingerprint,
+    created_at = Date.now(),
+    updated_at = created_at,
+    resolved_at,
+    ...other_info
+  } = input;
+
+  if (typeof user_id !== "string" || user_id.length === 0)
+    throw new InvalidPropertyError("invalid: user_id is required");
+  if (typeof title !== "string" || title.length < 3 || title.length > 100)
+    throw new InvalidPropertyError("invalid: title should be 3-100 characters");
+  if (typeof description !== "string" || description.length < 10 || description.length > 2000)
+    throw new InvalidPropertyError("invalid: description should be 10-2000 characters");
+  if (typeof steps_to_reproduce !== "string" || steps_to_reproduce.length < 10 || steps_to_reproduce.length > 2000)
+    throw new InvalidPropertyError("invalid: steps_to_reproduce should be 10-2000 characters");
+  if (typeof expected_behavior !== "string" || expected_behavior.length === 0 || expected_behavior.length > 1000)
+    throw new InvalidPropertyError("invalid: expected_behavior should be 1-1000 characters");
+  if (typeof actual_behavior !== "string" || actual_behavior.length === 0 || actual_behavior.length > 1000)
+    throw new InvalidPropertyError("invalid: actual_behavior should be 1-1000 characters");
+  if (!BUG_CATEGORIES.includes(category))
+    throw new InvalidPropertyError("invalid: category should be one of engine|snapshot|mcp|ui|other");
+  if (!BUG_SEVERITIES.includes(severity))
+    throw new InvalidPropertyError("invalid: severity should be one of low|medium|high|critical");
+  if (!BUG_STATUSES.includes(status))
+    throw new InvalidPropertyError("invalid: status should be one of open|resolved|duplicate");
+  // Mongo stores undefined as null — normalize both to "absent".
+  const normalized_plan_id = plan_id == null || plan_id === "" ? undefined : plan_id;
+  const normalized_session_id = session_id == null || session_id === "" ? undefined : session_id;
+  if (normalized_plan_id !== undefined && typeof normalized_plan_id !== "string")
+    throw new InvalidPropertyError("invalid: plan_id should be a non-empty string");
+  if (normalized_session_id !== undefined && typeof normalized_session_id !== "string")
+    throw new InvalidPropertyError("invalid: session_id should be a non-empty string");
+
+  const normalized: BugReport = {
+    _id,
+    user_id,
+    title,
+    description,
+    category,
+    severity,
+    steps_to_reproduce,
+    expected_behavior,
+    actual_behavior,
+    plan_id: normalized_plan_id,
+    session_id: normalized_session_id,
+    status,
+    duplicate_of,
+    resolution_note,
+    fingerprint: fingerprint || "",
+    created_at,
+    updated_at,
+    resolved_at,
+    ...other_info,
+  };
+  return Object.freeze(normalized);
+}
+
 /* -------------------------------- User -------------------------------- */
 
 export interface UserProfile {
@@ -797,6 +897,27 @@ export function MakePlan(input: Record<string, any>): PlanTemplate {
       );
     }
   });
+
+  if (
+    other_info.withdrawal_order !== undefined &&
+    (!Array.isArray(other_info.withdrawal_order) ||
+      other_info.withdrawal_order.some((id: any) => typeof id !== "string"))
+  ) {
+    throw new InvalidPropertyError(
+      "invalid: withdrawal_order should be an array of account ids"
+    );
+  }
+  if (
+    other_info.withdrawal_settings !== undefined &&
+    (typeof other_info.withdrawal_settings !== "object" ||
+      other_info.withdrawal_settings === null ||
+      (other_info.withdrawal_settings.protect_emergency_for_sip !== undefined &&
+        typeof other_info.withdrawal_settings.protect_emergency_for_sip !== "boolean"))
+  ) {
+    throw new InvalidPropertyError(
+      "invalid: withdrawal_settings should be an object with a boolean protect_emergency_for_sip"
+    );
+  }
 
   const normalized: any = {
     user_id,

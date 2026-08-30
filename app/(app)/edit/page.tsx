@@ -16,6 +16,7 @@ import { LoanEditor } from "@/components/edit/LoanEditor";
 import { AccountEditor } from "@/components/edit/AccountEditor";
 import { AssetEditor } from "@/components/edit/AssetEditor";
 import { TaxManager } from "@/components/edit/TaxManager";
+import { WithdrawalOrderEditor } from "@/components/edit/WithdrawalOrderEditor";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -1609,6 +1610,19 @@ export default function EditPage() {
         <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
           <div className="flex justify-between gap-5">
             <TaxManager plan_id={plan._id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Withdraw Order (plan-level outflow sequence for SIPs, expenses, prepayments)
+  if (entity_type === "withdraw") {
+    return (
+      <div className="mt-16 md:mt-0">
+        <div className="w-full overflow-y-scroll px-3 py-4 md:h-fit md:overflow-y-hidden md:px-0">
+          <div className="flex flex-col justify-between gap-5 md:flex-row">
+            <WithdrawalOrderEditor plan_id={plan._id} />
           </div>
         </div>
       </div>

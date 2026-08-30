@@ -2,6 +2,7 @@
 
 import { useFiPlanStore } from "@/store";
 import { GetCurrencySymbol } from "@/lib/country";
+import { FormatIndianCompact } from "@/lib/money";
 
 // Variant maps mirror the original Button.vue computeds exactly
 // (outline: bg-*-50 text-*-500 border-*-400; solid: bg-*-500 text-*-50 border-*-500).
@@ -74,8 +75,13 @@ export function DisplayAmount({
   const is_negative = amount < 0;
   let formatted: string;
   try {
-    const config: Intl.NumberFormatOptions = notation ? { notation } : {};
-    formatted = Intl.NumberFormat(local, config).format(Number(Math.abs(amount).toFixed(0)));
+    if (notation === "compact" && (currency || "INR").toUpperCase() === "INR") {
+      // Indian units: K / L / Cr / Ar / Kb — never "B" for billions
+      formatted = FormatIndianCompact(amount);
+    } else {
+      const config: Intl.NumberFormatOptions = notation ? { notation } : {};
+      formatted = Intl.NumberFormat(local, config).format(Number(Math.abs(amount).toFixed(0)));
+    }
   } catch {
     formatted = Math.abs(amount).toFixed(0);
   }

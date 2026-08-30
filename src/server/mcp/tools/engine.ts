@@ -45,6 +45,20 @@ function toSummary(snapshot: any, milestones = false) {
       .reduce((s: number, b: any) => s + (b.balance || 0), 0);
     return { month: t.month, net_worth: bucket_total + (assets_by_month[t.month] || 0) };
   });
+  // plan gaps: months the accounts could not fully fund (expense shortfalls)
+  // and SIP instalments skipped because the withdrawal ladder ran dry.
+  const unfunded_expenses = snapshot.unfunded_expenses || [];
+  const skipped_sips = snapshot.skipped_sips || [];
+  const gaps = {
+    unfunded_expenses,
+    skipped_sips,
+    unfunded_total: Math.round(
+      unfunded_expenses.reduce((s: number, g: any) => s + g.amount, 0) * 100
+    ) / 100,
+    skipped_sips_total: Math.round(
+      skipped_sips.reduce((s: number, g: any) => s + g.amount, 0) * 100
+    ) / 100,
+  };
 
   if (milestones) {
     // yearly points (m1, 13, 25…) + overall totals — tiny payload for long durations
@@ -61,6 +75,7 @@ function toSummary(snapshot: any, milestones = false) {
         Object.entries(assets_by_month).filter(([m]) => (Number(m) - 1) % 12 === 0)
       ),
       net_worth_by_month: net_worth_yearly,
+      gaps,
       totals: {
         income: monthly_totals.reduce((s: number, t: any) => s + (t.income || 0), 0),
         expense: monthly_totals.reduce((s: number, t: any) => s + (t.expense || 0), 0),
@@ -78,6 +93,7 @@ function toSummary(snapshot: any, milestones = false) {
     asset_summary: snapshot.asset_summary || undefined,
     loan_account_list: snapshot.loan_account_list || [],
     fund_distribution_percentage_list: snapshot.fund_distribution_percentage_list || [],
+    gaps,
   };
 }
 

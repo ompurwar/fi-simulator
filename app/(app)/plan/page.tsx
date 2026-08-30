@@ -9,6 +9,8 @@ import { useRunway } from "@/hooks/useRunway";
 import { useBalanceSeq } from "@/hooks/useBalanceSeq";
 import { useWalkThrough } from "@/hooks/useWalkThrough";
 import { BuildScenarioLines, BuildWealthChartData } from "@/lib/wealthChart";
+import { GetCurrencySymbol } from "@/lib/country";
+import { FormatCompactMoney } from "@/lib/money";
 import { WhatIfDrawer } from "@/components/plan/WhatIfDrawer";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
@@ -614,12 +616,12 @@ function PlanPageInner() {
     useFiPlanStore.getState().local ||
     "en-IN";
   const ToDisplayableMoney = (value: any) =>
-    Intl.NumberFormat(money_local, {
-      style: "currency",
-      notation: "compact",
-      currency: useFiPlanStore.getState().currency || "INR",
-      maximumSignificantDigits: 2,
-    }).format(value);
+    FormatCompactMoney(
+      Number(value),
+      useFiPlanStore.getState().currency || "INR",
+      GetCurrencySymbol(useFiPlanStore.getState().currency || "INR"),
+      money_local
+    );
   const annotation = !aggregated_balance_for_month
     ? []
     : [
@@ -652,7 +654,48 @@ function PlanPageInner() {
       labelPosition: "end" as const,
       font: { size: 9, weight: 600 } as any,
     }));
-  const chart_annotations = [...purchase_annotations, ...annotation];
+  // Plan-gap markers on the chart — rose line = a month the accounts could not
+  // fully fund (unfunded expenses); warning line = SIP instalment(s) skipped
+  // because the withdrawal ladder ran dry. Slide with the window like the
+  // one-time-purchase markers.
+  const gap_color = cssVar("--color-danger-500") || "#f43f5e";
+  const unfunded_annotations = (engine.unfunded_expenses || [])
+    .filter(
+      (g: any) => g.month > window_start_point && g.month <= window_start_point + WINDOW_SIZE
+    )
+    .map((g: any) => ({
+      value: GetMonthAndYear(plan, g.month),
+      content: ["Unfunded expenses", ToDisplayableMoney(Number(g.amount))],
+      borderColor: gap_color,
+      borderDash: [4, 4] as [number, number],
+      borderWidth: 2,
+      labelColor: gap_color,
+      labelPosition: "end" as const,
+      font: { size: 9, weight: 600 } as any,
+    }));
+  const sip_skip_by_month = new Map<number, { count: number; amount: number }>();
+  for (const s of engine.skipped_sips || []) {
+    const entry = sip_skip_by_month.get(s.month) || { count: 0, amount: 0 };
+    entry.count += 1;
+    entry.amount += Number(s.amount || 0);
+    sip_skip_by_month.set(s.month, entry);
+  }
+  const sip_annotations = [...sip_skip_by_month.entries()]
+    .filter(
+      ([month]) => month > window_start_point && month <= window_start_point + WINDOW_SIZE
+    )
+    .map(([month, { count, amount }]) => ({
+      value: GetMonthAndYear(plan, month),
+      content: [`SIP missed x${count}`, ToDisplayableMoney(amount)],
+      borderColor: warning_color,
+      borderDash: [4, 4] as [number, number],
+      borderWidth: 2,
+      labelColor: warning_color,
+      labelPosition: "end" as const,
+      font: { size: 9, weight: 600 } as any,
+    }));
+  const gap_annotations = [...unfunded_annotations, ...sip_annotations];
+  const chart_annotations = [...purchase_annotations, ...gap_annotations, ...annotation];
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:gap-4">
@@ -802,6 +845,22 @@ function PlanPageInner() {
           </div>
           <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
         </div>
+
+        <div
+          className="group flex items-center justify-between gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-dark-50 dark:hover:bg-slate-800 hover:shadow-2xs cursor-pointer border border-transparent hover:border-dark-200 dark:hover:border-slate-700"
+          onClick={() => HandleEdit("withdraw", "")}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 transition-transform group-hover:scale-105">
+              <FontAwesomeIcon icon={faArrowRightArrowLeft} className="text-sm" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-dark-700 dark:text-slate-200 group-hover:text-dark-900 dark:group-hover:text-white leading-tight whitespace-nowrap">Withdraw Order</span>
+              <span className="text-[10px] text-dark-400 dark:text-slate-400 font-medium leading-none mt-0.5">Outflow Sequence</span>
+            </div>
+          </div>
+          <FontAwesomeIcon icon={faChevronRight} className="text-dark-300 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] mr-1" />
+        </div>
       </div>
 
       {/* Center column */}
@@ -886,6 +945,16 @@ function PlanPageInner() {
                         <FontAwesomeIcon icon={faVault} className="text-xs" />
                       </div>
                       <span className="text-xs font-bold text-dark-700">Assets</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white p-2.5 shadow-2xs hover:bg-dark-50 cursor-pointer"
+                      onClick={() => HandleEdit("withdraw", "")}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                        <FontAwesomeIcon icon={faArrowRightArrowLeft} className="text-xs" />
+                      </div>
+                      <span className="text-xs font-bold text-dark-700">Withdraw</span>
                     </div>
 
                     <div
@@ -1024,6 +1093,86 @@ function PlanPageInner() {
             ) : null}
           </div>
         </div>
+
+        {/* Plan gaps — expenses are obligations (a shortfall is a planning gap,
+            never a skipped txn) and missed SIPs are investments that did not
+            happen. Summary card + current month's highlight. */}
+        {(() => {
+          const unfunded = (engine.unfunded_expenses || []) as any[];
+          const skipped = (engine.skipped_sips || []) as any[];
+          const current_gap = unfunded.find((u: any) => u.month === current_month);
+          if (!unfunded.length && !skipped.length) return null;
+          const gap_rows = [
+            ...unfunded.map((u: any) => ({ month: u.month, kind: "expense" as const, amount: u.amount })),
+            ...skipped.map((s: any) => ({ month: s.month, kind: "sip" as const, amount: s.amount })),
+          ].sort((a, b) => a.month - b.month);
+          const total_unfunded = unfunded.reduce((s: number, u: any) => s + u.amount, 0);
+          const total_skipped = skipped.reduce((s: number, x: any) => s + x.amount, 0);
+          return (
+            <div className="flex w-full flex-col gap-2 mb-3">
+              {/* Summary card */}
+              <div className="flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50/60 px-4 py-3 shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FontAwesomeIcon icon={faCircleExclamation} className="text-xs text-rose-600" />
+                    <span className="text-xs font-bold text-rose-800">Plan Gaps ({gap_rows.length})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                    {total_unfunded > 0 && (
+                      <span className="rounded-md bg-rose-100 px-1.5 py-0.5 text-rose-700">
+                        Unfunded expenses {unfunded.length} mo · <DisplayAmount amount={total_unfunded} />
+                      </span>
+                    )}
+                    {total_skipped > 0 && (
+                      <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-amber-700">
+                        SIP missed {skipped.length}x · <DisplayAmount amount={total_skipped} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {gap_rows.length > 0 && (
+                  <div className="flex max-h-28 flex-col gap-1 overflow-y-auto pr-1">
+                    {gap_rows.map((row, i) => (
+                      <div
+                        key={`${row.kind}-${i}`}
+                        title={
+                          row.kind === "sip"
+                            ? `SIP skipped: the withdrawal ladder (funding account first, then the rest — the emergency bucket stayed protected by default) could not cover the instalment. It was skipped, never partially funded. Allow the emergency bucket via Withdraw Order → "Use emergency money for SIPs" if you want it to participate.`
+                            : "Unfunded expenses: the withdrawal ladder could not fully pay this month's obligations — the plan's expenses exceed its cash. Expenses are never skipped; the gap is part of the plan."
+                        }
+                        className="flex items-center justify-between gap-2 rounded-lg bg-white/70 px-2 py-1"
+                      >
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-dark-700">
+                          <FontAwesomeIcon
+                            icon={row.kind === "expense" ? faArrowRightFromBracket : faMoneyBillTrendUp}
+                            className={`text-[10px] ${row.kind === "expense" ? "text-rose-500" : "text-amber-500"}`}
+                          />
+                          {GetMonthAndYear(plan, row.month)}
+                          <span className={`rounded px-1 py-px text-[9px] font-extrabold uppercase ${
+                            row.kind === "expense" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"
+                          }`}>
+                            {row.kind === "expense" ? "funds short" : "SIP skipped"}
+                          </span>
+                        </span>
+                        <DisplayAmount className="text-[11px] font-bold text-dark-700" amount={row.amount} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {current_gap && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 shadow-xs">
+                  <p className="text-[11px] font-medium leading-relaxed text-rose-700">
+                    In {GetMonthAndYear(plan, current_month)} your accounts ran dry — no balance left to cover{" "}
+                    <DisplayAmount className="font-bold" amount={current_gap.amount} /> of expenses. Expenses are
+                    obligations and are never skipped; this gap shows where your plan is unsustainable.
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Monthly statement (mobile) */}
         <div className="flex grow md:hidden mb-3">

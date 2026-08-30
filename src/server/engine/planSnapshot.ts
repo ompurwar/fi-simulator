@@ -18,6 +18,7 @@ import {
   MakePrepaymentScheduleByMonthToCashFlow,
 } from "./loan";
 import { ComputeAssetSchedule, ComputeAssetScenarios, ComputeIncomeTaxExpenseSchedule } from "./assets";
+import { createBalanceLedger, resolveWithdrawalOrder } from "./funding";
 import type { TaxRuleSet } from "../tax/schema";
 import type { CashFlowLike, CashFlowChangeLike } from "./statements";
 
@@ -29,6 +30,10 @@ export interface PlanForSnapshot {
   fund_distribution_percentage?: FDPLike[];
   asset_list?: any[];
   tax_settings?: any;
+  /** user-set outflow ladder (account ids, first = drained first) */
+  withdrawal_order?: string[];
+  /** SIP funding policy — protect_emergency_for_sip defaults to true */
+  withdrawal_settings?: { protect_emergency_for_sip?: boolean };
   timestamp?: number;
 }
 
@@ -62,6 +67,14 @@ export interface PlanSnapshot {
   tax_expense_cashflow?: any[];
   bucket_growth?: Record<string, { value: number; growth_rate: number }>;
   asset_scenarios?: any;
+  /** SIP instalments the withdrawal ladder could not fund (skipped, unfunded in the asset) */
+  skipped_sips?: { month: number; asset_id: string; title: string; amount: number }[];
+  /**
+   * Monthly expense shortfalls the accounts could NOT cover. Expenses are
+   * obligations and are never skipped — this list exposes the plan's gaps
+   * (only present when there is at least one unfunded month).
+   */
+  unfunded_expenses?: { month: number; amount: number }[];
 }
 
 export function ComputePlanSnapshot(
@@ -148,8 +161,13 @@ export function ComputePlanSnapshot(
   // ---- asset projection + auto income-tax expense ----
   let asset_schedule: ReturnType<typeof ComputeAssetSchedule> | null = null;
   let tax_expense_cashflow: any[] = [];
+  let tax_prerun_summary: ReturnType<typeof ComputeAssetSchedule>["tax_summary"] | null = null;
   if (asset_mode && rules) {
-    asset_schedule = ComputeAssetSchedule(_plan, plan_duration, rules);
+    // PHASE A — full-funding preview (legacy math). Bucket balances do not
+    // exist yet, and the annual income-tax expense needs the asset income
+    // streams; the real (funding-aware) schedule is re-run in PHASE B below.
+    const preview = ComputeAssetSchedule(_plan, plan_duration, rules);
+    tax_prerun_summary = preview.tax_summary;
     if (_plan.tax_settings?.income_tax_enabled) {
       const income_statement = GetMonthlyIncomeList(
         plan_duration,
@@ -162,7 +180,7 @@ export function ComputePlanSnapshot(
         rules,
         _plan.tax_settings,
         income_statement,
-        asset_schedule.tax_summary
+        preview.tax_summary
       );
     }
   }
@@ -194,28 +212,82 @@ export function ComputePlanSnapshot(
     (a: any, b: any) => a.start_month - b.start_month
   );
 
-  const account_balances_and_transactions = GenerateTransactionsAndAccountBalances(
+  let account_balances_and_transactions = GenerateTransactionsAndAccountBalances(
     cashflow.income_statement,
     cashflow.expense_statement,
     fund_distribution_percentage_list,
     account_list,
-    loan_account_list
+    loan_account_list,
+    _plan.withdrawal_order
   );
 
-  // Merge asset cash-flow transactions into the transaction list + balances.
-  if (asset_schedule && asset_schedule.txns.length > 0) {
-    account_balances_and_transactions.transaction_list = [
-      ...account_balances_and_transactions.transaction_list,
-      ...asset_schedule.txns,
-    ];
-    for (const txn of asset_schedule.txns) {
-      const delta = txn.tran_type === "cr" ? txn.amount : -txn.amount;
-      for (const balance of account_balances_and_transactions.account_balances) {
-        if (String(balance.account_id) === String(txn.account_id) && balance.month >= txn.month) {
-          balance.balance = Math.round((balance.balance + delta) * 100) / 100;
-        }
-      }
+  // PHASE B+C (fixed-point) — SIP funding and expense funding must see the SAME
+  // monthly pools:
+  //   - SIPs draw from the withdrawal ladder (funding account first, then the
+  //     ladder; an instalment is SKIPPED — never partially funded, never
+  //     overdrawing — when the ladder cannot cover it),
+  //   - expense/EMI/prepayment drawdowns fund from pools AFTER asset credits
+  //     settle and the month's SIP debits settle (credits-first rule).
+  // Asset txns are injected into the bucket funding pools (balance entries stay
+  // pure; the asset pass applies its own txns once) and the bucket↔asset
+  // passes re-iterate until the asset decisions stabilise.
+  if (asset_mode && rules) {
+    const ordered_accounts = resolveWithdrawalOrder(account_list, _plan.withdrawal_order);
+    const protect_emergency = _plan.withdrawal_settings?.protect_emergency_for_sip !== false;
+    let previous_txns: any[] | null = null;
+    let stable = false;
+    for (let round = 0; round < 4; round++) {
+      // bucket pass — expenses fund from pools that include the asset flows
+      const bucket_run = GenerateTransactionsAndAccountBalances(
+        cashflow.income_statement,
+        cashflow.expense_statement,
+        fund_distribution_percentage_list,
+        account_list,
+        loan_account_list,
+        _plan.withdrawal_order,
+        previous_txns
+          ? (account_id: string, month: number): number => {
+              let sum = 0;
+              const acc = String(account_id);
+              for (const txn of previous_txns!) {
+                if (String(txn.account_id) !== acc) continue;
+                if (txn.month < month) sum += txn.tran_type === "cr" ? txn.amount : -txn.amount;
+                else if (txn.month === month) sum += txn.tran_type === "cr" ? txn.amount : -txn.amount;
+              }
+              return sum;
+            }
+          : undefined
+      );
+      account_balances_and_transactions = bucket_run;
+
+      // asset pass — SIPs/credits applied onto those balances (real apply)
+      const ledger = createBalanceLedger(bucket_run.account_balances);
+      const candidate = ComputeAssetSchedule(_plan, plan_duration, rules, {
+        ctx: {
+          getBalance: ledger.get,
+          applyTxn: (txn: any) => ledger.apply(txn),
+          orderedAccounts: ordered_accounts,
+          protectEmergency: protect_emergency,
+        },
+      });
+      stable =
+        previous_txns !== null &&
+        candidate.txns.length === previous_txns.length &&
+        JSON.stringify(candidate.txns) === JSON.stringify(previous_txns);
+      asset_schedule = candidate;
+      if (stable) break;
+      previous_txns = candidate.txns;
     }
+    const final_asset = asset_schedule!;
+    account_balances_and_transactions = {
+      transaction_list: [
+        ...account_balances_and_transactions.transaction_list,
+        ...final_asset.txns,
+      ],
+      account_balances: account_balances_and_transactions.account_balances,
+      FDP_month_map: account_balances_and_transactions.FDP_month_map,
+      unfunded_expense_by_month: account_balances_and_transactions.unfunded_expense_by_month,
+    };
   }
 
   const aggregated_account_balances_and_transactions_by_month = AggregateBalanceAndTransactionsByMonth(
@@ -254,13 +326,37 @@ export function ComputePlanSnapshot(
     balance_and_transaction_by_month,
   };
 
+  // Expense gaps never disappear: expose months the accounts couldn't fund.
+  const unfunded_expense_by_month = account_balances_and_transactions.unfunded_expense_by_month || {};
+  const unfunded_months = Object.keys(unfunded_expense_by_month).map((month) => ({
+    month: parseInt(month),
+    amount: unfunded_expense_by_month[Number(month)],
+  }));
+  if (unfunded_months.length > 0) {
+    snapshot.unfunded_expenses = unfunded_months;
+  }
+
   // Asset/tax fields only when the plan uses them — old plans stay byte-identical.
   if (asset_schedule) {
+    // the income-tax expense used the full-funding preview's per-FY numbers
+    // (incl. TDS credit); carry that credit onto the real schedule's summary.
+    if (tax_prerun_summary && _plan.tax_settings?.income_tax_enabled) {
+      for (const fy of Object.keys(tax_prerun_summary)) {
+        const credit = tax_prerun_summary[fy]?.tds_credit_used;
+        if (credit !== undefined) {
+          if (!asset_schedule.tax_summary[fy]) asset_schedule.tax_summary[fy] = tax_prerun_summary[fy];
+          else asset_schedule.tax_summary[fy].tds_credit_used = credit;
+        }
+      }
+    }
     snapshot.asset_month_map = asset_schedule.asset_month_map;
     snapshot.asset_summary = asset_schedule.asset_summary;
     snapshot.tax_summary = asset_schedule.tax_summary;
     snapshot.bucket_growth = asset_schedule.bucket_growth;
     snapshot.tax_expense_cashflow = tax_expense_cashflow;
+    if (asset_schedule.skipped_sips.length > 0) {
+      snapshot.skipped_sips = asset_schedule.skipped_sips;
+    }
     if (has_assets) {
       snapshot.asset_scenarios = ComputeAssetScenarios(_plan, plan_duration, rules);
     }
