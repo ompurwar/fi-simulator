@@ -119,7 +119,7 @@ export function makeAccountTools(container: Container): ToolDefinition[] {
         roi: z.number().min(0).optional(),
         default_investment_priority: z.number().optional(),
       },
-      async handler(ctx, args) {
+      async handler(_ctx, args) {
         const missing = requireFields(args, ["plan_id", "account_id"]);
         if (missing) return missing;
         return callUseCase(async () => {
@@ -127,20 +127,23 @@ export function makeAccountTools(container: Container): ToolDefinition[] {
           const accounts = (plan.account_list || []).map((a: any) => ({ ...a }));
           const target = accounts.find((a: any) => String(a._id) === String(args.account_id));
           if (!target) throw new InvalidOperationError(`account not found: ${args.account_id}`);
+          const changes: Record<string, any> = {};
           for (const key of ACCOUNT_EDITABLE) {
             const value = (args as any)[key];
-            if (value !== undefined) target[key] = value;
+            if (value !== undefined) changes[key] = value;
           }
           // Re-validate the merged account exactly like the web app does.
-          const validated = MakeAccount(target);
-          return app.UpdatePlan({
-            _id: args.plan_id,
-            user_id: ctx.user_id,
-            ...plan,
-            account_list: accounts.map((a: any) =>
-              String(a._id) === String(args.account_id) ? stripUndefined(validated) : a
-            ),
+          MakeAccount({ ...target, ...changes });
+          // Targeted $set — patch only the changed fields on the account document,
+          // so a zero value persists and concurrent writers cannot clobber sibling
+          // accounts with a stale whole-plan rewrite.
+          const { success } = await plan_list.UpdateAccount({
+            plan_id: args.plan_id,
+            account_id: args.account_id,
+            changes,
           });
+          if (!success) throw new InvalidOperationError(`account not found: ${args.account_id}`);
+          return { updated: true };
         });
       },
     },

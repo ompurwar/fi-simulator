@@ -207,6 +207,20 @@ export function makePlanTemplateRepository(database: Database): PlanTemplateRepo
         );
       return { success: acknowledged };
     },
+    async UpdateAccount({ plan_id, account_id, changes }) {
+      const set: Record<string, any> = { modified_at: Date.now() };
+      for (const [key, value] of Object.entries(changes)) {
+        set[`account_list.$[elem].${key}`] = value;
+      }
+      const { acknowledged } = await db
+        .collection(planCollection)
+        .updateOne(
+          { _id: db.MakeId(plan_id), status: "active" },
+          { $set: set },
+          { arrayFilters: [{ "elem._id": account_id }] }
+        );
+      return { success: acknowledged };
+    },
     async Delete(plan_id: string) {
       const { acknowledged } = await db
         .collection(planCollection)
