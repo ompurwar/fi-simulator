@@ -94,4 +94,15 @@ describe("auto FDP fallback after explicit coverage ends", () => {
     );
     expect(snap.fdp_fallback_months).toBeUndefined();
   });
+
+  it("rounds the FDP percentage in 'of Net Cashflow' transaction descriptions", () => {
+    const snap = ComputePlanSnapshot(basePlan(), 60, { tax_rules: FY_2025_26 });
+    const descs = (snap.account_balances_and_transactions.transaction_list || [])
+      .map((t: any) => t.tran_desc)
+      .filter((d: string) => typeof d === "string" && d.endsWith("% of Net Cashflow"));
+    expect(descs.length).toBeGreaterThan(0);
+    for (const d of descs) {
+      expect(d).toMatch(/^\d+(\.\d{1,2})?% of Net Cashflow$/);
+    }
+  });
 });

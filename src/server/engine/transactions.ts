@@ -230,10 +230,11 @@ function GenerateCreditTxnForMonth(
     if (Object.hasOwnProperty.call(fund_breakup, category)) {
       const amount = (fund_breakup as Record<string, number>)[category];
       const percentage = fund_distribution_percentage[category as "e" | "s" | "i"];
+      const display_pct = Math.round(percentage * 100) / 100;
       const account = GetAccountByCategory(category, account_list);
       if (account) {
         transaction_list.push(
-          InitiateTransaction(month, account._id, "cr", amount, `${percentage}% of Net Cashflow`)
+          InitiateTransaction(month, account._id, "cr", amount, `${display_pct}% of Net Cashflow`)
         );
       }
     }
