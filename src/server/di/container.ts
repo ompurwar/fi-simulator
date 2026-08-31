@@ -2,6 +2,7 @@ import type { Env } from "../config/env";
 import { loadEnv } from "../config/env";
 import type {
   ApiTokenRepository,
+  AuthTokenRepository,
   BugReportRepository,
   CashFlowChangeRepository,
   CashFlowRepository,
@@ -26,6 +27,7 @@ import {
 } from "../infrastructure/crypto";
 import {
   makeApiTokenRepository,
+  makeAuthTokenRepository,
   makeBugReportRepository,
   makeCashFlowChangeRepository,
   makeCashFlowRepository,
@@ -51,6 +53,7 @@ import {
 import { makeAnthropicProvider } from "../ai/provider";
 import { makeGeminiProvider } from "../ai/geminiProvider";
 import type { AiProvider } from "../ai/types";
+import { makeAuthTokenService, type AuthTokenService } from "../auth-tokens";
 import { makeOAuthService, makeOAuthStore, type OAuthService, type OAuthStore } from "../mcp/oauth";
 import { makeTaxRuleService, type TaxRuleService } from "../tax";
 import type { TaxRuleRepository } from "../domain/ports";
@@ -67,6 +70,8 @@ export interface Container {
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
+  auth_token_repo: AuthTokenRepository;
+  auth_token_service: AuthTokenService;
   chat_session_list: ChatSessionRepository;
   bug_report_list: BugReportRepository;
   oauth_store: OAuthStore;
@@ -120,6 +125,7 @@ export async function buildContainer(
   });
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
+  const auth_token_repo = makeAuthTokenRepository(db);
   const chat_session_list = makeChatSessionRepository(db);
   const bug_report_list = makeBugReportRepository(db);
   const oauth_store = makeOAuthStore(db);
@@ -164,6 +170,19 @@ export async function buildContainer(
 
   const cookieSecret = env.COOKIE_SECRET;
 
+  const auth_token_service = makeAuthTokenService({
+    repo: auth_token_repo,
+    jwtSecret: env.JWT_SECRET || env.COOKIE_SECRET,
+    accessTtlMs: env.ACCESS_TOKEN_TTL_MIN * 60 * 1000,
+    refreshTtlMs: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+    GenerateHash,
+    GenerateRandomString,
+    getUserVersion: async (user_id: string) => {
+      const user = await user_list.FindById(user_id);
+      return (user as any)?.token_version ?? 1;
+    },
+  });
+
   const app = MakeApplicationLayer({
     user_list,
     session_list,
@@ -174,6 +193,7 @@ export async function buildContainer(
     password_reset_session_list,
     common_collection_list,
     api_token_list,
+    auth_token_service,
     chat_session_list,
     bug_report_list,
     networth_service,
@@ -202,6 +222,8 @@ export async function buildContainer(
     password_reset_session_list,
     common_collection_list,
     api_token_list,
+    auth_token_repo,
+    auth_token_service,
     chat_session_list,
     bug_report_list,
     oauth_store,

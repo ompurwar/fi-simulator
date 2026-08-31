@@ -8,6 +8,7 @@ const UNAUTHENTICATED_PATHS = [
   "get/share_object",
   "password_reset_session/create",
   "reset_forgotten_password",
+  "auth/refresh",
 ];
 
 export interface AuthRequest {
@@ -22,12 +23,15 @@ export interface AuthenticatedRequest extends AuthRequest {
   session: { user_id: string; session_id: string };
 }
 
-/** Port of src/service/authenticate.service.js — resolves the user session. */
+/** Port of src/service/authenticate.service.js — resolves the user session.
+ *  Accepts the JWT access token (fp_access cookie / Bearer / eyJ auth-token)
+ *  first, then falls back to the legacy session_id cookie/header. */
 export async function Authenticate(
   http_request: AuthRequest,
   session_repo: SessionRepository,
   verifyCookie: (value: string, secret: string) => string | false,
-  cookieSecret: string
+  cookieSecret: string,
+  verifyAccessToken?: (token: string) => Promise<{ user_id: string }>
 ): Promise<{ user_id: string; session_id: string }> {
   let is_whitelisted = false;
   const normalized = http_request.path.replace(/\/+$/, "");
@@ -38,7 +42,38 @@ export async function Authenticate(
     return { user_id: "", session_id: "" };
   }
 
+  // 1) JWT access token — fp_access cookie (signed like every other cookie).
+  if (verifyAccessToken) {
+    const accessSigned = http_request.cookies["fp_access"];
+    if (accessSigned) {
+      const raw = verifyCookie(accessSigned, cookieSecret);
+      if (raw) {
+        try {
+          const { user_id } = await verifyAccessToken(raw);
+          return { user_id, session_id: "" };
+        } catch {
+          /* fall through to legacy — rollout dual-mode */
+        }
+      }
+    }
+    // 2) JWT in Authorization: Bearer or a JWT-shaped auth-token header.
+    const bearer =
+      (http_request.headers["authorization"] || "").replace(/^Bearer\s+/i, "") ||
+      http_request.headers["auth-token"] ||
+      "";
+    if (bearer.startsWith("eyJ")) {
+      try {
+        const { user_id } = await verifyAccessToken(bearer);
+        return { user_id, session_id: "" };
+      } catch {
+        /* fall through to legacy */
+      }
+    }
+  }
+
+  // 3) Legacy session — session_id cookie or auth-token header.
   let session_id: string | undefined = http_request.headers["auth-token"];
+  if (session_id && session_id.startsWith("eyJ")) session_id = undefined;
   const signedCookie = http_request.cookies["session_id"];
   if (signedCookie) {
     const verified = verifyCookie(signedCookie, cookieSecret);

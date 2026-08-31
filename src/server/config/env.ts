@@ -12,6 +12,12 @@ const envSchema = z.object({
   DEFAULT_PLAN_DURATION: z.coerce.number().default(600),
   SESSION_TIMEOUT: z.coerce.number().default(24),
   PW_RESET_SESSION_LENGTH: z.coerce.number().default(30),
+  /** JWT access/refresh auth — secret for HMAC-SHA256 (falls back to COOKIE_SECRET) */
+  JWT_SECRET: z.string().optional(),
+  /** JWT access token lifetime in minutes */
+  ACCESS_TOKEN_TTL_MIN: z.coerce.number().default(15),
+  /** Refresh token lifetime in days (1 month) */
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().default(30),
   COOKIE_SECRET: z.string().default("dev-cookie-secret"),
   COOKIE_SEC: z.string().default("dev-cookie-sec"),
   GOOGLE_CLIENT_ID: z.string().optional(),

@@ -14,7 +14,10 @@ function GetErrorMessage(error: any): string {
 
 /** Build a Web Fetch API request handler from the container. */
 export function buildApp(container: Container): (req: Request) => Promise<Response> {
-  const controllers = MakeControllers(container.app);
+  const controllers = MakeControllers(container.app, {
+    VerifyCookie: container.VerifyCookie,
+    cookieSecret: container.cookieSecret,
+  });
 
   async function dispatch(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -82,7 +85,8 @@ export function buildApp(container: Container): (req: Request) => Promise<Respon
         http_request,
         container.session_list,
         container.VerifyCookie,
-        container.cookieSecret
+        container.cookieSecret,
+        (token: string) => container.auth_token_service.VerifyAccessToken(token)
       );
       http_request.session = session;
     } catch (e: any) {
@@ -118,6 +122,7 @@ function FindRoute(path: string): { controller: ControllerName } | null {
     "/login": "Login",
     "/signup": "Signup",
     "/logout": "Logout",
+    "/auth/refresh": "RefreshAuthTokens",
     "/check/session": "IsLoggedIn",
     "/password/update": "UpdatePassword",
     "/password_reset_session/create": "InitiateResetPasswordSession",
@@ -176,16 +181,18 @@ function ToFetchResponse(http_response: HttpResponse, container: Container): Res
   response_headers.set("Content-Type", "application/json");
 
   if (http_response.cookies) {
-    const parts: string[] = [];
     for (const key in http_response.cookies) {
       if (!Object.prototype.hasOwnProperty.call(http_response.cookies, key)) continue;
-      const value = http_response.cookies[key];
+      const entry = http_response.cookies[key];
+      const value = typeof entry === "string" ? entry : entry.value;
+      const maxAge = typeof entry === "string" ? 86400 : entry.maxAge ?? 86400;
+      const path = typeof entry === "string" ? "/" : entry.path ?? "/";
       const signed = container.UnsafeSign(value, container.cookieSecret);
-      parts.push(
-        `${key}=${signed}; Max-Age=86400; Path=/; SameSite=None; Secure`
+      response_headers.append(
+        "Set-Cookie",
+        `${key}=${signed}; Max-Age=${maxAge}; Path=${path}; SameSite=None; Secure`
       );
     }
-    if (parts.length) response_headers.set("Set-Cookie", parts.join(", "));
   }
 
   init.headers = response_headers;

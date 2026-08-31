@@ -1,5 +1,5 @@
 import type { ApplicationLayer } from "../application";
-import { InvalidPropertyError } from "../domain/errors";
+import { InvalidAuthTokenError, InvalidPropertyError } from "../domain/errors";
 
 export interface HttpRequest {
   body: any;
@@ -13,11 +13,18 @@ export interface HttpRequest {
   session?: { user_id: string; session_id: string };
 }
 
+export interface CookieOptions {
+  value: string;
+  /** seconds */
+  maxAge?: number;
+  path?: string;
+}
+
 export interface HttpResponse {
   headers?: Record<string, string>;
   status_code: number;
   body: any;
-  cookies?: Record<string, string>;
+  cookies?: Record<string, string | CookieOptions>;
 }
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -29,18 +36,34 @@ function RequireData(http_request: HttpRequest) {
     );
 }
 
-export function MakeControllers(app: ApplicationLayer) {
+/** Refresh cookie lives 30 days (1 month); only sent to /api/auth paths. */
+export const REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
+
+export function MakeControllers(
+  app: ApplicationLayer,
+  helpers: { VerifyCookie: (value: string, secret: string) => string | false; cookieSecret: string }
+) {
+  const { VerifyCookie, cookieSecret } = helpers;
   /* ------------------------------ Auth ------------------------------ */
 
   const Login = async (http_request: HttpRequest): Promise<HttpResponse> => {
     RequireData(http_request);
     const { email, password } = http_request.body.data;
-    const session = await app.Login({ email, password });
+    const result = await app.Login({ email, password });
+    const { tokens, ...session_data } = result;
     return {
       headers: JSON_HEADERS,
       status_code: 200,
-      body: { status: "success", error: null, data: session },
-      cookies: { session_id: session.session_id },
+      body: { status: "success", error: null, data: session_data },
+      cookies: {
+        session_id: result.session_id,
+        fp_access: { value: tokens.access_token, maxAge: tokens.expires_in },
+        fp_refresh: {
+          value: tokens.refresh_token,
+          maxAge: REFRESH_COOKIE_MAX_AGE,
+          path: "/api/auth",
+        },
+      },
     };
   };
 
@@ -56,29 +79,69 @@ export function MakeControllers(app: ApplicationLayer) {
   const Signup = async (http_request: HttpRequest): Promise<HttpResponse> => {
     RequireData(http_request);
     const { email, password, first_name, last_name } = http_request.body.data;
-    const session = await app.Signup({
+    const result = await app.Signup({
       email,
       password,
       first_name,
       last_name,
       src: "std",
     });
+    const { tokens, ...session_data } = result;
     return {
       headers: JSON_HEADERS,
       status_code: 200,
-      body: { status: "success", error: null, data: session },
-      cookies: { session_id: session.session_id },
+      body: { status: "success", error: null, data: session_data },
+      cookies: {
+        session_id: result.session_id,
+        fp_access: { value: tokens.access_token, maxAge: tokens.expires_in },
+        fp_refresh: {
+          value: tokens.refresh_token,
+          maxAge: REFRESH_COOKIE_MAX_AGE,
+          path: "/api/auth",
+        },
+      },
     };
   };
 
   const Logout = async (http_request: HttpRequest): Promise<HttpResponse> => {
     RequireData(http_request);
     const { session_id } = http_request.session!;
-    await app.Logout({ session_id });
+    const refresh_signed = http_request.cookies["fp_refresh"] || "";
+    const access_signed = http_request.cookies["fp_access"] || "";
+    const refresh_token = refresh_signed
+      ? VerifyCookie(refresh_signed, cookieSecret) || ""
+      : "";
+    const access_token = access_signed ? VerifyCookie(access_signed, cookieSecret) || "" : "";
+    await app.Logout({ session_id, refresh_token, access_token });
     return {
       headers: JSON_HEADERS,
       status_code: 200,
       body: { data: {}, status: "success", error: null },
+      cookies: {
+        fp_access: { value: "", maxAge: 0 },
+        fp_refresh: { value: "", maxAge: 0, path: "/api/auth" },
+      },
+    };
+  };
+
+  const RefreshAuthTokens = async (http_request: HttpRequest): Promise<HttpResponse> => {
+    const refresh_signed = http_request.cookies["fp_refresh"] || "";
+    if (!refresh_signed) throw new InvalidAuthTokenError();
+    const refresh_token = VerifyCookie(refresh_signed, cookieSecret);
+    if (!refresh_token) throw new InvalidAuthTokenError();
+    const tokens = await app.RefreshSession({ refresh_token });
+    return {
+      headers: JSON_HEADERS,
+      status_code: 200,
+      body: { data: null, status: "success", error: null },
+      cookies: {
+        fp_access: { value: tokens.access_token, maxAge: tokens.expires_in },
+        fp_refresh: {
+          value: tokens.refresh_token,
+          maxAge: REFRESH_COOKIE_MAX_AGE,
+          path: "/api/auth",
+        },
+      },
     };
   };
 
@@ -801,6 +864,7 @@ export function MakeControllers(app: ApplicationLayer) {
     IsLoggedIn,
     Signup,
     Logout,
+    RefreshAuthTokens,
     UpdatePassword,
     InitiateResetPasswordSession,
     ResetForgottenPassword,
