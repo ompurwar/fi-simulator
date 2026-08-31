@@ -47,6 +47,7 @@ import {
 import { ComputePlanSnapshot } from "../engine/planSnapshot";
 import type { NetWorthService } from "../networth";
 import type { TaxRuleService } from "../tax";
+import type { AuthTokenService } from "../auth-tokens";
 
 export interface UseCaseDeps {
   user_list: UserRepository;
@@ -58,6 +59,7 @@ export interface UseCaseDeps {
   password_reset_session_list: PasswordResetSessionRepository;
   common_collection_list: CommonCollectionRepository;
   api_token_list: ApiTokenRepository;
+  auth_token_service: AuthTokenService;
   chat_session_list: ChatSessionRepository;
   bug_report_list: BugReportRepository;
   networth_service: NetWorthService;
@@ -87,7 +89,9 @@ export interface ApplicationLayer {
     photos?: string[];
     src?: string;
   }): Promise<any>;
-  Logout(input: { session_id: string }): Promise<any>;
+  Logout(input: { session_id: string; refresh_token?: string; access_token?: string }): Promise<any>;
+  RefreshSession(input: { refresh_token: string }): Promise<any>;
+  RevokeAllUserSessions(input: { user_id: string }): Promise<any>;
   CheckSession(input: { user_id: string; session_id: string }): Promise<any>;
   ChangePassword(input: {
     user_id?: string;
@@ -170,6 +174,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     password_reset_session_list,
     common_collection_list,
     api_token_list,
+    auth_token_service,
     chat_session_list,
     bug_report_list,
     networth_service,
@@ -199,7 +204,13 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           { sessionIdLength: 24, sessionTimeoutHours }
         );
         const { success, created } = await session_list.Add(session);
-        if (success) return created;
+        if (success) {
+          const tokens = await auth_token_service.IssueTokenPair({
+            user_id: the_user._id.toString(),
+          });
+          // keep the legacy session shape (callers read .user_id/.session_id)
+          return { ...created, tokens };
+        }
       } else {
         throw new InvalidOperationError("invalid credentials"); // UnauthorizedAccess
       }
@@ -234,14 +245,42 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
           { sessionIdLength: 24, sessionTimeoutHours }
         );
         const { success, created } = await session_list.Add(session);
-        if (success) return created;
+        if (success) {
+          const tokens = await auth_token_service.IssueTokenPair({
+            user_id: String(user_add_result.created._id),
+          });
+          return { ...created, tokens };
+        }
       }
     }
     throw new UniqueConstraintError("User already exists.");
   }
 
-  async function Logout({ session_id }: { session_id: string }) {
-    await session_list.DeactivateSession(session_id);
+  async function Logout({
+    session_id,
+    refresh_token,
+    access_token,
+  }: {
+    session_id: string;
+    refresh_token?: string;
+    access_token?: string;
+  }) {
+    if (session_id) await session_list.DeactivateSession(session_id);
+    if (refresh_token) await auth_token_service.RevokeRefreshToken(refresh_token);
+    if (access_token) await auth_token_service.RevokeAccessToken(access_token);
+  }
+
+  async function RefreshSession({ refresh_token }: { refresh_token: string }) {
+    return auth_token_service.RotateRefreshToken(refresh_token);
+  }
+
+  async function RevokeAllUserSessions({ user_id }: { user_id: string }) {
+    const user = await user_list.FindById(user_id);
+    if (!user) return;
+    const next_version = ((user as any)?.token_version ?? 0) + 1;
+    await user_list.Update({ _id: user_id, token_version: next_version });
+    await auth_token_service.RevokeAllForUser(user_id);
+    await session_list.DeactivateSessions(user_id);
   }
 
   async function CheckSession(_input: { user_id: string; session_id: string }) {
@@ -278,6 +317,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
       const credentials = CreateCredentials(new_password);
       user_list.Update({ _id: user_id!, credentials });
+      // password change invalidates every outstanding JWT pair + legacy session
+      await RevokeAllUserSessions({ user_id: user_id! });
       session = MakeSession(
         { user_id: user!._id.toString() },
         { sessionIdLength: 24, sessionTimeoutHours }
@@ -1353,6 +1394,8 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     Login,
     Signup,
     Logout,
+    RefreshSession,
+    RevokeAllUserSessions,
     CheckSession,
     ChangePassword,
     InitiateResetPasswordSession,

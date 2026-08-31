@@ -95,6 +95,17 @@ export interface ApiTokenRepository {
   Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
 }
 
+/** JWT access/refresh token records (Auth_Token_Store) — DB rows let any token be revoked later. */
+export interface AuthTokenRepository {
+  Add(info: Record<string, any>): Promise<{ success: boolean; created: any }>;
+  FindActiveByJti(jti: string): Promise<any | null>;
+  FindTokenByHash(kind: "access" | "refresh", token_hash: string): Promise<any | null>;
+  Update(info: { _id: string } & Record<string, any>): Promise<{ success: boolean }>;
+  RevokeByJti(jti: string): Promise<{ success: boolean }>;
+  RevokeByHash(token_hash: string): Promise<{ success: boolean }>;
+  RevokeAllForUser(user_id: string): Promise<{ success: boolean }>;
+}
+
 export interface ChatSessionRepository {
   Add(info: Record<string, any>): Promise<{ success: boolean; created: any }>;
   FindById(session_id: string): Promise<any | null>;

@@ -31,6 +31,7 @@
     "chart.js": "^4.4.3",
     "chartjs-plugin-annotation": "^3.0.1",
     "howler": "^2.2.4",
+    "jose": "^6.2.10",
     "mixpanel-browser": "^2.50.0",
     "moment": "^2.30.1",
     "mongodb": "^6.9.0",

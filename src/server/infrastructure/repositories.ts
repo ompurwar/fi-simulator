@@ -28,6 +28,7 @@ import type {
   PasswordResetSessionRepository,
   CommonCollectionRepository,
   ApiTokenRepository,
+  AuthTokenRepository,
   ChatSessionRepository,
   BugReportRepository,
   TaxRuleRepository,
@@ -45,6 +46,7 @@ const commonCollection = "Common_Collection";
 const apiTokenCollection = "Api_Token_Store";
 const chatSessionCollection = "Chat_Session_Store";
 const bugReportCollection = "Bug_Report_Store";
+const authTokenCollection = "Auth_Token_Store";
 
 function DocToUser(user_info: Record<string, any>): any {
   return MakeUser(user_info, GenerateHash);
@@ -769,6 +771,61 @@ export function makeApiTokenRepository(database: Database): ApiTokenRepository {
         .updateMany(
           { _id: db.MakeId(_id), status: "active" },
           { $set: token_info }
+        );
+      return { success: acknowledged };
+    },
+  };
+}
+
+/* ------------------------------ Auth tokens ------------------------------ */
+
+/** JWT access/refresh token records — every issued token keeps a DB row so it can be revoked later. */
+export function makeAuthTokenRepository(database: Database): AuthTokenRepository {
+  const db = database;
+  return {
+    async Add(info: Record<string, any>) {
+      const doc: Record<string, any> = { ...info };
+      delete doc._id;
+      if (doc.user_id) doc.user_id = db.MakeId(doc.user_id);
+      const { acknowledged, insertedId } = await db
+        .collection(authTokenCollection)
+        .insertOne(doc);
+      return { success: acknowledged, created: { ...doc, _id: insertedId.toString() } };
+    },
+    async FindActiveByJti(jti: string) {
+      const found = await db.collection(authTokenCollection).findOne({ jti, status: "active" });
+      return found || null;
+    },
+    async FindTokenByHash(kind, token_hash) {
+      const found = await db
+        .collection(authTokenCollection)
+        .findOne({ kind, token_hash, status: "active" });
+      return found || null;
+    },
+    async Update({ _id, ...info }) {
+      const { acknowledged } = await db
+        .collection(authTokenCollection)
+        .updateMany({ _id: db.MakeId(_id) }, { $set: info });
+      return { success: acknowledged };
+    },
+    async RevokeByJti(jti: string) {
+      const { acknowledged } = await db
+        .collection(authTokenCollection)
+        .updateMany({ jti }, { $set: { status: "revoked", revoked_at: Date.now() } });
+      return { success: acknowledged };
+    },
+    async RevokeByHash(token_hash: string) {
+      const { acknowledged } = await db
+        .collection(authTokenCollection)
+        .updateMany({ token_hash }, { $set: { status: "revoked", revoked_at: Date.now() } });
+      return { success: acknowledged };
+    },
+    async RevokeAllForUser(user_id: string) {
+      const { acknowledged } = await db
+        .collection(authTokenCollection)
+        .updateMany(
+          { user_id: db.MakeId(user_id), status: "active" },
+          { $set: { status: "revoked", revoked_at: Date.now() } }
         );
       return { success: acknowledged };
     },

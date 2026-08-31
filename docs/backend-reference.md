@@ -114,6 +114,30 @@ Error codes: `400` invalid/required property, `401` auth/unauthorized/invalid op
 - Logout sets `state: false` (soft delete); the cookie is not cleared in the original.
 - Password change (`/password/update`) rotates credentials and issues a **new** session cookie; old sessions remain valid until timeout.
 
+## 4b. JWT access/refresh auth (newer — dual-mode with §4)
+
+On top of the legacy session, login/signup also issue a JWT pair (cookies `fp_access` + `fp_refresh`):
+
+- **Access token** — HS256 JWT (`sub`, `jti`, `iat`, `exp`, `token_version`), signed with `JWT_SECRET` (falls back to `COOKIE_SECRET`), lifetime `ACCESS_TOKEN_TTL_MIN` (default **15 min**). Cookie `fp_access`, `Max-Age=900`, `Path=/`.
+- **Refresh token** — opaque `fp_rt_…`, stored **hashed only** in `Auth_Token_Store`, lifetime `REFRESH_TOKEN_TTL_DAYS` (default **30 days = 1 month**). Cookie `fp_refresh`, httpOnly, `Path=/api/auth` (sent only on refresh calls).
+- **Verification** = JWT signature + expiry, then a DB lookup of the access row (`jti`, `status: active`, `expires_at`) and a `token_version` match against the user — every token keeps a DB row so it can be revoked later.
+- **`POST /auth/refresh`** (whitelisted) rotates the refresh token (single-use: the old one is revoked, a new pair is issued).
+- **Logout** revokes the access `jti` + refresh hash and clears both cookies. **Password change** revokes everything (rows + `token_version` bump).
+- `Authenticate` accepts the JWT (`fp_access` cookie, `Authorization: Bearer`, or a JWT-shaped `auth-token` header) first, then falls back to the legacy `session_id` cookie/header — rollout dual-mode. Auth failures surface as the standard 200 + `{ error: { code: 401 } }` envelope; the frontend rotates the refresh token and retries once.
+- Vercel note: tokens live in Mongo (authoritative for revocation) — Vercel KV/Edge Config are **not** used; Edge Config is read-only and client-visible, unsuitable for tokens.
+
+### `Auth_Token_Store`
+
+```js
+{ _id, kind: 'access'|'refresh', jti /* access lookup key */,
+  token_hash /* refresh hash only */, user_id, created_at, expires_at,
+  status: 'active'|'revoked', revoked_at }
+```
+
+### `User_Profiles.token_version`
+
+Incrementing counter (default 1) bumped whenever all sessions are revoked (password change / revoke-all) — instantly invalidates every outstanding access JWT.
+
 ## 5. Database collections
 
 DB name from `DB_NAME` (default `findependence`). Shared Atlas DB with the original — plans are interchangeable.

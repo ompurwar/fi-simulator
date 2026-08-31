@@ -55,7 +55,7 @@ export const API_BASE_URL = API_BASE.startsWith("http")
   ? API_BASE.replace(/\/+$/, "")
   : null;
 
-async function Post<T = any>(url: string, data: any): Promise<T> {
+async function Post<T = any>(url: string, data: any, retried = false): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${url}`, {
@@ -68,6 +68,27 @@ async function Post<T = any>(url: string, data: any): Promise<T> {
     throw new FiPlanServerHttpError("network error", { code: 0 });
   }
   const json = await response.json().catch(() => ({}));
+  // Auth failures surface as HTTP 200 with error.code 401 — rotate the
+  // refresh token and retry once.
+  if (
+    json.status === "error" &&
+    json.error?.code === 401 &&
+    !retried &&
+    url !== ENDPOINTS.LOGIN &&
+    url !== "/auth/refresh"
+  ) {
+    try {
+      await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+    } catch {
+      /* refresh failed — let the original 401 surface */
+    }
+    return Post<T>(url, data, true);
+  }
   if (json.status === "success") return json.data as T;
   throw new FiPlanServerHttpError("", json.error || {});
 }
