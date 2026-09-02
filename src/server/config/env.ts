@@ -43,6 +43,15 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_BASE_URL: z.string().default("https://generativelanguage.googleapis.com"),
+  /** GCP Cloud KMS — wraps per-doc DEKs (envelope encryption). All five must be set together in prod. */
+  GCP_KMS_PROJECT: z.string().optional(),
+  GCP_KMS_LOCATION: z.string().optional(),
+  GCP_KMS_KEY_RING: z.string().optional(),
+  GCP_KMS_KEY: z.string().optional(),
+  GCP_KMS_SA_KEY: z.string().optional(),
+  /** Master switch for ENCRYPTING new writes. Reads always support both
+   *  plaintext (legacy) and encrypted docs, so toggling off never breaks data. */
+  DATA_ENCRYPTION_ENABLED: z.enum(["true", "false"]).default("true"),
   FIPLAN_API_TOKEN: z.string().optional(),
 });
 

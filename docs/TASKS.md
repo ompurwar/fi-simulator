@@ -57,3 +57,16 @@ Plan: `docs/mcp-implementation-plan.md`.
 | 3.8 | P5 polish — scenario bands (`asset_scenarios` ±1σ) + net-worth import (`import_networth_assets`, AssetEditor Import button) | DONE | — | BuildAssetsFromNetWorth mapping + idempotent merge; 272/272 tests |
 | 3.9 | Fixes batch — negotiation contract (scenarios payload + `offers` fallback), current-vs-end asset values on cards, runway "incl. investments", first-FY tax backfill (default on, toggle everywhere) | DONE | — | `backfill_first_fy` in `update_tax_settings` + Tax Manager UI |
 | 3.10 | Connected net-worth simulation — shared `wealthChart` builder (e/s/i + ASSETS stacked segment), compare-page parity, MCP `net_worth_by_month`/`assets_by_month`/`asset_summary` in summary, UI What-if drawer (`/api/engine/scenario`), MCP `compare_scenarios` + `asset_projection` | DONE | — | Parity test locks MCP == UI numbers; 58 MCP tools |
+
+---
+
+## Phase 4: Data privacy — encryption at rest (branch `feat/simulation-data-privacy`)
+
+Ideation: `docs/data-encryption-ideation.md`. Design: app-layer envelope encryption (AES-256-GCM), per-doc DEKs wrapped by GCP Cloud KMS (`data-key` in `fiplan-keys`, `us-central1`, SA `fiplan-kms@fi-simulater.iam.gserviceaccount.com`); lookup keys stay plaintext; no query rewriting; dev/test fallback to a deterministic local key; lazy legacy-doc migration.
+
+| # | Task | Status | Owner | Notes |
+|---|---|---|---|---|
+| 4.1 | P1 core stores — crypto module + `Plan_Store`/`Cash_Flow_Store`/`Cash_Flow_Change_Store` encryption + read-modify-write updates + tests | DONE | — | Envelope via GCP KMS (fallback dev key); allowlists `plan:[_id,user_id,status]`, `cashflow:[_id,user_id,plan_id,status,category]`, `change:[_id,user_id,cashflow_id,status,category,category_id,cashflow_change_id]`; write kill-switch `DATA_ENCRYPTION_ENABLED=false` (reads unaffected); `tests/encryption-at-rest.test.ts` (14); 370/372 suite (2 pre-existing date-fragile tax tests fail on clean main too) |
+| 4.2 | P2 financial-adjacent — networth snapshots/links + chat messages | TODO | — | Rollout phase 2 of the ideation doc |
+| 4.3 | P3 PII — `User_Profiles` field encryption + HMAC `email_token` lookup | TODO | — | Rollout phase 3 of the ideation doc |
+| 4.4 | P4 — backfill script `standalone/encrypt-backfill.ts` + key rotation ops notes | TODO | — | Idempotent; skips docs already carrying `__enc` |

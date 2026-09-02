@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **Encryption at rest for user simulations (Task 4.1).** `Plan_Store`, `Cash_Flow_Store` and `Cash_Flow_Change_Store` documents are now stored as ciphertext: everything except the lookup keys (`_id`, `user_id`, `plan_id`, `status`, `category`, …) is AES-256-GCM encrypted under a per-document data key wrapped by GCP Cloud KMS (`GCP_KMS_*` env), so no one with raw DB access can read users' financial data. Zero application/engine changes — repositories encrypt on write and decrypt on read (partial updates become read-modify-write; account patches and `$pull` removals work on encrypted plans). Legacy plaintext documents stay readable and are converted on the next write; tampered ciphertext fails closed. A rollout kill-switch, `DATA_ENCRYPTION_ENABLED=false`, keeps NEW writes plaintext while reads still decrypt anything already encrypted — safe to flip off mid-rollout. Dev/test fall back to a deterministic local key; production refuses to boot without KMS config unless the kill-switch is set. `src/server/infrastructure/kms.ts` + `docCrypto.ts`; tests `tests/encryption-at-rest.test.ts`.
+
 ### Fixed
 - Mobile top nav overflow — the project's custom `sm` breakpoint is 390px (exact phone width), so the responsive sizes never kicked in on phones: Create Plan / Share jammed the theme + avatar off-screen. Buttons now use the `md` boundary: **mobile nav = brand + assistant + theme + avatar** (always visible), and **Create Plan + Share moved into the Plan Cockpit** (new highlighted actions). Sizes compacted below md.
 - Plan Gaps card / Asset Mix polish: compact pill layout with hover explanations (works in light + dark mode), 0% holdings dimmed in the legend, caption shortened ("now · top segment"), Runway column widened to 20.5rem, chart-header nav no longer overlaps the Net Worth amount (wraps instead).
