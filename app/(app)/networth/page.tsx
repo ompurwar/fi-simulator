@@ -12,7 +12,6 @@ import {
   faChevronDown,
   faChevronLeft,
   faArrowRotateRight,
-  faShieldHalved,
   faXmark,
   faUnlink,
   faCircleCheck,
@@ -20,6 +19,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { MyChart } from "@/components/ui/MyChart";
 import { ModalUi } from "@/components/ui/ModalUi";
+import { EncryptionExplain, EncryptionPill } from "@/components/security/EncryptionShield";
 import {
   GetNetWorthStatus,
   ConnectNetWorth,
@@ -493,7 +493,10 @@ function NetWorthDashboard() {
 
         {/* at a glance */}
         <div className="card animate-fade-up rounded-2xl p-6 [animation-delay:160ms] md:col-span-2">
-          <h2 className="mb-4 font-exo2 text-lg font-bold text-dark-800">At a Glance</h2>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="font-exo2 text-lg font-bold text-dark-800">At a Glance</h2>
+            <EncryptionPill />
+          </div>
           <dl className="flex flex-col gap-4">
             {[
               { label: "Net worth", value: net_worth, positive: true },
@@ -513,12 +516,8 @@ function NetWorthDashboard() {
               </div>
             ))}
           </dl>
-          <div className="mt-5 flex items-start gap-3 rounded-xl bg-dark-50 p-4">
-            <FontAwesomeIcon icon={faShieldHalved} className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
-            <p className="text-xs leading-relaxed text-dark-400">
-              Read-only data pulled from your linked accounts via the official IndMoney
-              integration. Nothing can be traded or moved from here.
-            </p>
+          <div className="mt-5">
+            <EncryptionExplain />
           </div>
         </div>
       </section>

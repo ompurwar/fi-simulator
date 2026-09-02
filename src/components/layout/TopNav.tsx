@@ -25,6 +25,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { OpenAssistant } from "@/components/assistant/ChatPanel";
 import { useTheme } from "@/lib/theme";
+import { EncryptionPill } from "@/components/security/EncryptionShield";
 
 /** Port of the App.vue top navigation bar (fixed, bg-dark-50, px-2 py-3). */
 export function TopNav() {
@@ -88,6 +89,11 @@ export function TopNav() {
 
         {/* teleport target used by plan/compare pages to inject the Share button */}
         <div id="share-button" />
+
+        {/* trusted-data badge (desktop) — every page shows the encryption promise */}
+        <div className="hidden md:inline-flex self-center">
+          <EncryptionPill />
+        </div>
 
         {/* Plan switcher (desktop) */}
         {plans.length > 0 && show_create && (

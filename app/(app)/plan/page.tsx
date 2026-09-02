@@ -15,6 +15,7 @@ import { WhatIfDrawer } from "@/components/plan/WhatIfDrawer";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { MonthSlider } from "@/components/plan/MonthSlider";
+import { EncryptionPill } from "@/components/security/EncryptionShield";
 import { Disclosure, Popover } from "@headlessui/react";
 import { FireNotification } from "@/store/notifications";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -885,6 +886,7 @@ function PlanPageInner() {
                         <FontAwesomeIcon icon={faGauge} className="text-xs" />
                       </div>
                       <span className="text-sm font-bold text-dark-800">Plan Cockpit</span>
+                      <EncryptionPill />
                     </div>
                     <Popover.Button className="flex items-center justify-center rounded-lg h-7 w-7 bg-dark-100 text-dark-500 hover:bg-dark-200">
                       <FontAwesomeIcon icon={faXmark} className="text-xs" />
