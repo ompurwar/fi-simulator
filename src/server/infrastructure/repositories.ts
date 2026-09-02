@@ -1,4 +1,5 @@
 import type { Database } from "../domain/ports";
+import { createHmac } from "crypto";
 import {
   MakeCashFlow,
   MakeCashFlowChange,
@@ -12,9 +13,7 @@ import {
   MakeBugReport,
 } from "../domain/entities";
 import {
-  CASHFLOW_CHANGE_CONSTANTS,
   CASHFLOW_CONSTANTS,
-  PLAN_TEMPLATE_CONSTANTS,
   SHARE_OBJECT_CONSTANTS,
 } from "../domain/constants";
 import { CreateCredentials, GenerateHash } from "./crypto";
@@ -34,6 +33,7 @@ import type {
   TaxRuleRepository,
 } from "../domain/ports";
 import { DbInsertFailedError } from "../domain/errors";
+import type { DocCryptoCodec } from "./docCrypto";
 
 const userProfilesCollection = "User_Profiles";
 const sessionCollection = "Session_Store";
@@ -54,8 +54,35 @@ function DocToUser(user_info: Record<string, any>): any {
 
 /* ------------------------------ User ------------------------------ */
 
-export function makeUserRepository(database: Database): UserRepository {
+/** Lookup/index keys kept in plaintext; email/PII live encrypted (P3). */
+const userAllow = ["_id", "email_token", "role", "status", "timestamp"];
+
+export function EmailLookupToken(email: string, secret: string): string {
+  return createHmac("sha256", secret).update(email.toLowerCase()).digest("hex");
+}
+
+export function makeUserRepository(
+  database: Database,
+  codec: DocCryptoCodec,
+  opts: { lookupSecret: string }
+): UserRepository {
   const db = database;
+  const col = () => db.collection(userProfilesCollection);
+  const { lookupSecret } = opts;
+
+  /** Legacy docs carry a plaintext `email` without `email_token` — attach the
+   *  token and encrypt them lazily so FindByEmail keeps working after upgrade.
+   *  replaceOne (not $set) removes the leftover plaintext top-level fields. */
+  async function LazyMigrateIfNeeded(doc: Record<string, any>): Promise<void> {
+    if (doc.email_token) return;
+    if (typeof doc.email !== "string") return;
+    const migrated = await codec.encryptDoc(
+      { ...doc, email_token: EmailLookupToken(doc.email, lookupSecret) },
+      userAllow
+    );
+    await col().replaceOne({ _id: doc._id }, migrated);
+  }
+
   return {
     async Add(user_info: Record<string, any>) {
       const doc: Record<string, any> = { ...user_info };
@@ -64,33 +91,45 @@ export function makeUserRepository(database: Database): UserRepository {
         delete doc.password;
       }
       doc.timestamp = Date.now();
+      doc.email_token = EmailLookupToken(doc.email, lookupSecret);
       // Let Mongo assign the ObjectId (matching FindById's MakeId lookup).
       delete doc._id;
-      const { acknowledged, insertedId } = await db
-        .collection(userProfilesCollection)
-        .insertOne(doc);
+      const stored = await codec.encryptDoc(doc, userAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToUser({ ...doc, _id: insertedId.toString() });
       return { success: acknowledged, created };
     },
     async FindByEmail(email: string) {
-      const results = await db
-        .collection(userProfilesCollection)
-        .find({ email })
+      const token = EmailLookupToken(email, lookupSecret);
+      const results = await col()
+        .find({ $or: [{ email_token: token }, { email }] })
         .toArray();
-      return results.map(DocToUser);
+      for (const doc of results) await LazyMigrateIfNeeded(doc);
+      const docs = await Promise.all(results.map((doc: any) => codec.decryptDoc(doc, userAllow)));
+      return docs.map(DocToUser);
     },
     async FindById(user_id: string) {
-      const found = await db
-        .collection(userProfilesCollection)
-        .findOne({ _id: db.MakeId(user_id) });
-      return found ? DocToUser(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(user_id) });
+      if (!found) return null;
+      await LazyMigrateIfNeeded(found);
+      const doc = await codec.decryptDoc(found, userAllow);
+      return DocToUser(doc);
     },
     async Update({ _id: user_id, ...user_info }) {
-      if (user_info.default_plan_id)
-        user_info.default_plan_id = db.MakeId(user_info.default_plan_id);
-      const { acknowledged } = await db
-        .collection(userProfilesCollection)
-        .updateMany({ _id: db.MakeId(user_id) }, { $set: { ...user_info } });
+      const found = await col().findOne({ _id: db.MakeId(user_id) });
+      if (!found) return { success: true };
+      const current = await codec.decryptDoc(found, userAllow);
+      const merged: Record<string, any> = { ...current, ...user_info };
+      delete merged._id;
+      if (merged.email !== undefined)
+        merged.email_token = EmailLookupToken(merged.email, lookupSecret);
+      if (merged.default_plan_id)
+        merged.default_plan_id = db.MakeId(merged.default_plan_id);
+      const stored = await codec.encryptDoc(merged, userAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(user_id) },
+        stored
+      );
       return { success: acknowledged };
     },
   };
@@ -170,79 +209,120 @@ export function makeSessionRepository(
 
 /* --------------------------- PlanTemplate --------------------------- */
 
-export function makePlanTemplateRepository(database: Database): PlanTemplateRepository {
+/** Lookup/index keys kept in plaintext — the only fields Mongo queries on. */
+const planAllow = ["_id", "user_id", "status"];
+
+export function makePlanTemplateRepository(
+  database: Database,
+  codec: DocCryptoCodec
+): PlanTemplateRepository {
   const db = database;
+  const col = () => db.collection(planCollection);
   return {
     async Add(plan_info: Record<string, any>) {
-      if (plan_info.user_id) plan_info.user_id = db.MakeId(plan_info.user_id);
-      if (plan_info.parent_id) plan_info.parent_id = db.MakeId(plan_info.parent_id);
-      if (plan_info.share_id) plan_info.share_id = db.MakeId(plan_info.share_id);
-      plan_info.status = "active";
-      plan_info.timestamp = Date.now();
-      const { acknowledged, insertedId } = await db.collection(planCollection).insertOne(plan_info);
-      const created = MakePlan({ ...plan_info, _id: insertedId.toString() });
+      const doc: Record<string, any> = { ...plan_info };
+      if (doc.user_id) doc.user_id = db.MakeId(doc.user_id);
+      if (doc.parent_id) doc.parent_id = db.MakeId(doc.parent_id);
+      if (doc.share_id) doc.share_id = db.MakeId(doc.share_id);
+      doc.status = "active";
+      doc.timestamp = Date.now();
+      const stored = await codec.encryptDoc(doc, planAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
+      const created = MakePlan({ ...doc, _id: insertedId.toString() });
       return { success: acknowledged, created };
     },
     async FindById(plan_id: string) {
-      const found = await db
-        .collection(planCollection)
-        .findOne({ _id: db.MakeId(plan_id), status: "active" });
-      return found ? MakePlan(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
+      if (!found) return null;
+      const doc = await codec.decryptDoc(found, planAllow);
+      return MakePlan(doc);
     },
     async FindByUserId(user_id: string) {
-      const plan_list = await db
-        .collection(planCollection)
+      const plan_list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .toArray();
-      return plan_list.map(MakePlan);
+      const docs = await Promise.all(plan_list.map((doc: any) => codec.decryptDoc(doc, planAllow)));
+      return docs.map(MakePlan);
     },
     async Update({ _id: plan_id, ...plan_info }) {
-      plan_info.user_id = db.MakeId(plan_info.user_id);
-      plan_info.modified_at = Date.now();
-      if (plan_info.parent_id) plan_info.parent_id = db.MakeId(plan_info.parent_id);
-      if (plan_info.share_id) plan_info.share_id = db.MakeId(plan_info.share_id);
-      const { acknowledged } = await db
-        .collection(planCollection)
-        .updateMany(
-          { _id: db.MakeId(plan_id), status: "active" },
-          { $set: plan_info }
-        );
+      const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
+      if (!found) {
+        // Nothing to merge into (mirrors the legacy no-op $set on a missing doc).
+        return { success: true };
+      }
+      const current = await codec.decryptDoc(found, planAllow);
+      const merged: Record<string, any> = { ...current, ...plan_info };
+      delete merged._id;
+      if (merged.user_id !== undefined) merged.user_id = db.MakeId(merged.user_id);
+      if (merged.parent_id) merged.parent_id = db.MakeId(merged.parent_id);
+      if (merged.share_id) merged.share_id = db.MakeId(merged.share_id);
+      merged.modified_at = Date.now();
+      const stored = await codec.encryptDoc(merged, planAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(plan_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async UpdateAccount({ plan_id, account_id, changes }) {
-      const set: Record<string, any> = { modified_at: Date.now() };
+      const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
+      if (!found) return { success: true };
+      const doc = await codec.decryptDoc(found, planAllow);
+      const account = (doc.account_list || []).find(
+        (a: Record<string, any>) => String(a._id) === String(account_id)
+      );
+      if (!account) return { success: true };
       for (const [key, value] of Object.entries(changes)) {
-        set[`account_list.$[elem].${key}`] = value;
+        if (value === undefined) delete account[key];
+        else account[key] = value;
       }
-      const { acknowledged } = await db
-        .collection(planCollection)
-        .updateOne(
-          { _id: db.MakeId(plan_id), status: "active" },
-          { $set: set },
-          { arrayFilters: [{ "elem._id": account_id }] }
-        );
+      doc.modified_at = Date.now();
+      const stored = await codec.encryptDoc(doc, planAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(plan_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async Delete(plan_id: string) {
-      const { acknowledged } = await db
-        .collection(planCollection)
-        .updateMany(
-          { _id: db.MakeId(plan_id), status: "active" },
-          { $set: { status: "deleted" } }
-        );
+      const { acknowledged } = await col().updateMany(
+        { _id: db.MakeId(plan_id), status: "active" },
+        { $set: { status: "deleted" } }
+      );
       return { success: acknowledged };
     },
     async RemoveCashflowAndAccount({ _id: plan_id, cashflow_list, account_list }) {
-      const update: any = {
-        $pull: { cashflow_list: { $in: [] }, account_list: { $in: [] } },
-      };
-      if (Array.isArray(cashflow_list))
-        update.$pull.cashflow_list.$in = cashflow_list.map((_) => db.MakeId(_));
-      if (Array.isArray(account_list))
-        update.$pull.account_list.$in = account_list.map((_) => db.MakeId(_));
-      const { acknowledged } = await db
-        .collection(planCollection)
-        .updateOne({ _id: db.MakeId(plan_id), status: "active" }, update);
+      const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
+      if (found) {
+        const doc = await codec.decryptDoc(found, planAllow);
+        if (Array.isArray(cashflow_list)) {
+          doc.cashflow_list = (doc.cashflow_list || []).filter(
+            (entry: any) =>
+              !cashflow_list.some(
+                (id: any) => String(entry && typeof entry === "object" ? entry._id : entry) === String(id)
+              )
+          );
+        }
+        if (Array.isArray(account_list)) {
+          doc.account_list = (doc.account_list || []).filter(
+            (entry: any) =>
+              !account_list.some(
+                (id: any) => String(entry && typeof entry === "object" ? entry._id : entry) === String(id)
+              )
+          );
+        }
+        doc.modified_at = Date.now();
+        const stored = await codec.encryptDoc(doc, planAllow);
+        const { acknowledged } = await col().replaceOne(
+          { _id: db.MakeId(plan_id), status: "active" },
+          stored
+        );
+        return { success: acknowledged };
+      }
+      const { acknowledged } = await col().updateOne(
+        { _id: db.MakeId(plan_id), status: "active" },
+        { $set: {} }
+      );
       return { success: acknowledged };
     },
   };
@@ -250,8 +330,15 @@ export function makePlanTemplateRepository(database: Database): PlanTemplateRepo
 
 /* ----------------------------- CashFlow ----------------------------- */
 
-export function makeCashFlowRepository(database: Database): CashFlowRepository {
+/** Lookup/index keys kept in plaintext — the only fields Mongo queries on. */
+const cashFlowAllow = ["_id", "user_id", "plan_id", "status", "category"];
+
+export function makeCashFlowRepository(
+  database: Database,
+  codec: DocCryptoCodec
+): CashFlowRepository {
   const db = database;
+  const col = () => db.collection(cashFlowCollection);
   function DocToCashFlow(cash_flow_info: Record<string, any>): any {
     return MakeCashFlow({
       ...cash_flow_info,
@@ -259,10 +346,13 @@ export function makeCashFlowRepository(database: Database): CashFlowRepository {
       plan_id: cash_flow_info.plan_id.toString(),
     });
   }
+  async function Decrypt(cash_flow_doc: Record<string, any>): Promise<Record<string, any>> {
+    const doc = await codec.decryptDoc(cash_flow_doc, cashFlowAllow);
+    return doc;
+  }
   return {
     async GetIncomeList({ plan_id, user_id }) {
-      const income_list = await db
-        .collection(cashFlowCollection)
+      const income_list = await col()
         .find({
           status: "active",
           category: CASHFLOW_CONSTANTS.CATEGORY.INCOME,
@@ -270,11 +360,11 @@ export function makeCashFlowRepository(database: Database): CashFlowRepository {
           user_id: db.MakeId(user_id),
         })
         .toArray();
-      return income_list.map(DocToCashFlow);
+      const docs = await Promise.all(income_list.map((doc: any) => Decrypt(doc)));
+      return docs.map(DocToCashFlow);
     },
     async GetExpenseList({ plan_id, user_id }) {
-      const expense_list = await db
-        .collection(cashFlowCollection)
+      const expense_list = await col()
         .find({
           status: "active",
           category: CASHFLOW_CONSTANTS.CATEGORY.EXPENSE,
@@ -282,40 +372,51 @@ export function makeCashFlowRepository(database: Database): CashFlowRepository {
           user_id: db.MakeId(user_id),
         })
         .toArray();
-      return expense_list.map(DocToCashFlow);
+      const docs = await Promise.all(expense_list.map((doc: any) => Decrypt(doc)));
+      return docs.map(DocToCashFlow);
     },
     async Add(cash_flow_info: Record<string, any>) {
-      cash_flow_info.status = "active";
-      cash_flow_info.user_id = db.MakeId(cash_flow_info.user_id);
-      cash_flow_info.plan_id = db.MakeId(cash_flow_info.plan_id);
-      const { acknowledged, insertedId } = await db.collection(cashFlowCollection).insertOne(cash_flow_info);
+      const doc: Record<string, any> = { ...cash_flow_info };
+      doc.status = "active";
+      doc.user_id = db.MakeId(doc.user_id);
+      doc.plan_id = db.MakeId(doc.plan_id);
+      const stored = await codec.encryptDoc(doc, cashFlowAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToCashFlow({
-        ...cash_flow_info,
-        _id: insertedId.toString(),
+        ...doc,
+        _id: doc._id ? doc._id.toString() : insertedId.toString(),
       });
       return { success: acknowledged, created };
     },
     async FindById(cash_flow_id: string) {
-      const found = await db
-        .collection(cashFlowCollection)
-        .findOne({ _id: db.MakeId(cash_flow_id), status: "active" });
-      return found ? DocToCashFlow(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(cash_flow_id), status: "active" });
+      if (!found) return null;
+      const doc = await Decrypt(found);
+      return DocToCashFlow(doc);
     },
     async FindByUserId(user_id: string) {
-      const list = await db
-        .collection(cashFlowCollection)
+      const list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .toArray();
-      return list.map(DocToCashFlow);
+      const docs = await Promise.all(list.map((doc: any) => Decrypt(doc)));
+      return docs.map(DocToCashFlow);
     },
     async Update({ _id: cash_flow_id, ...cash_flow_info }) {
-      cash_flow_info.status = "active";
-      const { acknowledged } = await db
-        .collection(cashFlowCollection)
-        .updateMany(
-          { _id: db.MakeId(cash_flow_id), status: "active" },
-          { $set: cash_flow_info }
-        );
+      const found = await col().findOne({ _id: db.MakeId(cash_flow_id), status: "active" });
+      if (!found) {
+        return { success: true };
+      }
+      const current = await Decrypt(found);
+      const merged: Record<string, any> = { ...current, ...cash_flow_info };
+      delete merged._id;
+      merged.status = "active";
+      if (merged.user_id !== undefined) merged.user_id = db.MakeId(merged.user_id);
+      if (merged.plan_id !== undefined) merged.plan_id = db.MakeId(merged.plan_id);
+      const stored = await codec.encryptDoc(merged, cashFlowAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(cash_flow_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async Delete({ _id: cash_flow_id, id_list: cash_flow_ids }) {
@@ -323,9 +424,7 @@ export function makeCashFlowRepository(database: Database): CashFlowRepository {
       if (typeof cash_flow_id === "string") filter._id = db.MakeId(cash_flow_id);
       if (Array.isArray(cash_flow_ids))
         filter._id = { $in: cash_flow_ids.map((_) => db.MakeId(_)) };
-      const { acknowledged } = await db
-        .collection(cashFlowCollection)
-        .updateMany(filter, { $set: { status: "deleted" } });
+      const { acknowledged } = await col().updateMany(filter, { $set: { status: "deleted" } });
       return { success: acknowledged };
     },
   };
@@ -333,10 +432,23 @@ export function makeCashFlowRepository(database: Database): CashFlowRepository {
 
 /* ------------------------- CashFlowChange ------------------------- */
 
+/** Lookup/index keys kept in plaintext — the only fields Mongo queries on. */
+const cashFlowChangeAllow = [
+  "_id",
+  "user_id",
+  "cashflow_id",
+  "status",
+  "category",
+  "category_id",
+  "cashflow_change_id",
+];
+
 export function makeCashFlowChangeRepository(
-  database: Database
+  database: Database,
+  codec: DocCryptoCodec
 ): CashFlowChangeRepository {
   const db = database;
+  const col = () => db.collection(cashFlowChangeCollection);
   function DocToCashFlowChange(cash_flow_info: Record<string, any>): any {
     return MakeCashFlowChange({
       ...cash_flow_info,
@@ -345,6 +457,9 @@ export function makeCashFlowChangeRepository(
       user_id: cash_flow_info.user_id.toString(),
     });
   }
+  async function Decrypt(cash_flow_doc: Record<string, any>): Promise<Record<string, any>> {
+    return codec.decryptDoc(cash_flow_doc, cashFlowChangeAllow);
+  }
   return {
     async GetCashflowChangeList({ category_id, cashflow_change_id, cashflow_id } = {}) {
       const filter: any = { status: "active" };
@@ -352,58 +467,61 @@ export function makeCashFlowChangeRepository(
       if (cashflow_change_id)
         filter.cashflow_change_id = db.MakeId(cashflow_change_id);
       if (cashflow_id) filter.cashflow_id = db.MakeId(cashflow_id);
-      const list = await db
-        .collection(cashFlowChangeCollection)
-        .find(filter)
-        .toArray();
-      return list.map(DocToCashFlowChange);
+      const list = await col().find(filter).toArray();
+      const docs = await Promise.all(list.map((doc: any) => Decrypt(doc)));
+      return docs.map(DocToCashFlowChange);
     },
     async Add(cash_flow_change_info: Record<string, any>) {
-      cash_flow_change_info.status = "active";
-      cash_flow_change_info.user_id = db.MakeId(cash_flow_change_info.user_id);
-      cash_flow_change_info.cashflow_id = db.MakeId(cash_flow_change_info.cashflow_id);
-      const { acknowledged, insertedId } = await db
-        .collection(cashFlowChangeCollection)
-        .insertOne(cash_flow_change_info);
+      const doc: Record<string, any> = { ...cash_flow_change_info };
+      doc.status = "active";
+      doc.user_id = db.MakeId(doc.user_id);
+      doc.cashflow_id = db.MakeId(doc.cashflow_id);
+      const stored = await codec.encryptDoc(doc, cashFlowChangeAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToCashFlowChange({
-        ...cash_flow_change_info,
-        _id: insertedId.toString(),
+        ...doc,
+        _id: doc._id ? doc._id.toString() : insertedId.toString(),
       });
       return { success: acknowledged, created };
     },
     async FindById(cash_flow_change_id: string) {
-      const found = await db
-        .collection(cashFlowChangeCollection)
-        .findOne({ _id: db.MakeId(cash_flow_change_id), status: "active" });
-      return found ? DocToCashFlowChange(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(cash_flow_change_id), status: "active" });
+      if (!found) return null;
+      const doc = await Decrypt(found);
+      return DocToCashFlowChange(doc);
     },
     async FindByUserId(user_id: string) {
-      const list = await db
-        .collection(cashFlowChangeCollection)
+      const list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .toArray();
-      return list.map(DocToCashFlowChange);
+      const docs = await Promise.all(list.map((doc: any) => Decrypt(doc)));
+      return docs.map(DocToCashFlowChange);
     },
     async Update({ _id: cash_flow_change_id, ...cash_flow_change_info }) {
-      if (cash_flow_change_info.user_id !== undefined)
-        cash_flow_change_info.user_id = db.MakeId(cash_flow_change_info.user_id);
-      if (cash_flow_change_info.cashflow_id !== undefined)
-        cash_flow_change_info.cashflow_id = db.MakeId(cash_flow_change_info.cashflow_id);
-      const { acknowledged } = await db
-        .collection(cashFlowChangeCollection)
-        .updateMany(
-          { _id: db.MakeId(cash_flow_change_id), status: "active" },
-          { $set: cash_flow_change_info }
-        );
+      const found = await col().findOne({ _id: db.MakeId(cash_flow_change_id), status: "active" });
+      if (!found) {
+        return { success: true };
+      }
+      const current = await Decrypt(found);
+      const merged: Record<string, any> = { ...current, ...cash_flow_change_info };
+      delete merged._id;
+      merged.status = "active";
+      if (merged.user_id !== undefined)
+        merged.user_id = db.MakeId(merged.user_id);
+      if (merged.cashflow_id !== undefined)
+        merged.cashflow_id = db.MakeId(merged.cashflow_id);
+      const stored = await codec.encryptDoc(merged, cashFlowChangeAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(cash_flow_change_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async Delete({ _id: cash_flow_change_id }) {
-      const { acknowledged } = await db
-        .collection(cashFlowChangeCollection)
-        .updateMany(
-          { _id: db.MakeId(cash_flow_change_id), status: "active" },
-          { $set: { status: "deleted" } }
-        );
+      const { acknowledged } = await col().updateMany(
+        { _id: db.MakeId(cash_flow_change_id), status: "active" },
+        { $set: { status: "deleted" } }
+      );
       return { success: acknowledged };
     },
   };
@@ -573,8 +691,15 @@ export function makePasswordResetSessionRepository(
 
 /* ------------------------------ ChatSession ------------------------------ */
 
-export function makeChatSessionRepository(database: Database): ChatSessionRepository {
+/** Lookup/index keys kept in plaintext (P2 — chat messages/title encrypted). */
+const chatSessionAllow = ["_id", "user_id", "status", "created_at", "updated_at"];
+
+export function makeChatSessionRepository(
+  database: Database,
+  codec: DocCryptoCodec
+): ChatSessionRepository {
   const db = database;
+  const col = () => db.collection(chatSessionCollection);
   function DocToChatSession(session_info: Record<string, any>): any {
     return MakeChatSession({
       ...session_info,
@@ -591,44 +716,46 @@ export function makeChatSessionRepository(database: Database): ChatSessionReposi
       doc.status = "active";
       doc.created_at = Date.now();
       doc.updated_at = doc.created_at;
-      const { acknowledged, insertedId } = await db
-        .collection(chatSessionCollection)
-        .insertOne(doc);
+      const stored = await codec.encryptDoc(doc, chatSessionAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToChatSession({ ...doc, _id: insertedId.toString() });
       return { success: acknowledged, created };
     },
     async FindById(session_id: string) {
-      const found = await db
-        .collection(chatSessionCollection)
-        .findOne({ _id: db.MakeId(session_id), status: "active" });
-      return found ? DocToChatSession(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(session_id), status: "active" });
+      if (!found) return null;
+      const doc = await codec.decryptDoc(found, chatSessionAllow);
+      return DocToChatSession(doc);
     },
     async FindByUserId(user_id: string) {
-      const list = await db
-        .collection(chatSessionCollection)
+      const list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .sort({ updated_at: -1 })
         .toArray();
-      return list.map(DocToChatSession);
+      const docs = await Promise.all(list.map((doc: any) => codec.decryptDoc(doc, chatSessionAllow)));
+      return docs.map(DocToChatSession);
     },
     async Update({ _id, ...session_info }) {
-      if (session_info.user_id) session_info.user_id = db.MakeId(session_info.user_id);
-      session_info.updated_at = Date.now();
-      const { acknowledged } = await db
-        .collection(chatSessionCollection)
-        .updateMany(
-          { _id: db.MakeId(_id), status: "active" },
-          { $set: session_info }
-        );
+      const found = await col().findOne({ _id: db.MakeId(_id), status: "active" });
+      if (!found) return { success: true };
+      const current = await codec.decryptDoc(found, chatSessionAllow);
+      const merged: Record<string, any> = { ...current, ...session_info };
+      delete merged._id;
+      merged.status = "active";
+      if (merged.user_id !== undefined) merged.user_id = db.MakeId(merged.user_id);
+      merged.updated_at = Date.now();
+      const stored = await codec.encryptDoc(merged, chatSessionAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async Delete(session_id: string) {
-      const { acknowledged } = await db
-        .collection(chatSessionCollection)
-        .updateMany(
-          { _id: db.MakeId(session_id), status: "active" },
-          { $set: { status: "deleted" } }
-        );
+      const { acknowledged } = await col().updateMany(
+        { _id: db.MakeId(session_id), status: "active" },
+        { $set: { status: "deleted" } }
+      );
       return { success: acknowledged };
     },
   };

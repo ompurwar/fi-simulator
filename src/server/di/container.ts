@@ -1,5 +1,8 @@
 import type { Env } from "../config/env";
 import { loadEnv } from "../config/env";
+import { createHash } from "crypto";
+import { makeDocCrypto } from "../infrastructure/docCrypto";
+import { makeGcpKms } from "../infrastructure/kms";
 import type {
   ApiTokenRepository,
   AuthTokenRepository,
@@ -111,14 +114,48 @@ export async function buildContainer(
   const defaultPlanDuration = env.DEFAULT_PLAN_DURATION;
   const clientApplication = env.CLIENT_APPLICATION;
 
-  const user_list = makeUserRepository(db);
+  // Envelope encryption for user financial stores. Production REQUIRES GCP KMS
+  // unless the write kill-switch (DATA_ENCRYPTION_ENABLED=false) is on; dev/test
+  // fall back to a deterministic local key. Reads always support both formats.
+  const kmsConfigured = !!(
+    env.GCP_KMS_PROJECT &&
+    env.GCP_KMS_LOCATION &&
+    env.GCP_KMS_KEY_RING &&
+    env.GCP_KMS_KEY &&
+    env.GCP_KMS_SA_KEY
+  );
+  const encryptionWritesEnabled = env.DATA_ENCRYPTION_ENABLED !== "false";
+  const isProd = env.NODE_ENV === "production" || env.NODE_ENV === "prod";
+  if (encryptionWritesEnabled && isProd && !kmsConfigured) {
+    throw new Error(
+      "GCP_KMS_PROJECT/GCP_KMS_LOCATION/GCP_KMS_KEY_RING/GCP_KMS_KEY/GCP_KMS_SA_KEY " +
+        "are required in production (document encryption)"
+    );
+  }
+  if (isProd && !encryptionWritesEnabled) {
+    console.warn(
+      "[fi-plan] DATA_ENCRYPTION_ENABLED=false — NEW writes are stored in plaintext; " +
+        "existing encrypted documents still decrypt on read."
+    );
+  }
+  const docCodec = makeDocCrypto({
+    kms: kmsConfigured ? makeGcpKms(env) : null,
+    localKey: kmsConfigured
+      ? Buffer.alloc(32)
+      : createHash("sha256").update("fi-plan-dev-doc-encryption-fallback").digest(),
+    encryptWrites: encryptionWritesEnabled,
+  });
+
+  const user_list = makeUserRepository(db, docCodec, {
+    lookupSecret: env.PII_LOOKUP_SECRET || env.COOKIE_SECRET,
+  });
   const session_list = makeSessionRepository(db, {
     sessionIdLength: 24,
     sessionTimeoutHours,
   });
-  const plan_list = makePlanTemplateRepository(db);
-  const cashflow_list = makeCashFlowRepository(db);
-  const cashflow_change_list = makeCashFlowChangeRepository(db);
+  const plan_list = makePlanTemplateRepository(db, docCodec);
+  const cashflow_list = makeCashFlowRepository(db, docCodec);
+  const cashflow_change_list = makeCashFlowChangeRepository(db, docCodec);
   const share_object_list = makeShareObjectRepository(db);
   const password_reset_session_list = makePasswordResetSessionRepository(db, {
     pwResetSessionLengthMin,
@@ -126,7 +163,7 @@ export async function buildContainer(
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
   const auth_token_repo = makeAuthTokenRepository(db);
-  const chat_session_list = makeChatSessionRepository(db);
+  const chat_session_list = makeChatSessionRepository(db, docCodec);
   const bug_report_list = makeBugReportRepository(db);
   const oauth_store = makeOAuthStore(db);
   const oauth_service = makeOAuthService({
@@ -136,7 +173,7 @@ export async function buildContainer(
     GenerateRandomString,
   });
 
-  const networth_repo = makeNetWorthRepository(db);
+  const networth_repo = makeNetWorthRepository(db, docCodec);
   const networth_provider =
     overrides.networthProvider ??
     makeIndMoneyNetWorthProvider({ repo: networth_repo, mcpUrl: env.INDMONEY_MCP_URL });

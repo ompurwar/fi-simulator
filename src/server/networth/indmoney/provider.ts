@@ -148,8 +148,8 @@ export function makeIndMoneyNetWorthProvider(deps: {
     async fetchSnapshot(input: { user_id: string }): Promise<ProviderSnapshotPayload> {
       const { user_id } = input;
       const link = await repo.GetLink(user_id, "indmoney");
-      if (!link?.tokens) {
-        throw new InvalidOperationError("indmoney not connected");
+      if (!link?.tokens?.access_token) {
+        throw new InvalidOperationError("indmoney session expired, please reconnect");
       }
 
       const transport = makeTransport(user_id, "", "");
@@ -292,6 +292,14 @@ export function makeIndMoneyNetWorthProvider(deps: {
         } as ProviderSnapshotPayload;
       } catch (e) {
         if (e instanceof UnauthorizedError) {
+          throw new InvalidOperationError("indmoney session expired, please reconnect");
+        }
+        // The MCP SDK surfaces a failed token refresh as a bare Error ("Either
+        // provider.prepareTokenRequest() or authorizationCode is required",
+        // or a token-endpoint 4xx). Map it to the same actionable message
+        // instead of a 500.
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/prepareTokenRequest|authorizationCode|token endpoint|token_endpoint|invalid_grant/i.test(msg)) {
           throw new InvalidOperationError("indmoney session expired, please reconnect");
         }
         throw e;

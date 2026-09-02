@@ -17,6 +17,12 @@ import type {
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { NetWorthRepository } from "../repository";
 
+/**
+ * The MCP SDK reads `expires_at` (epoch seconds) in its expiry/refresh logic,
+ * but the published OAuthTokens type doesn't declare it. Keep it when saving.
+ */
+export type PersistedOAuthTokens = OAuthTokens & { expires_at?: number };
+
 export interface IndMoneyOAuthProviderOptions {
   user_id: string;
   redirect_url: string;
@@ -66,7 +72,14 @@ export class IndMoneyOAuthClientProvider implements OAuthClientProvider {
   }
 
   async saveTokens(tokens: OAuthTokens) {
-    await this.repo.UpdateLink(this.opts.user_id, { tokens });
+    // The MCP SDK decides whether to refresh based on `expires_at` (epoch
+    // seconds). IndMoney only sends `expires_in`, so compute it — otherwise
+    // the token is treated as never-expiring and the refresh path is never
+    // taken, which later surfaces as "authorizationCode required".
+    const normalized: PersistedOAuthTokens = { ...tokens };
+    const expires_in = normalized.expires_in ?? 3600;
+    normalized.expires_at = Math.floor(Date.now() / 1000) + expires_in;
+    await this.repo.UpdateLink(this.opts.user_id, { tokens: normalized });
   }
 
   async redirectToAuthorization(authorizationUrl: URL) {
