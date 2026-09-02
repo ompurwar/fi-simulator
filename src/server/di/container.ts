@@ -146,7 +146,9 @@ export async function buildContainer(
     encryptWrites: encryptionWritesEnabled,
   });
 
-  const user_list = makeUserRepository(db);
+  const user_list = makeUserRepository(db, docCodec, {
+    lookupSecret: env.PII_LOOKUP_SECRET || env.COOKIE_SECRET,
+  });
   const session_list = makeSessionRepository(db, {
     sessionIdLength: 24,
     sessionTimeoutHours,
@@ -161,7 +163,7 @@ export async function buildContainer(
   const common_collection_list = makeCommonCollectionRepository(db);
   const api_token_list = makeApiTokenRepository(db);
   const auth_token_repo = makeAuthTokenRepository(db);
-  const chat_session_list = makeChatSessionRepository(db);
+  const chat_session_list = makeChatSessionRepository(db, docCodec);
   const bug_report_list = makeBugReportRepository(db);
   const oauth_store = makeOAuthStore(db);
   const oauth_service = makeOAuthService({
@@ -171,7 +173,7 @@ export async function buildContainer(
     GenerateRandomString,
   });
 
-  const networth_repo = makeNetWorthRepository(db);
+  const networth_repo = makeNetWorthRepository(db, docCodec);
   const networth_provider =
     overrides.networthProvider ??
     makeIndMoneyNetWorthProvider({ repo: networth_repo, mcpUrl: env.INDMONEY_MCP_URL });

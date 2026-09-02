@@ -9,10 +9,16 @@
 
 import type { Database } from "../domain/ports";
 import { GenerateRandomString } from "../domain/entities";
+import type { DocCryptoCodec } from "../infrastructure/docCrypto";
 
 const linkCollection = "NetWorth_Link_Store";
 const snapshotCollection = "NetWorth_Snapshot_Store";
 const oauthStateCollection = "NetWorth_OAuth_State";
+
+/** Link allowlist — timestamps stay queryable; tokens/client_info are encrypted. */
+const linkAllow = ["_id", "user_id", "provider", "status", "connected_at", "last_sync_at", "timestamp"];
+/** Snapshot allowlist — timestamp drives sort-order; all market data encrypted. */
+const snapshotAllow = ["_id", "user_id", "provider", "timestamp"];
 
 export interface NetWorthLink {
   _id: string;
@@ -68,49 +74,56 @@ export interface NetWorthRepository {
   DeleteOAuthState(state: string): Promise<{ success: boolean }>;
 }
 
-export function makeNetWorthRepository(database: Database): NetWorthRepository {
+export function makeNetWorthRepository(
+  database: Database,
+  codec: DocCryptoCodec
+): NetWorthRepository {
   const MakeId = database.MakeId.bind(database);
   const Now = database.MakeDate.bind(database);
 
   async function AddLink(info: Record<string, any>) {
     const _id = GenerateRandomString(12);
-    const fields = {
+    const fields: Record<string, any> = {
       user_id: MakeId(info.user_id),
       provider: info.provider,
-      status: "active" as const,
+      status: "active",
       tokens: info.tokens ?? null,
       client_info: info.client_info ?? null,
       connected_at: info.connected_at ?? null,
       last_sync_at: info.last_sync_at ?? null,
       timestamp: Now(),
     };
+    const stored = await codec.encryptDoc(fields, linkAllow);
     // one active link per user+provider — upsert so re-connects don't duplicate;
     // _id must live in $setOnInsert (updating it on an existing doc is illegal)
     await database
       .collection(linkCollection)
       .updateOne(
         { user_id: fields.user_id, provider: fields.provider, status: "active" },
-        { $set: fields, $setOnInsert: { _id } },
+        { $set: stored, $setOnInsert: { _id } },
         { upsert: true }
       );
-    return { success: true, created: { _id, ...fields, user_id: info.user_id } };
+    return { success: true, created: { _id, ...fields, user_id: info.user_id } as NetWorthLink };
   }
 
   async function GetLink(user_id: string, provider?: string): Promise<NetWorthLink | null> {
     const query: Record<string, any> = { user_id: MakeId(user_id), status: "active" };
     if (provider) query.provider = provider;
-    const doc = await database.collection(linkCollection).findOne(query);
-    if (!doc) return null;
+    const raw = await database.collection(linkCollection).findOne(query);
+    if (!raw) return null;
+    const doc: any = await codec.decryptDoc(raw, linkAllow);
     return { ...doc, _id: doc._id.toString(), user_id: doc.user_id.toString() };
   }
 
   async function UpdateLink(user_id: string, update: Record<string, any>) {
-    await database
-      .collection(linkCollection)
-      .updateOne(
-        { user_id: MakeId(user_id), status: "active" },
-        { $set: { ...update, updated_at: Now() } }
-      );
+    const query: Record<string, any> = { user_id: MakeId(user_id), status: "active" };
+    const raw = await database.collection(linkCollection).findOne(query);
+    if (!raw) return { success: true };
+    const current: any = await codec.decryptDoc(raw, linkAllow);
+    const merged: Record<string, any> = { ...current, ...update, updated_at: Now() };
+    const stored = await codec.encryptDoc(merged, linkAllow);
+    // replaceOne (not $set) so any legacy plaintext top-level fields are dropped
+    await database.collection(linkCollection).replaceOne(query, stored);
     return { success: true };
   }
 
@@ -137,37 +150,41 @@ export function makeNetWorthRepository(database: Database): NetWorthRepository {
       raw: info.raw ?? null,
       timestamp: Now(),
     };
-    await database.collection(snapshotCollection).insertOne(doc);
+    const stored = await codec.encryptDoc(doc, snapshotAllow);
+    await database.collection(snapshotCollection).insertOne(stored);
     return { success: true, created: { ...doc, _id, user_id: info.user_id } };
   }
 
   async function GetLatestSnapshot(user_id: string, provider?: string) {
     const query: Record<string, any> = { user_id: MakeId(user_id) };
     if (provider) query.provider = provider;
-    const doc = await database
+    const raw = await database
       .collection(snapshotCollection)
       .find(query)
       .sort({ timestamp: -1 })
       .limit(1)
       .next();
-    if (!doc) return null;
+    if (!raw) return null;
+    const doc: any = await codec.decryptDoc(raw, snapshotAllow);
     return { ...doc, _id: doc._id.toString(), user_id: doc.user_id.toString() };
   }
 
   async function GetSnapshots(user_id: string, provider?: string, limit = 12) {
     const query: Record<string, any> = { user_id: MakeId(user_id) };
     if (provider) query.provider = provider;
-    const docs = await database
+    const raws = await database
       .collection(snapshotCollection)
       .find(query)
       .sort({ timestamp: -1 })
       .limit(limit)
       .toArray();
-    return docs.map((doc: any) => ({
-      ...doc,
-      _id: doc._id.toString(),
-      user_id: doc.user_id.toString(),
-    }));
+    const docs = await Promise.all(
+      raws.map(async (raw: any) => {
+        const doc: any = await codec.decryptDoc(raw, snapshotAllow);
+        return { ...doc, _id: doc._id.toString(), user_id: doc.user_id.toString() };
+      })
+    );
+    return docs;
   }
 
   async function SaveOAuthState(info: Record<string, any>) {

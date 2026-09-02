@@ -52,6 +52,9 @@ const envSchema = z.object({
   /** Master switch for ENCRYPTING new writes. Reads always support both
    *  plaintext (legacy) and encrypted docs, so toggling off never breaks data. */
   DATA_ENCRYPTION_ENABLED: z.enum(["true", "false"]).default("true"),
+  /** HMAC secret for the email lookup token (User_Profiles). Falls back to
+   *  COOKIE_SECRET; rotate carefully (changes would break email lookups). */
+  PII_LOOKUP_SECRET: z.string().optional(),
   FIPLAN_API_TOKEN: z.string().optional(),
 });
 

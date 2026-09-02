@@ -271,7 +271,11 @@ describe("plan & cashflow stores — encrypted at rest, plaintext to callers", (
 
     const raw = await rawPlan(plan_id);
     expect(raw.__enc).toBeTruthy();
-    expect(JSON.stringify(raw)).not.toContain("Renamed legacy plan");
+    const raw_json = JSON.stringify(raw);
+    expect(raw_json).not.toContain("Renamed legacy plan");
+    expect(raw_json).not.toContain("Legacy plaintext plan");
+    expect(raw_json).not.toContain("Old Account");
+    expect(raw_json).not.toContain("5000");
     const read_back: any = await container.plan_list.FindById(plan_id);
     expect(read_back.title).toBe("Renamed legacy plan");
     expect(read_back.account_list).toHaveLength(1); // untouched fields survive the merge
@@ -296,5 +300,150 @@ describe("plan & cashflow stores — encrypted at rest, plaintext to callers", (
       { $set: { __enc: raw.__enc } }
     );
     await expect(container.plan_list.FindById(plan_id)).rejects.toThrow(/failed to decrypt/);
+  });
+});
+
+describe("P2 — networth link/snapshots & chat sessions encrypted", () => {
+  let container: any;
+
+  beforeAll(async () => {
+    const t = await createTestApp();
+    container = t.container;
+  });
+
+  it("stores OAuth tokens inside the link encrypted — not visible raw", async () => {
+    const user_id = "6a80a5177591cb48f91dde5d";
+    await container.networth_repo.AddLink({
+      user_id,
+      provider: "indmoney",
+      connected_at: Date.now(),
+      tokens: { access_token: "super-secret-at", refresh_token: "super-secret-rt" },
+    });
+
+    const raw = await container.db
+      .collection("NetWorth_Link_Store")
+      .findOne({ user_id: container.db.MakeId(user_id), provider: "indmoney", status: "active" });
+    expect(raw).toBeTruthy();
+    expect(raw.__enc).toBeTruthy();
+    const json = JSON.stringify(raw);
+    expect(json).not.toContain("super-secret-at");
+    expect(json).not.toContain("super-secret-rt");
+
+    const link: any = await container.networth_repo.GetLink(user_id, "indmoney");
+    expect(link.tokens.access_token).toBe("super-secret-at");
+    expect(link.tokens.refresh_token).toBe("super-secret-rt");
+  });
+
+  it("stores snapshots encrypted while GetLatest returns the market data", async () => {
+    const user_id = "6a80a5177591cb48f91dde5e";
+    await container.networth_repo.AddLink({ user_id, provider: "indmoney", connected_at: Date.now() });
+    await container.networth_repo.AddSnapshot({
+      user_id,
+      provider: "indmoney",
+      as_of: "2026-09-01T00:00:00.000Z",
+      snapshot: { total_net_worth: 3717913.88, invested: 2888725.39, as_of: "2026-09-01T00:00:00.000Z", allocation: [] },
+      holdings: [{ name: "Nifty 50", current_value: 500000 }],
+    });
+
+    const raw = await container.db
+      .collection("NetWorth_Snapshot_Store")
+      .findOne({ user_id: container.db.MakeId(user_id), provider: "indmoney" });
+    expect(raw.__enc).toBeTruthy();
+    const json = JSON.stringify(raw);
+    expect(json).not.toContain("3717913.88");
+    expect(json).not.toContain("Nifty 50");
+
+    const snap: any = await container.networth_repo.GetLatestSnapshot(user_id, "indmoney");
+    expect(snap.snapshot.total_net_worth).toBe(3717913.88);
+    expect(snap.holdings[0].name).toBe("Nifty 50");
+  });
+
+  it("stores chat messages encrypted, updates merge without losing content", async () => {
+    const user_id = "6a80a5177591cb48f91dde5f";
+    const { created } = await container.chat_session_list.Add({
+      user_id,
+      title: "Retirement chat",
+      messages: [{ role: "user", content: "my salary is 150000" }],
+    });
+
+    const raw = await container.db
+      .collection("Chat_Session_Store")
+      .findOne({ _id: container.db.MakeId(String(created?._id ?? created?.id)) });
+    expect(raw).toBeTruthy();
+    expect(raw.__enc).toBeTruthy();
+    const json = JSON.stringify(raw);
+    expect(json).not.toContain("Retirement chat");
+    expect(json).not.toContain("my salary is 150000");
+
+    // append a message via partial update
+    const session_id = String(created._id);
+    await container.chat_session_list.Update({
+      _id: session_id,
+      messages: [
+        { role: "user", content: "my salary is 150000" },
+        { role: "assistant", content: "based on that you can invest 45000" },
+      ],
+    });
+
+    const got: any = await container.chat_session_list.FindById(session_id);
+    expect(got.title).toBe("Retirement chat");
+    expect(got.messages).toHaveLength(2);
+    expect(got.messages[1].content).toContain("45000");
+  });
+});
+
+describe("P3 — user PII encryption with HMAC email lookup", () => {
+  let app: any;
+  let container: any;
+
+  beforeAll(async () => {
+    const t = await createTestApp();
+    app = t.app;
+    container = t.container;
+  });
+
+  it("signup stores email encrypted with an email_token, login still works", async () => {
+    const signed = await signupUser(app, { email: "p3user@test.com", password: "secret123" });
+    const session = await container.session_list.FindByActiveSessionId(signed.session_id);
+    const user_id = session!.user_id.toString();
+
+    const raw = await container.db
+      .collection("User_Profiles")
+      .findOne({ _id: container.db.MakeId(user_id) });
+    expect(raw).toBeTruthy();
+    expect(typeof raw.email_token).toBe("string");
+    expect(raw.email).toBeUndefined();
+    const json = JSON.stringify(raw);
+    expect(json).not.toContain("p3user@test.com");
+
+    const found = await container.user_list.FindByEmail("p3user@test.com");
+    expect(found).toHaveLength(1);
+    expect(found[0].email).toBe("p3user@test.com");
+    expect(found[0].IsValidPassword("secret123")).toBe(true);
+  });
+
+  it("legacy plaintext users stay findable and are lazily encrypted", async () => {
+    const { CreateCredentials } = await import("@/server/infrastructure/crypto");
+    const creds = CreateCredentials("legacypass");
+    const email = "legacy-p3@test.com";
+    const { insertedId } = await container.db.collection("User_Profiles").insertOne({
+      email,
+      first_name: "legacy",
+      last_name: "user",
+      credentials: creds,
+      role: "user",
+      timestamp: Date.now(),
+    });
+
+    const found = await container.user_list.FindByEmail(email);
+    expect(found).toHaveLength(1);
+    expect(found[0].IsValidPassword("legacypass")).toBe(true);
+
+    const raw = await container.db
+      .collection("User_Profiles")
+      .findOne({ _id: insertedId });
+    expect(raw.email_token).toBeTruthy();
+    expect(raw.__enc).toBeTruthy();
+    expect(JSON.stringify(raw)).not.toContain(email);
   });
 });

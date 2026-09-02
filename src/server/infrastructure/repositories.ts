@@ -1,4 +1,5 @@
 import type { Database } from "../domain/ports";
+import { createHmac } from "crypto";
 import {
   MakeCashFlow,
   MakeCashFlowChange,
@@ -53,8 +54,35 @@ function DocToUser(user_info: Record<string, any>): any {
 
 /* ------------------------------ User ------------------------------ */
 
-export function makeUserRepository(database: Database): UserRepository {
+/** Lookup/index keys kept in plaintext; email/PII live encrypted (P3). */
+const userAllow = ["_id", "email_token", "role", "status", "timestamp"];
+
+export function EmailLookupToken(email: string, secret: string): string {
+  return createHmac("sha256", secret).update(email.toLowerCase()).digest("hex");
+}
+
+export function makeUserRepository(
+  database: Database,
+  codec: DocCryptoCodec,
+  opts: { lookupSecret: string }
+): UserRepository {
   const db = database;
+  const col = () => db.collection(userProfilesCollection);
+  const { lookupSecret } = opts;
+
+  /** Legacy docs carry a plaintext `email` without `email_token` — attach the
+   *  token and encrypt them lazily so FindByEmail keeps working after upgrade.
+   *  replaceOne (not $set) removes the leftover plaintext top-level fields. */
+  async function LazyMigrateIfNeeded(doc: Record<string, any>): Promise<void> {
+    if (doc.email_token) return;
+    if (typeof doc.email !== "string") return;
+    const migrated = await codec.encryptDoc(
+      { ...doc, email_token: EmailLookupToken(doc.email, lookupSecret) },
+      userAllow
+    );
+    await col().replaceOne({ _id: doc._id }, migrated);
+  }
+
   return {
     async Add(user_info: Record<string, any>) {
       const doc: Record<string, any> = { ...user_info };
@@ -63,33 +91,45 @@ export function makeUserRepository(database: Database): UserRepository {
         delete doc.password;
       }
       doc.timestamp = Date.now();
+      doc.email_token = EmailLookupToken(doc.email, lookupSecret);
       // Let Mongo assign the ObjectId (matching FindById's MakeId lookup).
       delete doc._id;
-      const { acknowledged, insertedId } = await db
-        .collection(userProfilesCollection)
-        .insertOne(doc);
+      const stored = await codec.encryptDoc(doc, userAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToUser({ ...doc, _id: insertedId.toString() });
       return { success: acknowledged, created };
     },
     async FindByEmail(email: string) {
-      const results = await db
-        .collection(userProfilesCollection)
-        .find({ email })
+      const token = EmailLookupToken(email, lookupSecret);
+      const results = await col()
+        .find({ $or: [{ email_token: token }, { email }] })
         .toArray();
-      return results.map(DocToUser);
+      for (const doc of results) await LazyMigrateIfNeeded(doc);
+      const docs = await Promise.all(results.map((doc: any) => codec.decryptDoc(doc, userAllow)));
+      return docs.map(DocToUser);
     },
     async FindById(user_id: string) {
-      const found = await db
-        .collection(userProfilesCollection)
-        .findOne({ _id: db.MakeId(user_id) });
-      return found ? DocToUser(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(user_id) });
+      if (!found) return null;
+      await LazyMigrateIfNeeded(found);
+      const doc = await codec.decryptDoc(found, userAllow);
+      return DocToUser(doc);
     },
     async Update({ _id: user_id, ...user_info }) {
-      if (user_info.default_plan_id)
-        user_info.default_plan_id = db.MakeId(user_info.default_plan_id);
-      const { acknowledged } = await db
-        .collection(userProfilesCollection)
-        .updateMany({ _id: db.MakeId(user_id) }, { $set: { ...user_info } });
+      const found = await col().findOne({ _id: db.MakeId(user_id) });
+      if (!found) return { success: true };
+      const current = await codec.decryptDoc(found, userAllow);
+      const merged: Record<string, any> = { ...current, ...user_info };
+      delete merged._id;
+      if (merged.email !== undefined)
+        merged.email_token = EmailLookupToken(merged.email, lookupSecret);
+      if (merged.default_plan_id)
+        merged.default_plan_id = db.MakeId(merged.default_plan_id);
+      const stored = await codec.encryptDoc(merged, userAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(user_id) },
+        stored
+      );
       return { success: acknowledged };
     },
   };
@@ -218,9 +258,9 @@ export function makePlanTemplateRepository(
       if (merged.share_id) merged.share_id = db.MakeId(merged.share_id);
       merged.modified_at = Date.now();
       const stored = await codec.encryptDoc(merged, planAllow);
-      const { acknowledged } = await col().updateOne(
+      const { acknowledged } = await col().replaceOne(
         { _id: db.MakeId(plan_id), status: "active" },
-        { $set: stored }
+        stored
       );
       return { success: acknowledged };
     },
@@ -238,9 +278,9 @@ export function makePlanTemplateRepository(
       }
       doc.modified_at = Date.now();
       const stored = await codec.encryptDoc(doc, planAllow);
-      const { acknowledged } = await col().updateOne(
+      const { acknowledged } = await col().replaceOne(
         { _id: db.MakeId(plan_id), status: "active" },
-        { $set: stored }
+        stored
       );
       return { success: acknowledged };
     },
@@ -273,9 +313,9 @@ export function makePlanTemplateRepository(
         }
         doc.modified_at = Date.now();
         const stored = await codec.encryptDoc(doc, planAllow);
-        const { acknowledged } = await col().updateOne(
+        const { acknowledged } = await col().replaceOne(
           { _id: db.MakeId(plan_id), status: "active" },
-          { $set: stored }
+          stored
         );
         return { success: acknowledged };
       }
@@ -373,9 +413,9 @@ export function makeCashFlowRepository(
       if (merged.user_id !== undefined) merged.user_id = db.MakeId(merged.user_id);
       if (merged.plan_id !== undefined) merged.plan_id = db.MakeId(merged.plan_id);
       const stored = await codec.encryptDoc(merged, cashFlowAllow);
-      const { acknowledged } = await col().updateOne(
+      const { acknowledged } = await col().replaceOne(
         { _id: db.MakeId(cash_flow_id), status: "active" },
-        { $set: stored }
+        stored
       );
       return { success: acknowledged };
     },
@@ -471,9 +511,9 @@ export function makeCashFlowChangeRepository(
       if (merged.cashflow_id !== undefined)
         merged.cashflow_id = db.MakeId(merged.cashflow_id);
       const stored = await codec.encryptDoc(merged, cashFlowChangeAllow);
-      const { acknowledged } = await col().updateOne(
+      const { acknowledged } = await col().replaceOne(
         { _id: db.MakeId(cash_flow_change_id), status: "active" },
-        { $set: stored }
+        stored
       );
       return { success: acknowledged };
     },
@@ -651,8 +691,15 @@ export function makePasswordResetSessionRepository(
 
 /* ------------------------------ ChatSession ------------------------------ */
 
-export function makeChatSessionRepository(database: Database): ChatSessionRepository {
+/** Lookup/index keys kept in plaintext (P2 — chat messages/title encrypted). */
+const chatSessionAllow = ["_id", "user_id", "status", "created_at", "updated_at"];
+
+export function makeChatSessionRepository(
+  database: Database,
+  codec: DocCryptoCodec
+): ChatSessionRepository {
   const db = database;
+  const col = () => db.collection(chatSessionCollection);
   function DocToChatSession(session_info: Record<string, any>): any {
     return MakeChatSession({
       ...session_info,
@@ -669,44 +716,46 @@ export function makeChatSessionRepository(database: Database): ChatSessionReposi
       doc.status = "active";
       doc.created_at = Date.now();
       doc.updated_at = doc.created_at;
-      const { acknowledged, insertedId } = await db
-        .collection(chatSessionCollection)
-        .insertOne(doc);
+      const stored = await codec.encryptDoc(doc, chatSessionAllow);
+      const { acknowledged, insertedId } = await col().insertOne(stored);
       const created = DocToChatSession({ ...doc, _id: insertedId.toString() });
       return { success: acknowledged, created };
     },
     async FindById(session_id: string) {
-      const found = await db
-        .collection(chatSessionCollection)
-        .findOne({ _id: db.MakeId(session_id), status: "active" });
-      return found ? DocToChatSession(found) : null;
+      const found = await col().findOne({ _id: db.MakeId(session_id), status: "active" });
+      if (!found) return null;
+      const doc = await codec.decryptDoc(found, chatSessionAllow);
+      return DocToChatSession(doc);
     },
     async FindByUserId(user_id: string) {
-      const list = await db
-        .collection(chatSessionCollection)
+      const list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .sort({ updated_at: -1 })
         .toArray();
-      return list.map(DocToChatSession);
+      const docs = await Promise.all(list.map((doc: any) => codec.decryptDoc(doc, chatSessionAllow)));
+      return docs.map(DocToChatSession);
     },
     async Update({ _id, ...session_info }) {
-      if (session_info.user_id) session_info.user_id = db.MakeId(session_info.user_id);
-      session_info.updated_at = Date.now();
-      const { acknowledged } = await db
-        .collection(chatSessionCollection)
-        .updateMany(
-          { _id: db.MakeId(_id), status: "active" },
-          { $set: session_info }
-        );
+      const found = await col().findOne({ _id: db.MakeId(_id), status: "active" });
+      if (!found) return { success: true };
+      const current = await codec.decryptDoc(found, chatSessionAllow);
+      const merged: Record<string, any> = { ...current, ...session_info };
+      delete merged._id;
+      merged.status = "active";
+      if (merged.user_id !== undefined) merged.user_id = db.MakeId(merged.user_id);
+      merged.updated_at = Date.now();
+      const stored = await codec.encryptDoc(merged, chatSessionAllow);
+      const { acknowledged } = await col().replaceOne(
+        { _id: db.MakeId(_id), status: "active" },
+        stored
+      );
       return { success: acknowledged };
     },
     async Delete(session_id: string) {
-      const { acknowledged } = await db
-        .collection(chatSessionCollection)
-        .updateMany(
-          { _id: db.MakeId(session_id), status: "active" },
-          { $set: { status: "deleted" } }
-        );
+      const { acknowledged } = await col().updateMany(
+        { _id: db.MakeId(session_id), status: "active" },
+        { $set: { status: "deleted" } }
+      );
       return { success: acknowledged };
     },
   };

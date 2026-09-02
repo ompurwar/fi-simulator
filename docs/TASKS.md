@@ -67,6 +67,6 @@ Ideation: `docs/data-encryption-ideation.md`. Design: app-layer envelope encrypt
 | # | Task | Status | Owner | Notes |
 |---|---|---|---|---|
 | 4.1 | P1 core stores — crypto module + `Plan_Store`/`Cash_Flow_Store`/`Cash_Flow_Change_Store` encryption + read-modify-write updates + tests | DONE | — | Envelope via GCP KMS (fallback dev key); allowlists `plan:[_id,user_id,status]`, `cashflow:[_id,user_id,plan_id,status,category]`, `change:[_id,user_id,cashflow_id,status,category,category_id,cashflow_change_id]`; write kill-switch `DATA_ENCRYPTION_ENABLED=false` (reads unaffected); `tests/encryption-at-rest.test.ts` (14); 370/372 suite (2 pre-existing date-fragile tax tests fail on clean main too) |
-| 4.2 | P2 financial-adjacent — networth snapshots/links + chat messages | TODO | — | Rollout phase 2 of the ideation doc |
-| 4.3 | P3 PII — `User_Profiles` field encryption + HMAC `email_token` lookup | TODO | — | Rollout phase 3 of the ideation doc |
+| 4.2 | P2 financial-adjacent — networth snapshots/links + chat messages | DONE | — | Link tokens/client_info + snapshot payload + chat title/messages encrypted; read-modify-write `replaceOne` (removes leftover plaintext keys); tests in `tests/encryption-at-rest.test.ts` P2 describe |
+| 4.3 | P3 PII — `User_Profiles` field encryption + HMAC `email_token` lookup | DONE | — | Email/names/credentials/ob_params encrypted; `email_token = HMAC-SHA256(PII_LOOKUP_SECRET or COOKIE_SECRET, email)` indexed; FindByEmail falls back to legacy plaintext email + lazy migration; tests in `tests/encryption-at-rest.test.ts` P3 describe |
 | 4.4 | P4 — backfill script `standalone/encrypt-backfill.ts` + key rotation ops notes | TODO | — | Idempotent; skips docs already carrying `__enc` |

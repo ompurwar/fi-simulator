@@ -1,6 +1,6 @@
 # Data Privacy — Encryption of User Financial Data (Ideation)
 
-> Branch: `feat/simulation-data-privacy` (off `main`) · Status: **P1 implemented — core stores encrypted (Task 4.1, `tests/encryption-at-rest.test.ts`); P2–P4 pending; KMS configured in GCP `fi-simulater` project**
+> Branch: `feat/simulation-data-privacy` (off `main`) · Status: **P1–P3 implemented (Tasks 4.1–4.3, `tests/encryption-at-rest.test.ts`); P4 backfill pending; KMS configured in GCP `fi-simulater` project**
 >
 > Goal: keep all current functionality intact while ensuring **no one with DB access**
 > (staff creds, cloud provider personnel, backups, dumps) can read users' financial
@@ -82,9 +82,9 @@ New module `src/server/infrastructure/fieldCrypto.ts` (pure `node:crypto`):
 | `Plan_Store` | whole doc **except** `_id`, `user_id`, `status`, `timestamp`, `modified_at` | `_id`, `user_id`, `status` |
 | `Cash_Flow_Store` | `amount`, `desc`, `title`-like fields | `_id`, `user_id`, `plan_id`, `category`, `status` |
 | `Cash_Flow_Change_Store` | `value`, `title`, `desc` | `_id`, `user_id`, `cashflow_id`, `category_id`, `status` |
-| Networth `snapshots`/`links` | portfolio payload | `_id`, `user_id` link fields |
-| `Chat_Session_Store` | `messages` array | `_id`, `user_id`, `status`, timestamps |
-| `User_Profiles` | `first_name`, `last_name`, `ob_params`, `credentials.hash` | `_id`, `email`, `role`, `status` |
+| Networth `snapshots`/`links` | portfolio payload + link `tokens`/`client_info` | `_id`, `user_id`, `provider`, `status`, `connected_at`, `last_sync_at`, `timestamp` |
+| `Chat_Session_Store` | `title`, `messages` | `_id`, `user_id`, `status`, `created_at`, `updated_at` |
+| `User_Profiles` | `email`, `first_name`, `last_name`, `ob_params`, `credentials` | `_id`, `email_token` (HMAC lookup index), `role`, `status`, `timestamp` |
 
 `Share_Object_Store` (public templates), `Tax_Rule_Store`, `Common_Collection` stay
 unencrypted — public/global data.
