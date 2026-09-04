@@ -127,21 +127,48 @@ describe("plan single source of truth — store consolidation", () => {
 });
 
 describe("cashflowMerge — merge rules", () => {
+  const line = (over: any) => ({
+    _id: "x",
+    category: "e",
+    type: "p",
+    frequency: "m",
+    amount: 100,
+    desc: "Monthly expense",
+    start_month: 1,
+    end_month: 600,
+    active: true,
+    primary: false,
+    ...over,
+  });
+  const change = (over: any) => ({
+    _id: "c1",
+    category: "e",
+    change_type: "f",
+    value: 10,
+    title: "Hike",
+    desc: "lifestyle",
+    start_month: 2,
+    end_month: 12,
+    frequency: "m",
+    active: true,
+    ...over,
+  });
+
   it("store wins for shared ids, missing ids appended, deleted ids dropped", () => {
     const plan = {
       cashflow_list: [
-        { _id: "a", amount: 100, status: "active" },
-        { _id: "b", amount: 200, status: "active" },
-        { _id: "gone", amount: 300, status: "active" },
+        line({ _id: "a", amount: 100, desc: "Expense one" }),
+        line({ _id: "b", amount: 200, desc: "Expense two" }),
+        line({ _id: "gone", amount: 300, desc: "Expense three" }),
       ],
-      cashflow_change_list: [{ _id: "c1", value: 10, status: "active" }],
+      cashflow_change_list: [change({ _id: "c1", value: 10 })],
     };
     const merged = MergeStoreIntoPlan(plan, [
-      { _id: "a", amount: 150, status: "active" }, // same id → store wins
-      { _id: "newline", amount: 400, status: "active" }, // missing → appended
-      { _id: "gone", amount: 300, status: "deleted" }, // store deleted → dropped
+      line({ _id: "a", amount: 150, desc: "Expense one" }), // same id → store wins
+      line({ _id: "newline", amount: 400, desc: "New store line" }), // missing → appended
+      line({ _id: "gone", amount: 300, desc: "Expense three", status: "deleted" }), // deleted → dropped
     ], [
-      { _id: "c2", value: 20, status: "active" }, // missing → appended
+      change({ _id: "c2", value: 20, title: "Bonus", desc: "bonus inc" }), // missing → appended
     ]);
 
     const ids = merged.cashflow_list.map((c: any) => String(c._id));
@@ -152,9 +179,22 @@ describe("cashflowMerge — merge rules", () => {
     expect(PlanChangedAfterMerge(plan, merged)).toBe(true);
   });
 
+  it("invalid legacy store rows are dropped from the merged plan", () => {
+    const plan = {
+      cashflow_list: [line({ _id: "a", amount: 100, desc: "Expense one" })],
+      cashflow_change_list: [],
+    };
+    const merged = MergeStoreIntoPlan(plan, [
+      { _id: "bad", amount: 999 }, // missing type/category/desc → invalid
+    ], []);
+    expect(merged.cashflow_list.map((c: any) => String(c._id))).toEqual(["a"]);
+    // no-op: nothing valid to merge
+    expect(PlanChangedAfterMerge(plan, merged)).toBe(false);
+  });
+
   it("no-op merge reports unchanged", () => {
-    const plan = { cashflow_list: [{ _id: "a", amount: 100 }], cashflow_change_list: [] };
-    const merged = MergeStoreIntoPlan(plan, [{ _id: "a", amount: 100 }], []);
+    const plan = { cashflow_list: [line({ _id: "a", amount: 100, desc: "Expense one" })], cashflow_change_list: [] };
+    const merged = MergeStoreIntoPlan(plan, [line({ _id: "a", amount: 100, desc: "Expense one" })], []);
     expect(PlanChangedAfterMerge(plan, merged)).toBe(false);
   });
 });

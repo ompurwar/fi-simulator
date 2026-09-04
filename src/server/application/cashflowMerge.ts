@@ -3,12 +3,33 @@
  * truth for the engine. These merge active `Cash_Flow_Store` / 
  * `Cash_Flow_Change_Store` rows into a plan object (store wins for shared ids;
  * missing ids are appended; ids only present in the store as deleted rows are
- * dropped from the plan).
+ * dropped from the plan). Rows that fail entity validation are dropped — the
+ * plan must stay readable for the engine.
  */
+import { MakeCashFlow, MakeCashFlowChange } from "../domain/entities";
+
+function rowIsValidCashflow(row: any): boolean {
+  try {
+    MakeCashFlow(row);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function rowIsValidChange(row: any): boolean {
+  try {
+    MakeCashFlowChange(row);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function MergeArraysById<Row extends { _id: string } & Record<string, any>>(
   embedded: Row[],
-  storeRows: Row[]
+  storeRows: Row[],
+  validator: (row: any) => boolean = () => true
 ): Row[] {
   const by_id = new Map<string, Row>();
   for (const row of embedded) by_id.set(String(row._id), row);
@@ -20,6 +41,7 @@ export function MergeArraysById<Row extends { _id: string } & Record<string, any
       store_deleted_ids.add(key);
       continue;
     }
+    if (!validator(row)) continue; // legacy/corrupt store rows never enter the plan
     by_id.set(key, row); // store wins (fresher) — updates land there first
   }
 
@@ -28,11 +50,11 @@ export function MergeArraysById<Row extends { _id: string } & Record<string, any
   for (const row of embedded) {
     const key = String(row._id);
     if (store_deleted_ids.has(key)) continue;
-    const keep = by_id.get(key)!;
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(keep);
-    }
+    const candidate = by_id.get(key)!;
+    if (seen.has(key)) continue;
+    if (!validator(candidate)) continue; // heal already-corrupt embedded rows
+    seen.add(key);
+    out.push(candidate);
   }
   for (const row of by_id.values()) {
     const key = String(row._id);
@@ -49,10 +71,15 @@ export function MergeStoreIntoPlan(
   storeLines: any[],
   storeChanges: any[]
 ): any {
-  const cashflow_list = MergeArraysById(plan?.cashflow_list || [], storeLines || []);
+  const cashflow_list = MergeArraysById(
+    plan?.cashflow_list || [],
+    storeLines || [],
+    rowIsValidCashflow
+  );
   const cashflow_change_list = MergeArraysById(
     plan?.cashflow_change_list || [],
-    storeChanges || []
+    storeChanges || [],
+    rowIsValidChange
   );
   return { ...plan, cashflow_list, cashflow_change_list };
 }
