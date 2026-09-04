@@ -100,6 +100,27 @@ export function makeDocCrypto(opts: {
 }): DocCryptoCodec {
   const { kms, localKey, encryptWrites = true } = opts;
 
+  /**
+   * Unwrapped-DEK cache: the wrapped DEK blob (`envelope.k`) is stable per
+   * document, so within a warm instance each doc hits KMS exactly once.
+   * This is what keeps N-doc reads (list_plans, networth history, chat lists)
+   * from turning into N KMS round-trips. FIFO-capped to bound memory.
+   */
+  const DEK_CACHE_MAX = 512;
+  const dek_cache = new Map<string, Buffer>();
+  async function UnwrappedDek(wrapped_b64: string): Promise<Buffer> {
+    const hit = dek_cache.get(wrapped_b64);
+    if (hit) return hit;
+    if (!kms) throw new Error("encrypted doc v1 requires the KMS adapter");
+    const dek = await kms.unwrapKey(Buffer.from(wrapped_b64, "base64"));
+    if (dek_cache.size >= DEK_CACHE_MAX) {
+      const oldest = dek_cache.keys().next().value;
+      if (oldest !== undefined) dek_cache.delete(oldest);
+    }
+    dek_cache.set(wrapped_b64, dek);
+    return dek;
+  }
+
   async function encryptDoc(
     doc: Record<string, any>,
     allow: string[]
@@ -118,6 +139,12 @@ export function makeDocCrypto(opts: {
       envelope.iv = sealed.iv.toString("base64");
       envelope.ct = sealed.ct.toString("base64");
       envelope.tag = sealed.tag.toString("base64");
+      const unwrapped = Buffer.from(dek);
+      if (dek_cache.size >= DEK_CACHE_MAX) {
+        const oldest = dek_cache.keys().next().value;
+        if (oldest !== undefined) dek_cache.delete(oldest);
+      }
+      dek_cache.set(envelope.k, unwrapped);
     } else {
       const sealed = aesEncrypt(localKey, plaintext);
       envelope.iv = sealed.iv.toString("base64");
@@ -147,7 +174,7 @@ export function makeDocCrypto(opts: {
     } else if (envelope.v === 1) {
       if (!kms || !envelope.k)
         throw new Error("encrypted doc v1 requires the KMS adapter (v1.k missing)");
-      key = await kms.unwrapKey(Buffer.from(envelope.k, "base64"));
+      key = await UnwrappedDek(envelope.k);
     } else {
       throw new Error(`unknown __enc version: ${envelope.v}`);
     }
