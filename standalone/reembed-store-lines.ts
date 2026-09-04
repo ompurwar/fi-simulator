@@ -69,24 +69,59 @@ async function main() {
     }
     plan = { ...plan, _id: raw_plan._id };
 
-    // active store rows for this plan (lines by plan_id; changes by cashflow_id)
-    const storeLines = await db
+    // active store rows for this plan — MUST decrypt (they're envelope-encrypted
+    // too); merging raw docs would embed nested __enc rows into the plan.
+    const rawStoreLines = await db
       .collection("Cash_Flow_Store")
       .find({ plan_id: raw_plan._id, status: "active" })
       .toArray();
+    const storeLines: any[] = [];
+    for (const rawLine of rawStoreLines) {
+      try {
+        storeLines.push(
+          await codec.decryptDoc(rawLine as any, [
+            "_id",
+            "user_id",
+            "plan_id",
+            "status",
+            "category",
+          ])
+        );
+      } catch (e: any) {
+        console.error(`  store line ${String(rawLine._id)} decrypt failed — skipped`);
+      }
+    }
     const cashflowIds = Array.from(
       new Set([
         ...(plan.cashflow_list || []).map((c: any) => String(c._id)),
         ...storeLines.map((s: any) => String(s._id)),
       ])
     );
-    const storeChanges = await db
+    const rawStoreChanges = await db
       .collection("Cash_Flow_Change_Store")
       .find({
         cashflow_id: { $in: cashflowIds.map((id) => container.db.MakeId(id)) },
         status: "active",
       })
       .toArray();
+    const storeChanges: any[] = [];
+    for (const rawChange of rawStoreChanges) {
+      try {
+        storeChanges.push(
+          await codec.decryptDoc(rawChange as any, [
+            "_id",
+            "user_id",
+            "cashflow_id",
+            "status",
+            "category",
+            "category_id",
+            "cashflow_change_id",
+          ])
+        );
+      } catch (e: any) {
+        console.error(`  change ${String(rawChange._id)} decrypt failed — skipped`);
+      }
+    }
     const before_lists = JSON.stringify({
       l: plan.cashflow_list || [],
       c: plan.cashflow_change_list || [],

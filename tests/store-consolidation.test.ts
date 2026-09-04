@@ -124,6 +124,31 @@ describe("plan single source of truth — store consolidation", () => {
     expect(doc.cashflow_change_list.some((c: any) => String(c._id) === change_id)).toBe(false);
     expect(await app.DeleteExpense({ id: expense._id })).toBe(true);
   });
+
+  it("a plan with one corrupt embedded cashflow stays readable — the bad row is dropped", async () => {
+    const plan: any = await container.plan_list.FindById(plan_id);
+    const corrupt = {
+      _id: "zz-corrupt",
+      category: "e",
+      // no type/frequency/amount — invalid per MakeCashFlow
+      desc: "Corrupt row",
+      start_month: 2,
+      end_month: 2,
+      active: true,
+      primary: false,
+    };
+    await container.plan_list.Update({
+      ...plan,
+      _id: plan_id,
+      user_id: ctx.user_id,
+      cashflow_list: [...(plan.cashflow_list || []), corrupt],
+    });
+
+    // read back: no throw; the corrupt row is absent, the valid ones remain
+    const again: any = await container.plan_list.FindById(plan_id);
+    expect(again.cashflow_list.some((c: any) => String(c._id) === "zz-corrupt")).toBe(false);
+    expect(again.cashflow_list.length).toBeGreaterThan(0);
+  });
 });
 
 describe("cashflowMerge — merge rules", () => {
