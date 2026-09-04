@@ -70,3 +70,18 @@ Ideation: `docs/data-encryption-ideation.md`. Design: app-layer envelope encrypt
 | 4.2 | P2 financial-adjacent — networth snapshots/links + chat messages | DONE | — | Link tokens/client_info + snapshot payload + chat title/messages encrypted; read-modify-write `replaceOne` (removes leftover plaintext keys); tests in `tests/encryption-at-rest.test.ts` P2 describe |
 | 4.3 | P3 PII — `User_Profiles` field encryption + HMAC `email_token` lookup | DONE | — | Email/names/credentials/ob_params encrypted; `email_token = HMAC-SHA256(PII_LOOKUP_SECRET or COOKIE_SECRET, email)` indexed; FindByEmail falls back to legacy plaintext email + lazy migration; tests in `tests/encryption-at-rest.test.ts` P3 describe |
 | 4.4 | P4 — backfill script `standalone/encrypt-backfill.ts` + key rotation ops notes | TODO | — | Idempotent; skips docs already carrying `__enc` |
+
+---
+
+## Phase 5: Plan doc = single source of truth (branch `feat/plan-ssot`)
+
+Root cause of bug `6a9b2e81` (active expense silently omitted from month-1): store/plan drift — the engine projects `plan.cashflow_list` only, but `Cash_Flow_Store`/`Cash_Flow_Change_Store` are legacy dual-store carryovers (store exists since the original port `a623b95`; dual-write embedding was added in `4c98c14`). Accounts/loans/assets were always plan-embedded — cashflows/changes brought inline.
+
+| # | Task | Status | Owner | Notes |
+|---|---|---|---|---|
+| 5.1 | Embed-on-mutate in use cases — UpdateIncome/UpdateExpense upsert into `plan.cashflow_list`; Add/Update/DeleteCashflowChange sync `plan.cashflow_change_list` (store rows carry `plan_id`) | DONE | — | Fixes web/HTTP store-first updates that never reached the plan doc (engine) |
+| 5.2 | Engine-bound read reconcile — `PlanSnapshot` merges active store lines missing from the plan (self-heals legacy drone) | DONE | — | Safety net; no writes |
+| 5.3 | Delete guards consult embedded + store changes (union) | DONE | — | DeleteIncome/DeleteExpense blocked while ANY change exists |
+| 5.4 | Fix pre-existing bug: `UpdateCashflowChange` re-validates merged change (store updates always threw `title should be a string`) | DONE | — | Also applies contract fix for web UI change edits |
+| 5.5 | Migration `standalone/reembed-store-lines.ts` — merge store rows into plans (store wins, deletes drop, idempotent) | DONE | — | Pure rules in `src/server/application/cashflowMerge.ts` |
+| 5.6 | Tests — `tests/store-consolidation.test.ts` (5): drift-heal union, embed-on-update, change add/update/delete into plan, delete guard, merge rules | DONE | — | 383/385 suite (2 pre-existing date-fragile failures) |
