@@ -14,14 +14,23 @@ import { makeToolRegistry, callRegistryTool } from "@/server/mcp/registry";
 
 const DEV_KEY = randomBytes(32);
 
-function kmsStub(): KmsAdapter {
+function kmsStub() {
   // identity wrap — exercises the v1 envelope plumbing without a real KMS
+  let wrap_calls = 0;
+  let unwrap_calls = 0;
   return {
-    async wrapKey(dek: Buffer) {
-      return dek;
-    },
-    async unwrapKey(blob: Buffer) {
-      return blob;
+    adapter: {
+      async wrapKey(dek: Buffer) {
+        wrap_calls++;
+        return dek;
+      },
+      async unwrapKey(blob: Buffer) {
+        unwrap_calls++;
+        return blob;
+      },
+    } as KmsAdapter,
+    counts() {
+      return { wrap_calls, unwrap_calls };
     },
   };
 }
@@ -64,12 +73,37 @@ describe("doc codec — envelope encryption", () => {
   });
 
   it("v1 stores a wrapped per-doc DEK and still round-trips", async () => {
-    const codec = makeDocCrypto({ kms: kmsStub(), localKey: DEV_KEY });
+    const codec = makeDocCrypto({ kms: kmsStub().adapter, localKey: DEV_KEY });
     const stored = await codec.encryptDoc({ value: 42, title: "kms doc" }, []);
     expect(stored.__enc.v).toBe(1);
     expect(typeof stored.__enc.k).toBe("string");
     const plain = await codec.decryptDoc(stored, []);
     expect(plain).toMatchObject({ value: 42, title: "kms doc" });
+  });
+
+  it("caches unwrapped DEKs — repeated reads of a doc hit KMS once", async () => {
+    const stub = kmsStub();
+    const codec = makeDocCrypto({ kms: stub.adapter, localKey: DEV_KEY });
+    const stored = await codec.encryptDoc({ title: "cache me", amount: 7 }, []);
+    expect(stub.counts().wrap_calls).toBe(1);
+
+    // same instance: the write just cached the DEK, so reads never unwrap
+    await codec.decryptDoc(stored, []);
+    await codec.decryptDoc(stored, []);
+    await codec.decryptDoc(stored, []);
+    expect(stub.counts().unwrap_calls).toBe(0);
+
+    // a NEW instance (cold) reading the same doc: exactly ONE unwrap for all reads
+    const cold_codec = makeDocCrypto({ kms: stub.adapter, localKey: DEV_KEY });
+    await cold_codec.decryptDoc(stored, []);
+    await cold_codec.decryptDoc(stored, []);
+    expect(stub.counts().unwrap_calls).toBe(1);
+
+    // a different doc still unwraps exactly once when read cold
+    const other = await codec.encryptDoc({ title: "other" }, []);
+    const other_cold = makeDocCrypto({ kms: stub.adapter, localKey: DEV_KEY });
+    await other_cold.decryptDoc(other, []);
+    expect(stub.counts().unwrap_calls).toBe(2);
   });
 
   it("passes legacy plaintext docs through untouched", async () => {

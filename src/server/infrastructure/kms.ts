@@ -4,7 +4,6 @@
  * over REST, authenticated with a service-account JWT (signed with `jose`).
  * `KmsAdapter` is the seam other providers (Vault, AWS KMS) can implement.
  */
-import { SignJWT, importPKCS8 } from "jose";
 import type { Env } from "../config/env";
 
 export interface KmsAdapter {
@@ -41,10 +40,14 @@ function parseServiceAccount(raw: string): ServiceAccount {
 /** Loose 1-hour OAuth access token fetch for a service account (RS256 JWT assertion). */
 function makeTokenFetcher(account: ServiceAccount) {
   let cachedToken: { token: string; expires_at: number } | null = null;
-  let keyPromise: ReturnType<typeof importPKCS8> | null = null;
+  let keyPromise: Promise<any> | null = null;
 
-  async function getKey() {
-    if (!keyPromise) keyPromise = importPKCS8(account.private_key, "RS256");
+  // jose is imported lazily so routes that never touch KMS (most of them)
+  // don't pay the parse/compile cost — helps cold starts.
+  async function getKey(): Promise<any> {
+    if (!keyPromise) {
+      keyPromise = import("jose").then(({ importPKCS8 }) => importPKCS8(account.private_key, "RS256"));
+    }
     return keyPromise;
   }
 
@@ -52,6 +55,7 @@ function makeTokenFetcher(account: ServiceAccount) {
     const now = Math.floor(Date.now() / 1000);
     if (cachedToken && cachedToken.expires_at > now + 60) return cachedToken.token;
 
+    const { SignJWT } = await import("jose");
     const assertion = await new SignJWT({ scope: KMS_SCOPE })
       .setProtectedHeader({ alg: "RS256" })
       .setIssuer(account.client_email)
