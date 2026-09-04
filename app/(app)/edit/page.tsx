@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MonthPicker } from "@/components/edit/MonthPicker";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { MyChart } from "@/components/ui/MyChart";
 import { Tab } from "@headlessui/react";
 import { api } from "@/lib/api";
@@ -910,6 +911,17 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
       .sort((a: any, b: any) => a.start_month - b.start_month);
   }, [plan, cashflow_category_id]);
 
+  const [search_query, setSearchQuery] = useState("");
+  const filtered_cashflow_list = useMemo(() => {
+    const q = search_query.trim().toLowerCase();
+    if (!q) return cashflow_list;
+    return cashflow_list.filter(
+      (c: any) =>
+        String(c.desc || "").toLowerCase().includes(q) ||
+        String(c._id || "").toLowerCase().includes(q)
+    );
+  }, [cashflow_list, search_query]);
+
   const selected_cashflow = cashflow_list.find((c: any) => c._id === selected_cashflow_id);
   const cashflow_change_list = (plan?.cashflow_change_list || [])
     .filter((c: any) => c.cashflow_id === selected_cashflow_id && c.category === cashflow_category_id)
@@ -1207,6 +1219,15 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
               stage !== "cashflow_list" ? "hidden md:flex" : "flex"
             }`}
           >
+            {cashflow_list.length > 0 && (
+              <div className="px-0 pb-2 md:px-2">
+                <SearchInput
+                  value={search_query}
+                  onChange={setSearchQuery}
+                  placeholder={`Search ${cashflow_category.toLowerCase()}s...`}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-3 overflow-x-hidden overflow-y-auto px-0 md:pl-2 md:pr-2 max-h-[calc(100vh-140px)] md:max-h-[640px]">
               {cashflow_list.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-6 text-center shadow-2xs">
@@ -1220,7 +1241,16 @@ function IncomeAndExpenseEditor({ plan_id, cashflow_category }: { plan_id: strin
                 </div>
               )}
 
-              {cashflow_list.map((entity: any) => (
+              {cashflow_list.length > 0 && filtered_cashflow_list.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-6 text-center shadow-2xs">
+                  <h4 className="text-sm font-bold text-dark-700">No matches</h4>
+                  <p className="mt-1 text-xs text-dark-400 max-w-[240px]">
+                    No {cashflow_category.toLowerCase()} match "{search_query.trim()}".
+                  </p>
+                </div>
+              )}
+
+              {filtered_cashflow_list.map((entity: any) => (
                 <CashflowCard
                   key={entity._id}
                   plan={plan}

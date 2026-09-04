@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MonthPicker } from "@/components/edit/MonthPicker";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { GetRandomString } from "@/lib/utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -706,6 +707,18 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
     return [...(plan.asset_list || [])].sort((a: any, b: any) => (a.purchase_month || 1) - (b.purchase_month || 1));
   }, [plan]);
 
+  const [search_query, setSearchQuery] = useState("");
+  const filtered_asset_list = useMemo(() => {
+    const q = search_query.trim().toLowerCase();
+    if (!q) return asset_list;
+    return asset_list.filter(
+      (a: any) =>
+        String(a.title || "").toLowerCase().includes(q) ||
+        String(a.asset_class || "").toLowerCase().includes(q) ||
+        String(a._id || "").toLowerCase().includes(q)
+    );
+  }, [asset_list, search_query]);
+
   const selected_asset = asset_list.find((a: any) => a._id === selected_id);
 
   function SetState(current_state: string, action: string, asset_id = "") {
@@ -864,6 +877,15 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
                 )}
               </div>
 
+              {/* Asset search */}
+              {asset_list.length > 0 && (
+                <SearchInput
+                  value={search_query}
+                  onChange={setSearchQuery}
+                  placeholder="Search assets (title or class)..."
+                />
+              )}
+
               {/* Empty state */}
               {asset_list.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-6 text-center shadow-2xs">
@@ -878,7 +900,14 @@ export function AssetEditor({ plan_id }: { plan_id: string }) {
               )}
 
               {/* Asset Cards List */}
-              {asset_list.map((asset: any) => (
+              {asset_list.length > 0 && filtered_asset_list.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-4 text-center shadow-2xs">
+                  <span className="text-xs font-semibold text-dark-500">
+                    No assets match "{search_query.trim()}"
+                  </span>
+                </div>
+              )}
+              {filtered_asset_list.map((asset: any) => (
                 <AssetCard
                   key={asset._id}
                   plan={plan}
