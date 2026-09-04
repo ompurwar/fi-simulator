@@ -829,6 +829,11 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       end_month,
       _id,
     });
+    // Keep the plan doc (engine source of truth) in sync — embed or upsert.
+    if (plan_id) {
+      const updated_line = await cashflow_list.FindById(_id);
+      if (updated_line) await EmbedCashflowLine(plan_id, updated_line);
+    }
     return updated;
   }
 
@@ -839,8 +844,14 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     const cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
       cashflow_id: id,
     });
-    if (!cashflow_changes.length) {
-      const income = await cashflow_list.FindById(id);
+    const income = await cashflow_list.FindById(id);
+    const plan = income?.plan_id
+      ? await plan_list.FindById(String(income.plan_id))
+      : null;
+    const embedded_changes = (plan?.cashflow_change_list || []).filter(
+      (c: any) => String(c.cashflow_id) === String(id)
+    );
+    if (!cashflow_changes.length && !embedded_changes.length) {
       if (income) {
         await plan_list.RemoveCashflowAndAccount({
           _id: income.plan_id,
@@ -940,6 +951,11 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
       end_month,
       _id,
     });
+    // Keep the plan doc (engine source of truth) in sync — embed or upsert.
+    if (plan_id) {
+      const updated_line = await cashflow_list.FindById(_id);
+      if (updated_line) await EmbedCashflowLine(plan_id, updated_line);
+    }
     return updated;
   }
 
@@ -950,8 +966,14 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     const cashflow_changes = await cashflow_change_list.GetCashflowChangeList({
       cashflow_id: id,
     });
-    if (!cashflow_changes.length) {
-      const expense = await cashflow_list.FindById(id);
+    const expense = await cashflow_list.FindById(id);
+    const plan = expense?.plan_id
+      ? await plan_list.FindById(String(expense.plan_id))
+      : null;
+    const embedded_changes = (plan?.cashflow_change_list || []).filter(
+      (c: any) => String(c.cashflow_id) === String(id)
+    );
+    if (!cashflow_changes.length && !embedded_changes.length) {
       if (expense) {
         await plan_list.RemoveCashflowAndAccount({
           _id: expense.plan_id,
@@ -968,12 +990,84 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
   /* ------------------------- Cashflow Changes ------------------------- */
 
+  /** The plan document is the source of truth the engine projects from.
+   *  These helpers keep plan.cashflow_list / plan.cashflow_change_list in sync
+   *  with store mutations (SSoT consolidation — fatal drift class). */
+
+  async function EmbedCashflowLine(plan_id: string, line: any) {
+    const plan = await plan_list.FindById(plan_id);
+    if (!plan) return;
+    const id = String(line._id);
+    const list = (plan.cashflow_list || []).map((c: any) =>
+      String(c._id) === id ? { ...line } : c
+    );
+    if (!list.some((c: any) => String(c._id) === id)) list.push({ ...line });
+    await plan_list.Update({
+      ...plan,
+      _id: plan_id,
+      user_id: plan.user_id ?? "",
+      cashflow_list: list,
+    });
+  }
+
+  async function EmbedCashflowChange(plan_id: string, change: any) {
+    const plan = await plan_list.FindById(plan_id);
+    if (!plan) return;
+    const id = String(change._id);
+    const list = (plan.cashflow_change_list || []).map((c: any) =>
+      String(c._id) === id ? { ...change } : c
+    );
+    if (!list.some((c: any) => String(c._id) === id)) list.push({ ...change });
+    await plan_list.Update({
+      ...plan,
+      _id: plan_id,
+      user_id: plan.user_id ?? "",
+      cashflow_change_list: list,
+    });
+  }
+
+  async function RemoveCashflowChangeFromPlan(plan_id: string, change_id: string) {
+    const plan = await plan_list.FindById(plan_id);
+    if (!plan) return;
+    await plan_list.Update({
+      ...plan,
+      _id: plan_id,
+      user_id: plan.user_id ?? "",
+      cashflow_change_list: (plan.cashflow_change_list || []).filter(
+        (c: any) => String(c._id) !== String(change_id)
+      ),
+    });
+  }
+
+  /** Safety net: merge active store lines missing from the embedded list
+   *  (heals any remaining legacy drift for engine projections). */
+  async function ReconcileCashflowStore(plan: any) {
+    if (!plan?._id) return plan;
+    const [inc, exp] = await Promise.all([
+      cashflow_list.GetIncomeList({ plan_id: String(plan._id), user_id: String(plan.user_id) }),
+      cashflow_list.GetExpenseList({ plan_id: String(plan._id), user_id: String(plan.user_id) }),
+    ]);
+    if (!inc.length && !exp.length) return plan;
+    const by_id = new Map<string, any>(
+      (plan.cashflow_list || []).map((c: any) => [String(c._id), c])
+    );
+    let changed = false;
+    for (const line of [...inc, ...exp]) {
+      const key = String(line._id);
+      if (!by_id.has(key)) {
+        by_id.set(key, line);
+        changed = true;
+      }
+    }
+    return changed ? { ...plan, cashflow_list: [...by_id.values()] } : plan;
+  }
+
   async function GetCashflowChanges(input: Record<string, any>) {
     return await cashflow_change_list.GetCashflowChangeList(input);
   }
 
   async function AddCashflowChange(input: Record<string, any>) {
-    const { user_id, category, change_type, value, cashflow_id } = input;
+    const { user_id, category, change_type, value, cashflow_id, plan_id } = input;
     const cashflow_change_object = MakeCashFlowChange({
       category,
       user_id,
@@ -986,7 +1080,42 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     const cashflow = await cashflow_list.FindById(cashflow_id);
     if (cashflow) {
       const { success, created } = await cashflow_change_list.Add(cashflow_change_object);
-      if (success) return created;
+      if (success) {
+        // plan doc is the engine source of truth — embed the new change
+        if (cashflow.plan_id) await EmbedCashflowChange(String(cashflow.plan_id), created);
+        return created;
+      }
+    }
+    // Plan-embedded line (no store row) — the web-onboarding model: attach via plan_id.
+    if (plan_id) {
+      const plan = await plan_list.FindById(plan_id);
+      const line = (plan?.cashflow_list || []).find(
+        (c: any) => String(c._id) === String(cashflow_id)
+      );
+      if (plan && line) {
+        const sameMonth = (plan.cashflow_change_list || []).filter(
+          (x: any) =>
+            String(x.cashflow_id) === String(cashflow_id) &&
+            x.start_month === cashflow_change_object.start_month &&
+            x.category === cashflow_change_object.category
+        );
+        const remaining = (plan.cashflow_change_list || []).filter(
+          (x: any) => !sameMonth.includes(x)
+        );
+        const { success, created } = await cashflow_change_list.Add({
+          ...cashflow_change_object,
+          plan_id,
+        });
+        if (success) {
+          await plan_list.Update({
+            ...plan,
+            _id: plan_id,
+            user_id: plan.user_id ?? "",
+            cashflow_change_list: [...remaining, created],
+          });
+          return created;
+        }
+      }
     }
     throw new InvalidOperationError(
       "assign of cashflow-changes to non existing cashflow"
@@ -994,27 +1123,43 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   }
 
   async function UpdateCashflowChange(input: Record<string, any>) {
-    const { _id, user_id, category, change_type, value } = input;
-    MakeCashFlowChange({
-      user_id,
-      category,
-      change_type,
-      value,
-      active: true,
+    const { _id } = input;
+    const existing = await cashflow_change_list.FindById(_id);
+    if (!existing)
+      throw new InvalidOperationError(`cashflow change not found: ${_id}`);
+    const merged_input = MakeCashFlowChange({
+      ...existing,
       ...input,
+      active: true,
     });
-    const { updated } = await cashflow_change_list.Update({
-      _id,
-      category,
-      change_type,
-      value,
-    });
+    const { updated } = await cashflow_change_list.Update({ ...merged_input, _id });
+    // Keep plan.cashflow_change_list in sync after a store-side update.
+    const updated_change = await cashflow_change_list.FindById(_id);
+    if (updated_change) {
+      const cashflow = updated_change.plan_id
+        ? null
+        : await cashflow_list.FindById(updated_change.cashflow_id);
+      const embed_plan_id =
+        updated_change.plan_id || cashflow?.plan_id || null;
+      if (embed_plan_id)
+        await EmbedCashflowChange(String(embed_plan_id), updated_change);
+    }
     return updated;
   }
 
   async function DeleteCashflowChange({ id }: { id: string }) {
+    const existing = await cashflow_change_list.FindById(id);
     const { success } = await cashflow_change_list.Delete({ _id: id });
-    if (success) return true;
+    if (success) {
+      if (existing) {
+        const cashflow = existing.plan_id
+          ? null
+          : await cashflow_list.FindById(existing.cashflow_id);
+        const plan_id = existing.plan_id || cashflow?.plan_id || null;
+        if (plan_id) await RemoveCashflowChangeFromPlan(String(plan_id), id);
+      }
+      return true;
+    }
   }
 
   /* ---------------------------- ShareObject ---------------------------- */
@@ -1383,6 +1528,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
   /* ---------------------------- Engine snapshot ---------------------------- */
 
   async function PlanSnapshot({ plan, duration = 50 }: { plan: any; duration?: number }) {
+    plan = await ReconcileCashflowStore(plan);
     const has_assets = Array.isArray(plan?.asset_list) && plan.asset_list.length > 0;
     const has_tax = !!plan?.tax_settings?.income_tax_enabled;
     if (!has_assets && !has_tax) return ComputePlanSnapshot(plan, duration);

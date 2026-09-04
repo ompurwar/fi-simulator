@@ -509,7 +509,7 @@ export function MakeControllers(
   const AddCashflowChange = async (http_request: HttpRequest): Promise<HttpResponse> => {
     RequireData(http_request);
     const { user_id } = http_request.session!;
-    const { cashflow_id, change_type, value, category, start_month, end_month, frequency, title, desc } =
+    const { cashflow_id, change_type, value, category, start_month, end_month, frequency, title, desc, plan_id } =
       http_request.body.data;
     const created = await app.AddCashflowChange({
       user_id,
@@ -522,6 +522,7 @@ export function MakeControllers(
       frequency,
       title,
       desc,
+      plan_id,
     });
     const new_obj: any = { ...created };
     delete new_obj.user_id;

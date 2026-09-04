@@ -132,6 +132,7 @@ export interface CashFlowChange {
   _id: string;
   user_id?: string;
   cashflow_id: string;
+  plan_id?: string;
   category: "i" | "e";
   change_type: "f" | "p";
   value: number;
