@@ -6,6 +6,7 @@ import { useFiPlanStore } from "@/store";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { MonthPicker } from "@/components/edit/MonthPicker";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { LoanAmortizationTable } from "@/components/edit/LoanAmortizationTable";
 import { GetRandomString } from "@/lib/utils";
 import { FireNotification } from "@/store/notifications";
@@ -593,6 +594,17 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
     return [...(plan.loan_accounts || [])].sort((a: any, b: any) => a.start_month - b.start_month);
   }, [plan]);
 
+  const [search_query, setSearchQuery] = useState("");
+  const filtered_loan_list = useMemo(() => {
+    const q = search_query.trim().toLowerCase();
+    if (!q) return loan_list;
+    return loan_list.filter(
+      (l: any) =>
+        String(l.title || "").toLowerCase().includes(q) ||
+        String(l._id || "").toLowerCase().includes(q)
+    );
+  }, [loan_list, search_query]);
+
   const selected_loan = loan_list.find((l: any) => l._id === selected_loan_id);
   const show_loan_command = ["add_loan", "edit_loan"].includes(stage);
 
@@ -800,8 +812,24 @@ export function LoanEditor({ plan_id }: { plan_id: string }) {
         {show_loan_list && (
           <div className={`flex w-full flex-col md:h-[580px] md:w-1/3 md:shrink-0 ${stage !== "loan_list" ? "hidden md:flex" : "flex"}`}>
             {loan_list.length > 0 && (
+              <div className="px-0 pb-2 md:pl-2 md:pr-2">
+                <SearchInput
+                  value={search_query}
+                  onChange={setSearchQuery}
+                  placeholder="Search loans..."
+                />
+              </div>
+            )}
+            {loan_list.length > 0 && (
               <div className="flex flex-col gap-3 overflow-x-hidden overflow-y-auto px-0 md:pl-2 md:pr-2">
-                {loan_list.map((loan_account: any) => (
+                {filtered_loan_list.length === 0 && (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-300 bg-white p-4 text-center shadow-2xs">
+                    <span className="text-xs font-semibold text-dark-500">
+                      No loans match "{search_query.trim()}"
+                    </span>
+                  </div>
+                )}
+                {filtered_loan_list.map((loan_account: any) => (
                   <LoanCard
                     key={loan_account._id}
                     plan={plan}
