@@ -40,19 +40,35 @@ async function main() {
   const env = loadEnv({ ...process.env, ...fileEnv, NODE_ENV: "development" });
   const container = await buildContainer(env as any);
   const db = container.db;
-  const codecAllow = ["_id"]; // only used to read raw docs below
+
+  // Plans may already carry invalid/legacy rows — validate later at merge, not
+  // here: read raw + decrypt directly instead of going through MakePlan.
+  const { makeDocCrypto } = await import("../src/server/infrastructure/docCrypto");
+  const { makeGcpKms } = await import("../src/server/infrastructure/kms");
+  const codec = makeDocCrypto({
+    kms: makeGcpKms(env),
+    localKey: Buffer.alloc(32),
+  });
+  const PLAN_ALLOW = ["_id", "user_id", "status"];
 
   const plans = await db.collection("Plan_Store").find({ status: "active" }).toArray();
   console.log(`plans: ${plans.length}`);
 
   let updated_plans = 0;
   let updated_changes = 0;
+  let skipped_invalid = 0;
 
   for (const raw_plan of plans) {
-    const plan = await container.plan_list.FindById(String(raw_plan._id));
-    if (!plan) continue;
+    let plan: any;
+    let plan_id = String(raw_plan._id);
+    try {
+      plan = await codec.decryptDoc(raw_plan as any, PLAN_ALLOW);
+    } catch (e: any) {
+      console.error(`plan ${plan_id}: decrypt failed — ${e.message}`);
+      continue;
+    }
+    plan = { ...plan, _id: raw_plan._id };
 
-    const plan_id = String(raw_plan._id);
     // active store rows for this plan (lines by plan_id; changes by cashflow_id)
     const storeLines = await db
       .collection("Cash_Flow_Store")
@@ -66,20 +82,38 @@ async function main() {
     );
     const storeChanges = await db
       .collection("Cash_Flow_Change_Store")
-      .find({ cashflow_id: { $in: cashflowIds.map((id) => container.db.MakeId(id)) }, status: "active" })
+      .find({
+        cashflow_id: { $in: cashflowIds.map((id) => container.db.MakeId(id)) },
+        status: "active",
+      })
       .toArray();
+    const before_lists = JSON.stringify({
+      l: plan.cashflow_list || [],
+      c: plan.cashflow_change_list || [],
+    });
     const merged = MergeStoreIntoPlan(plan, storeLines, storeChanges);
-    if (PlanChangedAfterMerge(plan, merged)) {
+    // the merge validator may have dropped invalid rows from the plan itself —
+    // detect those as change-of-broken-data too
+    const invalid_embedded = (plan.cashflow_list || []).length -
+      (merged.cashflow_list || []).length +
+      (plan.cashflow_change_list || []).length -
+      (merged.cashflow_change_list || []).length;
+    if (PlanChangedAfterMerge(plan, merged) || invalid_embedded > 0) {
+      skipped_invalid += invalid_embedded > 0 ? invalid_embedded : 0;
       await container.plan_list.Update({ ...merged, _id: plan_id });
       updated_plans++;
-      if (JSON.stringify(merged.cashflow_change_list) !== JSON.stringify(plan.cashflow_change_list || []))
+      if (
+        JSON.stringify(merged.cashflow_change_list) !==
+        JSON.stringify(plan.cashflow_change_list || [])
+      )
         updated_changes++;
-      console.log(`re-embedded: ${plan_id}`);
+      console.log(`re-embedded: ${plan_id}${invalid_embedded > 0 ? ` (dropped ${invalid_embedded} invalid rows)` : ""}`);
     }
   }
 
-  console.log(`\nDone. plans updated: ${updated_plans} (with change updates: ${updated_changes})`);
-  await (container as any)?.db?.client?.close?.();
+  console.log(
+    `\nDone. plans updated: ${updated_plans} (with change updates: ${updated_changes}, invalid rows dropped: ${skipped_invalid})`
+  );
   process.exit(0);
 }
 
