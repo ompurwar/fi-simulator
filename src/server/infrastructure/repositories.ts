@@ -32,7 +32,7 @@ import type {
   BugReportRepository,
   TaxRuleRepository,
 } from "../domain/ports";
-import { DbInsertFailedError } from "../domain/errors";
+import { DbInsertFailedError, InvalidPropertyError } from "../domain/errors";
 import type { DocCryptoCodec } from "./docCrypto";
 
 const userProfilesCollection = "User_Profiles";
@@ -212,6 +212,45 @@ export function makeSessionRepository(
 /** Lookup/index keys kept in plaintext — the only fields Mongo queries on. */
 const planAllow = ["_id", "user_id", "status"];
 
+/**
+ * A single corrupt embedded row (e.g. legacy store data merged raw) must never
+ * brick the whole plan — strip invalid cashflow/change rows and retry once.
+ */
+function SoftValidatePlan(doc: Record<string, any>): any {
+  try {
+    return MakePlan(doc);
+  } catch (e: any) {
+    if (!(e instanceof InvalidPropertyError)) throw e;
+    const cashflow_list = (doc.cashflow_list || []).filter((c: any) => {
+      try {
+        MakeCashFlow(c);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    const cashflow_change_list = (doc.cashflow_change_list || []).filter((c: any) => {
+      try {
+        MakeCashFlowChange(c);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (
+      JSON.stringify(cashflow_list) === JSON.stringify(doc.cashflow_list || []) &&
+      JSON.stringify(cashflow_change_list) === JSON.stringify(doc.cashflow_change_list || [])
+    ) {
+      throw e; // unrelated validation failure — surface it
+    }
+    console.error(
+      `[fi-plan] plan ${String(doc._id)} had ${(doc.cashflow_list || []).length - cashflow_list.length +
+        (doc.cashflow_change_list || []).length - cashflow_change_list.length} invalid embedded row(s) — sanitized`
+    );
+    return MakePlan({ ...doc, cashflow_list, cashflow_change_list });
+  }
+}
+
 export function makePlanTemplateRepository(
   database: Database,
   codec: DocCryptoCodec
@@ -235,14 +274,14 @@ export function makePlanTemplateRepository(
       const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
       if (!found) return null;
       const doc = await codec.decryptDoc(found, planAllow);
-      return MakePlan(doc);
+      return SoftValidatePlan(doc);
     },
     async FindByUserId(user_id: string) {
       const plan_list = await col()
         .find({ user_id: db.MakeId(user_id), status: "active" })
         .toArray();
       const docs = await Promise.all(plan_list.map((doc: any) => codec.decryptDoc(doc, planAllow)));
-      return docs.map(MakePlan);
+      return docs.map(SoftValidatePlan);
     },
     async Update({ _id: plan_id, ...plan_info }) {
       const found = await col().findOne({ _id: db.MakeId(plan_id), status: "active" });
