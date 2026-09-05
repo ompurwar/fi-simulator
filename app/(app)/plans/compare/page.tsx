@@ -620,7 +620,7 @@ function ComparePageInner() {
   ];
 
   return (
-    <div className="relative flex flex-col gap-10 border-0 pb-40">
+    <div className="relative flex flex-col gap-10 border-0 pb-52 md:pb-40">
       {bar_hidden && (
         <button
           type="button"
@@ -650,7 +650,7 @@ function ComparePageInner() {
             </div>
 
             {verdict ? (
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 pb-1 md:justify-start">
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-1 px-1 sm:gap-x-8 md:justify-start">
                 {[
                   { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToDisplayableMoney(v) },
                   { label: "Runway", metrics: verdict.map((r) => r.runway), fmt: (v: number) => (v < 12 ? `${v.toFixed(1)} mth` : `${(v / 12).toFixed(1)} yrs`) },
