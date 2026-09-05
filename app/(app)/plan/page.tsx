@@ -1188,17 +1188,17 @@ function PlanPageInner() {
 
         {/* Month insights — "so what?" chips for the scrubbed month */}
         {insights && (
-          <div className="flex w-full flex-wrap gap-2 mb-3">
-            <div className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
+          <div className="grid w-full grid-cols-1 gap-2 mb-3 sm:grid-cols-3 sm:items-stretch">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
               <span
-                className={`flex h-6 w-6 items-center justify-center rounded-lg ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
                   insights.wealth_delta >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
                 }`}
               >
                 <FontAwesomeIcon icon={insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown} className="text-[11px]" />
               </span>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Net worth vs start</span>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Net worth vs start</span>
                 <span className={`text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
                   {insights.wealth_delta >= 0 ? "+" : "-"}
                   <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
@@ -1220,14 +1220,14 @@ function PlanPageInner() {
                 type="button"
                 onClick={() => setCurrentMonth(insights.best!.month)}
                 title="Jump to this month"
-                className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs transition-all hover:shadow-md text-left md:px-3 md:py-2"
+                className="flex min-w-0 items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs transition-all hover:shadow-md text-left md:px-3 md:py-2"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                   <FontAwesomeIcon icon={faMedal} className="text-[11px]" />
                 </span>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Best savings month</span>
-                  <span className="text-xs font-bold text-dark-800">
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Best savings month</span>
+                  <span className="truncate text-xs font-bold text-dark-800">
                     {GetMonthAndYear(plan, insights.best.month)} · saved{" "}
                     <DisplayAmount notation="compact" amount={insights.best.total} />
                   </span>
@@ -1243,14 +1243,14 @@ function PlanPageInner() {
                     setCurrentMonth(Math.min(plan_duration, insights.unfunded_next?.month ?? insights.tough!.month))
                   }
                   title="Jump to this month"
-                  className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-white/70 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-white/70 text-left"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
                     <FontAwesomeIcon icon={faTriangleExclamation} className="text-[11px]" />
                   </span>
-                  <span className="flex flex-col">
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
-                    <span className="text-xs font-bold text-rose-700">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
+                    <span className="truncate text-xs font-bold text-rose-700">
                       {insights.unfunded_next
                         ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · unfunded ₹${Number(insights.unfunded_next.amount).toLocaleString("en-IN")}`
                         : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses exceed income`}
@@ -1261,7 +1261,7 @@ function PlanPageInner() {
                   type="button"
                   onClick={() => setWhatifOpen(true)}
                   title="Simulate fixes without saving"
-                  className="grid place-content-center self-center rounded-lg border border-rose-200 bg-white px-2 py-1 text-[10px] font-bold text-rose-600 hover:bg-rose-100 transition-colors"
+                  className="grid shrink-0 place-content-center self-center rounded-lg border border-rose-200 bg-white px-2 py-1 text-[10px] font-bold text-rose-600 hover:bg-rose-100 transition-colors"
                 >
                   <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-1 text-[9px]" />
                   What-if
@@ -1269,20 +1269,20 @@ function PlanPageInner() {
               </div>
             ) : (
               <div className="flex items-stretch gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-1.5 shadow-xs">
-                <div className="flex items-center gap-2 rounded-lg px-2 py-1">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
                     <FontAwesomeIcon icon={faCircleCheck} className="text-[11px]" />
                   </span>
-                  <span className="flex flex-col">
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-500">No gaps ahead</span>
-                    <span className="text-xs font-bold text-emerald-700">Full runway covered</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-emerald-500">No gaps ahead</span>
+                    <span className="truncate text-xs font-bold text-emerald-700">Full runway covered</span>
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setWhatifOpen(true)}
                   title="Simulate a bump in income, SIPs or expenses without saving"
-                  className="grid place-content-center self-center rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
+                  className="grid shrink-0 place-content-center self-center rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
                 >
                   <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-1 text-[9px]" />
                   Boost
