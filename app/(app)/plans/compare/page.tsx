@@ -188,14 +188,14 @@ function ComparablePlanWidget({
   return (
     <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-5 pt-5">
       {/* header row */}
-      <div className="flex snap-start gap-4 overflow-x-scroll- py-2">
-        <div className="flex flex-col px-0">
-          <div className="w-[11rem] truncate text-xl font-bold text-dark-300 md:w-[17rem] md:text-2xl">
+      <div className="flex snap-start flex-wrap items-start gap-x-3 gap-y-2 py-2">
+        <div className="flex min-w-0 flex-1 flex-col px-0">
+          <div className="max-w-full truncate text-xl font-bold text-dark-300 md:w-[17rem] md:text-2xl">
             {plan?.title}
           </div>
-          <div className="h-[1rem] w-[11rem] truncate text-xs text-dark-200 md:w-[12rem]">{plan?.description}</div>
+          <div className="max-w-full truncate text-xs text-dark-200 md:w-[12rem]">{plan?.description}</div>
         </div>
-        <div className="ml-auto flex h-fit snap-start justify-between gap-2 md:pl-3">
+        <div className="ml-auto flex h-fit shrink-0 snap-start flex-wrap items-center justify-end gap-1.5 md:pl-3">
           <button
             onClick={SavePlan}
             disabled={is_plan_synced}
@@ -203,7 +203,7 @@ function ComparablePlanWidget({
               is_plan_synced
                 ? "border-dark-100 text-dark-400 bg-dark-50"
                 : "border-primary-500 border-[2px] text-primary-50 bg-primary-500"
-            } flex h-fit w-full gap-2 rounded-lg px-2 py-1 font-bold`}
+            } flex h-fit w-fit gap-2 rounded-lg px-2 py-1 font-bold`}
           >
             <div className="flex gap-2">
               <span className={`hidden self-center md:inline ${!is_plan_synced ? "animate-pulse" : ""}`}> Save </span>
