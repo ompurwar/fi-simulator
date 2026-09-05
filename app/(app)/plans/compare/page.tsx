@@ -772,7 +772,7 @@ function ComparePageInner() {
       {/* plan columns */}
       <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-11">
         {plan_ids.map((plan_id, index) => (
-          <div key={plan_id} className="w-[380px] snap-start md:w-1/2">
+          <div key={plan_id} className="w-[88vw] snap-start md:w-1/2">
             <ComparablePlanWidget
               offset={plan_offset_map[plan_id] || 1}
               onStatementUpdate={OnStatementUpdate}
@@ -815,7 +815,7 @@ function ComparePageInner() {
         ))}
 
         {plans_to_be_compared.length < MAX_PLAN_LIMIT && (
-          <div className="mt-11 flex flex-col gap-3 px-5 py-8 md:mt-0 md:w-1/2">
+          <div className="mt-11 flex w-[88vw] flex-col gap-3 px-5 py-8 md:mt-0 md:w-1/2">
             <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-dark-200 px-4 py-6 text-center">
               <FontAwesomeIcon icon={faPlus} className="text-3xl text-dark-300" />
               <span className="text-xs font-bold text-dark-400">Add plan to compare</span>
