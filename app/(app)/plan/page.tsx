@@ -53,6 +53,7 @@ import {
   faMedal,
   faTriangleExclamation,
   faCircleCheck,
+  faFlagCheckered,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -1073,7 +1074,7 @@ function PlanPageInner() {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-dark-400 dark:text-slate-400">Net Worth</span>
                 <DisplayAmount
                   className="text-lg font-extrabold truncate text-dark-800 dark:text-white"
-                  notation={Math.abs(aggregated_balance_for_month || 0) >= 100000000 ? "compact" : "standard"}
+                  notation="compact"
                   amount={aggregated_balance_for_month}
                 />
               </div>
@@ -1192,26 +1193,39 @@ function PlanPageInner() {
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                  insights.wealth_delta >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                  insights.start_wealth <= 0
+                    ? "bg-primary-50 text-primary-600"
+                    : insights.wealth_delta >= 0
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-rose-50 text-rose-600"
                 }`}
               >
-                <FontAwesomeIcon icon={insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown} className="text-[11px]" />
+                <FontAwesomeIcon
+                  icon={insights.start_wealth <= 0 ? faFlagCheckered : insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown}
+                  className="text-[11px]"
+                />
               </span>
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Net worth vs start</span>
-                <span className={`text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                  {insights.wealth_delta >= 0 ? "+" : "-"}
-                  <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
-                  <span className="font-semibold">
-                    {(() => {
-                      if (insights.start_wealth <= 0) return " from start";
-                      const mult = Math.abs(insights.wealth_delta / insights.start_wealth);
-                      if (mult >= 10) return ` (${mult.toFixed(0)}x)`;
-                      if (mult >= 1) return ` (${(mult * 100).toFixed(1)}%)`;
-                      return ` (${Math.abs(insights.wealth_pct).toFixed(1)}%)`;
-                    })()}
-                  </span>
+                <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-dark-400">
+                  {insights.start_wealth <= 0 ? "Plan start" : "Net worth vs start"}
                 </span>
+                {insights.start_wealth <= 0 ? (
+                  <span className="truncate text-xs font-bold text-dark-800">{GetMonthAndYear(plan, current_month)}</span>
+                ) : (
+                  <span className={`truncate text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {insights.wealth_delta >= 0 ? "+" : "-"}
+                    <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
+                    <span className="font-semibold">
+                      {(() => {
+                        if (insights.start_wealth <= 0) return " from start";
+                        const mult = Math.abs(insights.wealth_delta / insights.start_wealth);
+                        if (mult >= 10) return ` (${mult.toFixed(0)}x)`;
+                        if (mult >= 1) return ` (${(mult * 100).toFixed(1)}%)`;
+                        return ` (${Math.abs(insights.wealth_pct).toFixed(1)}%)`;
+                      })()}
+                    </span>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1252,8 +1266,8 @@ function PlanPageInner() {
                     <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
                     <span className="truncate text-xs font-bold text-rose-700">
                       {insights.unfunded_next
-                        ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · unfunded ₹${Number(insights.unfunded_next.amount).toLocaleString("en-IN")}`
-                        : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses exceed income`}
+                        ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · ${ToDisplayableMoney(Number(insights.unfunded_next.amount))} unfunded`
+                        : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses > income`}
                     </span>
                   </span>
                 </button>
@@ -1395,7 +1409,7 @@ function PlanPageInner() {
                 <div className="flex items-center gap-2 overflow-hidden">
                   <DisplayAmount
                     className="text-xl font-extrabold text-dark-800 dark:text-white"
-                    notation={Math.abs(aggregated_balance_for_month || 0) >= 100000000 ? "compact" : "standard"}
+                    notation="compact"
                     amount={aggregated_balance_for_month}
                   />
                 </div>
