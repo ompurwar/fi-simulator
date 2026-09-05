@@ -1212,8 +1212,8 @@ function PlanPageInner() {
                 {Math.abs(insights.wealth_delta) < 1 ? (
                   <span className="truncate text-xs font-bold text-dark-800">{GetMonthAndYear(plan, current_month)}</span>
                 ) : (
-                  <span className={`truncate text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                    {insights.wealth_delta >= 0 ? "+" : "-"}
+                  <span className={`inline-flex min-w-0 items-baseline gap-1 truncate text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    <span>{insights.wealth_delta >= 0 ? "+" : "-"}</span>
                     <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
                     <span className="font-semibold">
                       {(() => {
