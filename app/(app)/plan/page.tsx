@@ -393,6 +393,13 @@ function BalanceAndTxn({
             const b = account.balance?.[0];
             if (!b) return null;
             const variation = netVariation(account.txn);
+            /* suppression: if the month's only movement is an interest credit,
+             * the top-right variation arrow would just duplicate the interest
+             * row below — skip it and let the interest line speak. */
+            const interest_matches_variation =
+              variation !== 0 &&
+              (account.txn || []).filter((t: any) => t.amount > 0).length === 1 &&
+              String(account.txn?.[0]?.tran_desc || "").toLowerCase().includes("interest");
             const is_emergency = b.category === "e" || b.category === "emergency";
             const is_savings = b.category === "s" || b.category === "savings";
             const is_investment = b.category === "i" || b.category === "investment";
@@ -419,7 +426,11 @@ function BalanceAndTxn({
                     </div>
                     <div>
                       <span className="block text-xs font-bold text-dark-800 first-letter:uppercase">{b.acc_name}</span>
-                      <DisplayAmount className="text-base font-extrabold text-dark-800" notation="standard" amount={b.balance} />
+                      <span
+                        title={`Exact Balance: ${Intl.NumberFormat("en-IN", { style: "currency", currency: useFiPlanStore.getState().currency || "INR" }).format(Number(b.balance))}`}
+                      >
+                        <DisplayAmount className="text-base font-extrabold text-dark-800" notation="compact" amount={b.balance} />
+                      </span>
                     </div>
                   </div>
 
@@ -453,7 +464,7 @@ function BalanceAndTxn({
                       </button>
                     </div>
 
-                    {variation !== 0 && (
+                    {variation !== 0 && !interest_matches_variation && (
                       <div className={`flex items-center gap-1 text-xs font-bold ${variation > 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         <FontAwesomeIcon icon={variation > 0 ? faUpLong : faDownLong} className="text-[10px]" />
                         <DisplayAmount notation="compact" amount={Math.abs(variation)} />
