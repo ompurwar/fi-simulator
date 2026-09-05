@@ -7,6 +7,8 @@ import { useFiPlanStore } from "@/store";
 import { usePlanEngine } from "@/hooks/usePlanEngine";
 import { useRunway } from "@/hooks/useRunway";
 import { BuildWealthChartData } from "@/lib/wealthChart";
+import { FormatCompactMoney } from "@/lib/money";
+import { GetCurrencySymbol } from "@/lib/country";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { ModalUi } from "@/components/ui/ModalUi";
@@ -510,6 +512,15 @@ function ComparePageInner() {
       currency: useFiPlanStore.getState().currency || "INR",
       maximumSignificantDigits: 2,
     }).format(value);
+  /* Indian-unit money (₹K/L/Cr/Ar) for the verdict strip — Intl compact follows
+   * the device locale (en-US → "M"), which reads wrong for INR figures. */
+  const ToVerdictMoney = (value: number) =>
+    FormatCompactMoney(
+      Number(value),
+      useFiPlanStore.getState().currency || "INR",
+      GetCurrencySymbol(useFiPlanStore.getState().currency || "INR"),
+      money_local
+    );
 
   function updateQuery(ids: string[]) {
     router.push(`/plans/compare?p_ids=${ids.join(",")}`);
@@ -650,23 +661,23 @@ function ComparePageInner() {
             </div>
 
             {verdict ? (
-              <div className="grid w-full grid-cols-1 gap-2 pb-2 sm:grid-cols-3">
+              <div className="flex flex-wrap items-start gap-x-6 gap-y-1 pb-2">
                 {[
-                  { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToDisplayableMoney(v) },
+                  { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToVerdictMoney(v) },
                   { label: "Runway", metrics: verdict.map((r) => r.runway), fmt: (v: number) => (v < 12 ? `${v.toFixed(1)} mth` : `${(v / 12).toFixed(1)} yrs`) },
-                  { label: "Monthly net", metrics: verdict.map((r) => r.monthly_net), fmt: (v: number) => ToDisplayableMoney(v) },
+                  { label: "Monthly net", metrics: verdict.map((r) => r.monthly_net), fmt: (v: number) => ToVerdictMoney(v) },
                 ].map((cell) => {
                   const max = Math.max(...cell.metrics);
                   const min = Math.min(...cell.metrics);
                   const winner = max !== min ? cell.metrics.indexOf(max) : -1;
                   return (
-                    <div key={cell.label} className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-slate-700/50 px-2.5 py-1.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
+                    <div key={cell.label} className="flex min-w-0 flex-col gap-0.5 text-left">
+                      <span className="truncate text-[9px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
                         {verdict.map((row, i) => (
                           <span
                             key={row.plan_id}
-                            className={`flex items-center gap-1 whitespace-nowrap text-xs font-bold ${i === winner ? "" : "opacity-70"}`}
+                            className={`flex items-center gap-1 whitespace-nowrap text-[10px] font-bold ${i === winner ? "" : "opacity-70"}`}
                             style={{ color: planColor(i) }}
                           >
                             {cell.fmt(cell.metrics[i])}
