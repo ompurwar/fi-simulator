@@ -54,6 +54,7 @@ import {
   faTriangleExclamation,
   faCircleCheck,
   faFlagCheckered,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -522,6 +523,15 @@ function PlanPageInner() {
   const [simulation_open, setSimulationOpen] = useState(false);
   const [show_scenarios, setShowScenarios] = useState(false);
   const [whatif_open, setWhatifOpen] = useState(false);
+  const [slider_hidden, setSliderHidden] = useState(false);
+
+  useEffect(() => {
+    const v = window.localStorage.getItem("plan-slider-hidden");
+    if (v) setSliderHidden(v === "1");
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem("plan-slider-hidden", slider_hidden ? "1" : "0");
+  }, [slider_hidden]);
 
   const plan = useMemo(
     () => plans.find((p) => p._id === (plan_id || selected_plan_id)) || plans[0],
@@ -940,12 +950,20 @@ function PlanPageInner() {
       {/* Center column */}
       <div className="flex w-full flex-col gap-4 p-2 md:mt-0 md:w-[55%] xl:w-[60%] md:gap-2">
         {/* Month slider + cockpit popover */}
-        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-2xl bg-dark-800/80 p-3 mb-3 border border-white/15 backdrop-blur-2xl shadow-lg shadow-dark-900/50 transition-all duration-250 md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:w-[calc(55vw-1rem)] md:max-w-[1100px] md:flex md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-3xl xl:w-[calc(60vw-1rem)] md:bg-dark-900/60 md:p-3.5 md:shadow-2xl md:shadow-black/60 md:hover:bg-dark-900/80">
+        <div className={`fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-2xl bg-dark-800/80 p-3 mb-3 border border-white/15 backdrop-blur-2xl shadow-lg shadow-dark-900/50 transition-all duration-250 md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:w-[calc(55vw-1rem)] md:max-w-[1100px] md:flex md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-3xl xl:w-[calc(60vw-1rem)] md:bg-dark-900/60 md:p-3.5 md:shadow-2xl md:shadow-black/60 md:hover:bg-dark-900/80${slider_hidden ? " md:hidden" : ""}`}>
           <span
             aria-hidden
             className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 via-white/5 to-transparent opacity-50 md:rounded-3xl"
           />
           <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
+          <button
+            type="button"
+            onClick={() => setSliderHidden(true)}
+            title="Hide timeline (reopen from the bottom pill)"
+            className="absolute -top-3 right-2 hidden md:grid h-6 w-6 place-content-center rounded-full border border-white/20 bg-dark-900/90 text-dark-300 shadow-md backdrop-blur-md transition-colors hover:text-white"
+          >
+            <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+          </button>
           <Popover className="absolute top-[-1.5rem] flex justify-center rounded-full self-center md:hidden">
             <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 border-primary-400 bg-white text-2xl font-medium text-primary-600 shadow-md">
               <FontAwesomeIcon icon={faGauge} className="md:hidden" />
@@ -1076,6 +1094,19 @@ function PlanPageInner() {
             </Popover.Panel>
           </Popover>
         </div>
+
+        {/* Reopen pill — desktop only, shown when the timeline is collapsed */}
+        {slider_hidden && (
+          <button
+            type="button"
+            onClick={() => setSliderHidden(false)}
+            title="Show timeline"
+            className="fixed bottom-4 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1.5 rounded-full border border-dark-200 bg-white px-4 py-1.5 text-xs font-bold text-dark-700 shadow-lg transition-all hover:shadow-xl hover:bg-dark-50 md:flex"
+          >
+            <FontAwesomeIcon icon={faChevronUp} className="text-[10px]" />
+            Show timeline
+          </button>
+        )}
 
         {/* Current month indicator — answers "which month am I looking at?" at a glance */}
         <div className="flex items-center justify-center gap-1.5 mb-1 md:justify-start">
