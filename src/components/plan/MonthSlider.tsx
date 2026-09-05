@@ -25,11 +25,13 @@ export function MonthSlider({
   max,
   planTimestamp,
   onChange,
+  slim = false,
 }: {
   value: number;
   max: number;
   planTimestamp?: number | string;
   onChange: (month: number) => void;
+  slim?: boolean;
 }) {
   const { month, year } = useMemo(
     () => (planTimestamp ? getMonthAndYear(planTimestamp, value) : { month: "", year: "" }),
@@ -46,6 +48,11 @@ export function MonthSlider({
   return (
     <div className="flex w-full flex-col justify-between rounded-2xl">
       <div className="flex justify-center gap-2 md:justify-between">
+        {slim && (
+          <span className="hidden min-w-[7ch] self-center whitespace-nowrap pl-1 pr-2 text-sm font-bold text-primary-400 md:block">
+            {month}-{year}
+          </span>
+        )}
         <div className="flex md:hidden">
           <button
             className={`${baseBtn} ${iconBtn}`}
@@ -113,6 +120,7 @@ export function MonthSlider({
         </div>
       </div>
 
+      {!slim && (
       <div className="hidden h-full md:flex">
         <div className="flex pl-2 pr-0 items-center">
           <div className="flex w-[5ch] justify-center self-center px-2 text-lg font-bold text-primary-400 md:text-xl">
@@ -157,6 +165,7 @@ export function MonthSlider({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
