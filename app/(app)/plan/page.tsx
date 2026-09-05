@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useFiPlanStore } from "@/store";
@@ -48,6 +48,11 @@ import {
   faWallet,
   faChartLine,
   faWandMagicSparkles,
+  faArrowTrendUp,
+  faArrowTrendDown,
+  faMedal,
+  faTriangleExclamation,
+  faCircleCheck,
 } from "@fortawesome/free-solid-svg-icons";
 
 function GetMonthAndYear(plan: any, month: number) {
@@ -517,6 +522,47 @@ function PlanPageInner() {
   const current_month_balances = monthly_details?.balances || [];
   const { runway } = useRunway(cashflow.expense_statement, current_month_balances, current_month);
 
+  /* Month-insight strip — client-side derivation from the snapshot. Answers
+   * "so what?" for the scrubbed month without new endpoints. Must live above
+   * the `if (!plan)` guard (hooks order). */
+  const insights = useMemo(() => {
+    const rows = income_expense_and_net_cashflow as any[];
+    if (!rows.length) return null;
+    const wealth_by_month = rows.map((d: any, i: number) => {
+      const bal = (d.balances || []).reduce((a: number, b: any) => a + (b.balance?.[0]?.balance || 0), 0);
+      const assets = (engine.asset_month_map?.[i + 1] || []).reduce((a: number, x: any) => a + (x.value || 0), 0);
+      return bal + assets;
+    });
+    const start_wealth = wealth_by_month[0] || 0;
+    const now_wealth = wealth_by_month[current_month - 1] ?? start_wealth;
+    const wealth_delta = now_wealth - start_wealth;
+    const wealth_pct = start_wealth > 0 ? (wealth_delta / start_wealth) * 100 : 0;
+    let best: { month: number; total: number } | null = null;
+    let tough: { month: number; net: number } | null = null;
+    for (const d of rows) {
+      const net = Number(d.net_cashflow?.total) || 0;
+      if (!best || net > best.total) best = { month: Number(d.month), total: net };
+      if (!tough && Number(d.month) > current_month && net < 0) tough = { month: Number(d.month), net };
+    }
+    const unfunded_next = (engine.unfunded_expenses || []).find(
+      (u: any) => Number(u.month) > current_month
+    ) as { month: number; amount: number } | undefined;
+    return { wealth_delta, wealth_pct, best, tough, unfunded_next };
+  }, [income_expense_and_net_cashflow, engine.asset_month_map, engine.unfunded_expenses, current_month]);
+
+  /* ±12-month window of the transactions sidebar, tagged with a year header. */
+  const txn_visible_rows = useMemo(() => {
+    const rows = (income_expense_and_net_cashflow as any[]).filter(
+      (_: any, i: number) => Math.abs(current_month - i) < 12
+    );
+    return rows.map((d: any, i: number) => {
+      const year = (GetMonthAndYear(plan ?? {}, Number(d.month)) || "").split("-")[1] || "";
+      const prev = i > 0 ? rows[i - 1] : null;
+      const prev_year = prev ? (GetMonthAndYear(plan ?? {}, Number(prev.month)) || "").split("-")[1] || "" : "";
+      return { d, year, show_year: i === 0 || year !== prev_year };
+    });
+  }, [income_expense_and_net_cashflow, current_month, plan]);
+
   const startWalkThrough = useWalkThrough(plan);
 
   useEffect(() => {
@@ -703,7 +749,7 @@ function PlanPageInner() {
   const chart_annotations = [...purchase_annotations, ...gap_annotations, ...annotation];
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:gap-4">
+    <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:pb-36">
       {/* Left manager sidebar (desktop) */}
       <div className="sticky self-start hidden gap-1 p-3 bg-white border shadow-xs md:flex md:flex-col w-60 lg:w-64 shrink-0 rounded-2xl border-dark-200 dark:border-slate-800 dark:bg-slate-900 h-fit top-20">
         <div className="flex items-center justify-between px-2 py-1 mb-1">
@@ -871,7 +917,11 @@ function PlanPageInner() {
       {/* Center column */}
       <div className="flex w-full flex-col gap-4 p-2 md:mt-0 md:w-[55%] xl:w-[60%] md:gap-2">
         {/* Month slider + cockpit popover */}
-        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-xl bg-dark-800 p-3 md:relative md:z-0 md:bottom-2 md:flex md:w-full md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-xl md:bg-dark-900 md:m-1 md:mt-0 mb-3 shadow-warning-200 shadow-lg md:shadow-dark-400 md:shadow-md border md:border-0 transition-all duration-250">
+        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-2xl bg-dark-800/80 p-3 mb-3 border border-white/15 backdrop-blur-2xl shadow-lg shadow-dark-900/50 transition-all duration-250 md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:w-[62vw] md:max-w-[1100px] md:flex md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-3xl md:bg-dark-900/60 md:p-3.5 md:shadow-2xl md:shadow-black/60 md:hover:bg-dark-900/80">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 via-white/5 to-transparent opacity-50 md:rounded-3xl"
+          />
           <MonthSlider value={current_month} max={plan_duration} planTimestamp={plan.timestamp} onChange={setCurrentMonth} />
           <Popover className="absolute top-[-1.5rem] flex justify-center rounded-full self-center md:hidden">
             <Popover.Button className="grid h-[50px] w-[50px] place-content-center justify-items-center gap-2 rounded-full border-2 border-primary-400 bg-white text-2xl font-medium text-primary-600 shadow-md">
@@ -1125,6 +1175,82 @@ function PlanPageInner() {
           </div>
         </div>
 
+        {/* Month insights — "so what?" chips for the scrubbed month */}
+        {insights && (
+          <div className="flex w-full flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-3 py-2 shadow-xs">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-lg ${
+                  insights.wealth_delta >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                }`}
+              >
+                <FontAwesomeIcon icon={insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown} className="text-[11px]" />
+              </span>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Net worth vs start</span>
+                <span className={`text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                  {insights.wealth_delta >= 0 ? "+" : "-"}
+                  <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
+                  <span className="font-semibold"> ({Math.abs(insights.wealth_pct).toFixed(1)}%)</span>
+                </span>
+              </div>
+            </div>
+
+            {insights.best && (
+              <button
+                type="button"
+                onClick={() => setCurrentMonth(insights.best!.month)}
+                title="Jump to this month"
+                className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-3 py-2 shadow-xs transition-all hover:shadow-md text-left"
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                  <FontAwesomeIcon icon={faMedal} className="text-[11px]" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-dark-400">Best savings month</span>
+                  <span className="text-xs font-bold text-dark-800">
+                    {GetMonthAndYear(plan, insights.best.month)} · saved{" "}
+                    <DisplayAmount notation="compact" amount={insights.best.total} />
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {insights.tough || insights.unfunded_next ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentMonth(Math.min(plan_duration, insights.unfunded_next?.month ?? insights.tough!.month))
+                }
+                title="Jump to this month"
+                className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2 shadow-xs transition-all hover:shadow-md text-left"
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                  <FontAwesomeIcon icon={faTriangleExclamation} className="text-[11px]" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
+                  <span className="text-xs font-bold text-rose-700">
+                    {insights.unfunded_next
+                      ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · unfunded ₹${Number(insights.unfunded_next.amount).toLocaleString("en-IN")}`
+                      : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses exceed income`}
+                  </span>
+                </div>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 shadow-xs">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                  <FontAwesomeIcon icon={faCircleCheck} className="text-[11px]" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-500">No gaps ahead</span>
+                  <span className="text-xs font-bold text-emerald-700">Full runway covered</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Plan gaps — expenses are obligations (a shortfall is a planning gap,
             never a skipped txn) and missed SIPs are investments that did not
             happen. One compact card: totals + a wrap of month pills. */}
@@ -1361,11 +1487,17 @@ function PlanPageInner() {
           className="flex flex-col gap-2 p-3 overflow-y-auto text-xs transition-all bg-white scroll-smooth"
           style={{ maxHeight: "calc(100vh - 120px)" }}
         >
-          {income_expense_and_net_cashflow.map((d: any, index: number) => {
-            if (Math.abs(current_month - index) >= 12) return null;
+          {txn_visible_rows.map(({ d, year, show_year }) => {
             const net = d.net_cashflow?.total || 0;
             const is_selected = d.month === current_month;
             return (
+              <Fragment key={d.month}>
+                {show_year && (
+                  <div className="flex items-center gap-2 pt-1 pr-1 pb-0.5">
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-dark-400">{year}</span>
+                    <span className="h-px flex-1 bg-dark-100" />
+                  </div>
+                )}
               <div
                 key={d.month}
                 className={`relative flex w-full cursor-pointer flex-col rounded-xl border p-3 shadow-xs transition-all duration-200 hover:shadow-md ${
@@ -1419,6 +1551,7 @@ function PlanPageInner() {
                   />
                 </div>
               </div>
+              </Fragment>
             );
           })}
         </div>
