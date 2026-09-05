@@ -24,8 +24,8 @@ export function Logo({ className = "", badge = true }: { className?: string; bad
           <span>Plan</span>
         </span>
         {badge && (
-          <span className="border border-blue-400 box-border rounded-sm px-1 self-center ml-1 font-normal h-fit bg-blue-50 text-center text-blue-700 grid">
-            <span className="text-[.4ch] font-bold py-0.5 leading-3 uppercase">Beta</span>
+          <span className="border border-primary-500/40 box-border rounded-sm px-1 self-center ml-1 font-normal h-fit bg-primary-500/15 text-center text-primary-600 dark:text-primary-300 grid">
+            <span className="text-[.4ch] font-bold py-0.5 leading-3 uppercase tracking-widest">Beta</span>
           </span>
         )}
       </span>

@@ -14,6 +14,28 @@ export const metadata: Metadata = {
     "net worth tracker",
     "nri financial planning",
   ],
+  openGraph: {
+    title: "Fi-Plan — Plan your financial future like a time machine",
+    description: "Trackers tell you what happened. Fi-Plan shows you what's possible. Simulate 50 years, month by month.",
+    url: "https://fi-simulator-zeta.vercel.app",
+    type: "website",
+    locale: "en_IN",
+    siteName: "Fi-Plan",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Fi-Plan — retirement and FIRE planning simulator for India",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Fi-Plan — Plan your financial future like a time machine",
+    description: "Trackers tell you what happened. Fi-Plan shows you what's possible.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function Home() {

@@ -2,6 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Landing page elevation + accent glow (custom utilities; used by hero chart, cards, CTAs) */
+@utility shadow-card-lg {
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.5);
+}
+@utility shadow-glow {
+  box-shadow: 0 10px 30px -12px color-mix(in oklab, var(--color-primary-500) 55%, transparent);
+}
+
 @theme {
   --breakpoint-xs: 320px;
   --breakpoint-sm: 390px;
@@ -187,8 +195,13 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
 @media (prefers-reduced-motion: reduce) {
-  [style*='animation'] {
+  [style*='animation'],
+  .animate-bounce {
     animation: none !important;
   }
 }

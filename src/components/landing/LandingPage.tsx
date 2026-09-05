@@ -22,6 +22,10 @@ import {
   faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 
+// Near-black label for filled emerald CTAs — a fixed value (the dark-* tokens invert in dark mode,
+// so a token here would flip to white and fail contrast on the green fill).
+const CTA_LABEL = "#0f172a";
+
 const TEMPLATES = [
   { icon: faClockRotateLeft, title: "Retire at 45", stat: "₹18L income · 55% savings rate", fi: "FI at 44y 7m" },
   { icon: faArrowRightToBracket, title: "NRI return to India", stat: "401(k) → LLP · tax bridge", fi: "Zero taxable on exit" },
@@ -109,23 +113,25 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-dark-50 dark:bg-slate-950 text-dark-600 dark:text-dark-400">
-      <header className="flex items-center justify-between px-6 py-4 pb-2">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-transparent bg-dark-50/80 px-6 py-3 backdrop-blur-md transition-colors dark:bg-slate-950/80">
         <Logo />
         <nav className="flex items-center gap-2">
           <Link href="/login" className="hidden text-sm font-bold text-dark-500 hover:text-dark-800 md:inline">
             Sign in
           </Link>
           <Link href="/login?mode=signup">
-            <Button className="rounded-lg px-4 py-2 text-sm">Start planning free</Button>
+            <Button sub_variant="solid" className="rounded-lg px-4 py-2 text-sm font-bold focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-50 dark:focus-visible:ring-offset-slate-950" style={{ color: CTA_LABEL }}>
+              Start planning free
+            </Button>
           </Link>
         </nav>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-6">
         {/* 1 · HERO — left copy, right product visual */}
-        <div className="relative grid min-h-[88vh] items-center gap-12 py-12 lg:grid-cols-[1fr_1.1fr]">
+        <div className="relative grid min-h-[86vh] items-center gap-12 py-12 lg:grid-cols-[1fr_1.1fr]">
           <div className="flex flex-col gap-6 text-center lg:text-left">
-            <p className="mx-auto text-sm font-semibold tracking-wide text-dark-300 lg:mx-0">
+            <p className="mx-auto text-sm font-semibold tracking-wide text-dark-400 lg:mx-0">
               Trackers tell you what happened.{" "}
               <span className="text-primary-400">Fi-Plan shows you what's possible.</span>
             </p>
@@ -134,25 +140,25 @@ export default function LandingPage() {
               <br className="hidden lg:block" />{" "}
               <span className="text-primary-500 dark:text-primary-400"> like a time machine</span>
             </h1>
-            <p className="mx-auto max-w-[42ch] text-balance font-inter text-[clamp(1rem,2vw,1.25rem)] leading-relaxed text-dark-300 lg:mx-0">
+            <p className="mx-auto max-w-[42ch] text-balance font-inter text-[clamp(1rem,2vw,1.25rem)] leading-relaxed text-dark-500 lg:mx-0">
               Simulate your entire financial life, decades ahead — and spot the gaps before they happen.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link href="/login?mode=signup">
-                <Button variant="primary" className="rounded-lg px-6 py-3 text-base">
+                <Button variant="primary" sub_variant="solid" className="rounded-lg px-6 py-3 text-base font-bold shadow-glow focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-50 dark:focus-visible:ring-offset-slate-950" style={{ color: CTA_LABEL }}>
                   <FontAwesomeIcon icon={faCirclePlus} className="mr-2" />
                   Create your free plan
                 </Button>
               </Link>
               <a href="/login">
-                <Button variant="outline" className="rounded-lg px-6 py-3 text-base">
+                <Button variant="neutral" className="rounded-lg px-6 py-3 text-base" style={{ color: "var(--color-dark-500)" }}>
                   <FontAwesomeIcon icon={faArrowRightToBracket} className="mr-2" />
                   I already have an account
                 </Button>
               </a>
             </div>
             {/* trust — engine first, three only */}
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-dark-400 lg:justify-start">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-dark-500 lg:justify-start">
               <span className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900">
                 50 years, month by month
               </span>
@@ -171,19 +177,21 @@ export default function LandingPage() {
             type="button"
             aria-label="Scroll down"
             onClick={() => document.getElementById("templates")?.scrollIntoView({ behavior: "smooth" })}
-            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 animate-bounce text-dark-300 hover:text-primary-400 md:block"
+            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 text-dark-400 hover:text-primary-400 lg:block transition-colors"
+            style={{ animation: "bob 2s ease-in-out infinite" }}
           >
+            <style>{`@media (prefers-reduced-motion: reduce) { [style*='animation: bob'] { animation: none !important; } }`}</style>
             <FontAwesomeIcon icon={faChevronDown} />
           </button>
         </div>
 
         {/* 2 · TEMPLATES — persona entry points */}
-        <Section id="templates" className="border-t border-dark-100 dark:border-slate-800 md:-mt-20">
+        <Section id="templates" className="border-t border-dark-100 dark:border-slate-800">
           <div className="flex flex-col gap-2 text-center lg:text-left">
             <h2 className="font-exo2 text-3xl font-bold tracking-tight text-dark-800 dark:text-white">
               Start from someone else's plan
             </h2>
-            <p className="text-balance text-dark-300">
+            <p className="text-balance text-dark-500">
               Fork a template, swap in your numbers, see your 50 years in about four minutes.
             </p>
           </div>
@@ -192,17 +200,17 @@ export default function LandingPage() {
               <Link
                 key={t.title}
                 href="/shared_templates"
-                className="group flex flex-col gap-3 rounded-xl border border-dark-200 bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-card-lg dark:border-slate-800 dark:bg-slate-900"
+                className="group flex flex-col gap-3 rounded-xl border border-dark-200 bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:border-primary-400/50 hover:shadow-card-lg dark:border-slate-800 dark:bg-slate-900"
               >
-                <div className="grid h-10 w-10 place-content-center rounded-lg bg-primary-500/15 text-lg text-primary-300">
+                <div className="grid h-10 w-10 place-content-center rounded-lg bg-primary-500/15 text-lg text-primary-300 transition-transform duration-200 group-hover:scale-110">
                   <FontAwesomeIcon icon={t.icon} />
                 </div>
                 <span className="text-base font-bold text-dark-800 dark:text-white">{t.title}</span>
-                <span className="text-xs leading-relaxed text-dark-300">{t.stat}</span>
+                <span className="text-xs leading-relaxed text-dark-400">{t.stat}</span>
                 <span className="mt-auto pt-1 font-mono text-[11px] font-extrabold tabular-nums text-primary-400">
                   {t.fi}
                 </span>
-                <span className="text-xs font-bold text-primary-500 after:content-['‣'] group-hover:after:pl-1">
+                <span className="text-xs font-bold text-primary-500 after:content-['‣'] after:pl-0.5 after:transition-all group-hover:after:pl-2">
                   Fork this plan
                 </span>
               </Link>
@@ -219,20 +227,20 @@ export default function LandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="flex flex-col gap-3 rounded-xl border border-dark-200 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                className="flex flex-col gap-3 rounded-xl border border-dark-200 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-primary-400/40 hover:shadow-card-lg dark:border-slate-800 dark:bg-slate-900"
               >
                 <div className={`grid h-11 w-11 place-content-center rounded-lg text-xl ${f.tint}`}>
                   <FontAwesomeIcon icon={f.icon} />
                 </div>
                 <h3 className="text-lg font-bold text-dark-800 dark:text-white">{f.title}</h3>
-                <p className="text-sm leading-relaxed text-dark-200">{f.desc}</p>
+                <p className="text-sm leading-relaxed text-dark-500">{f.desc}</p>
               </div>
             ))}
           </div>
         </Section>
 
         {/* 4 · HOW IT WORKS */}
-        <Section>
+        <Section id="how-it-works">
           <h2 className="font-exo2 text-3xl font-bold tracking-tight text-dark-800 dark:text-white">
             How the financial simulator works
           </h2>
@@ -241,40 +249,40 @@ export default function LandingPage() {
             <div className="absolute left-0 right-0 top-4 hidden h-px bg-gradient-to-r from-primary-500/50 via-primary-500/30 to-transparent md:block" />
             {STEPS.map((s, i) => (
               <div key={s.title} className="relative flex flex-1 flex-col gap-2 pl-12 md:pl-0 md:pt-14">
-                <span className="absolute left-0 top-0 z-10 grid h-8 w-8 place-content-center rounded-full bg-primary-600 text-sm font-extrabold text-white md:left-4">
+                <span className="absolute left-0 top-0 z-10 grid h-8 w-8 place-content-center rounded-full bg-primary-600 text-sm font-extrabold text-white shadow-glow md:left-4">
                   {i + 1}
                 </span>
                 <h3 className="text-base font-bold text-dark-800 dark:text-white">{s.title}</h3>
-                <p className="text-sm leading-relaxed text-dark-200">{s.desc}</p>
+                <p className="text-sm leading-relaxed text-dark-500">{s.desc}</p>
               </div>
             ))}
           </div>
         </Section>
 
         {/* 5 · AGENTS / MCP */}
-        <Section>
+        <Section id="agents">
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <div className="flex flex-col gap-4">
               <h2 className="font-exo2 text-3xl font-bold tracking-tight text-dark-800 dark:text-white">
                 Plan from your terminal, or your chat window
               </h2>
-              <p className="text-dark-200">
+              <p className="text-dark-500">
                 Ask Claude, ChatGPT or Cursor to explore your plan — "what if I take a sabbatical?",
                 "modelled my NRI return" — and open the result in Fi-Plan with one link.
               </p>
               <div className="flex flex-wrap gap-2">
                 {["Claude", "ChatGPT", "Cursor"].map((c) => (
-                  <span key={c} className="rounded-full border border-dark-200 bg-white px-3 py-1 text-xs font-bold text-dark-400 dark:border-slate-800 dark:bg-slate-900">
+                  <span key={c} className="rounded-full border border-dark-200 bg-white px-3 py-1 text-xs font-bold text-dark-500 dark:border-slate-800 dark:bg-slate-900">
                     {c}
                   </span>
                 ))}
               </div>
             </div>
-            <div className="relative rounded-xl border border-dark-700 bg-slate-950 p-4">
+            <div className="relative rounded-xl border border-dark-700 bg-slate-950 p-4 shadow-card-lg">
               <button
                 type="button"
                 onClick={CopyConfig}
-                className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-dark-700 px-2 py-1 text-[10px] font-bold text-dark-300 hover:text-white"
+                className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-dark-700 px-2 py-1 text-[10px] font-bold text-dark-300 transition-colors hover:border-primary-500/50 hover:text-white"
               >
                 <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="text-[9px]" />
                 {copied ? "Copied" : "Copy"}
@@ -286,31 +294,31 @@ export default function LandingPage() {
           </div>
         </Section>
 
-        {/* 6 · BUILT FOR INDIA */}
+        {/* 6 · BUILT FOR INDIA — a deliberate dark island in both themes */}
         <Section>
-          <div className="grid gap-10 rounded-2xl border border-dark-700 bg-dark-800 p-8 text-dark-100 md:grid-cols-2 md:p-12">
+          <div className="grid gap-10 rounded-2xl border border-dark-700 bg-dark-800 p-8 shadow-card-lg dark:border-slate-700 dark:bg-slate-800 md:grid-cols-2 md:p-12">
             <div className="flex flex-col gap-4">
               <h2 className="font-exo2 text-2xl font-extrabold tracking-tight text-white">
                 Built for India, built for real life
               </h2>
               <ul className="flex flex-col gap-3">
                 {INDIA_LINES.map((line) => (
-                  <li key={line} className="flex items-start gap-2 text-sm text-dark-200">
+                  <li key={line} className="flex items-start gap-2 text-sm text-slate-300">
                     <FontAwesomeIcon icon={faCircleCheck} className="mt-0.5 text-primary-400" />
                     <span>{line}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="flex flex-col items-center justify-center gap-5 rounded-xl bg-dark-900/70 p-8 text-center">
-              <div className="h-px w-12 bg-dark-600" aria-hidden />
+            <div className="flex flex-col items-center justify-center gap-5 rounded-xl bg-slate-900/50 p-8 text-center ring-1 ring-white/5">
+              <div className="h-px w-12 bg-slate-600" aria-hidden />
               <FontAwesomeIcon icon={faChartLine} className="text-3xl text-primary-400" />
-              <p className="text-sm font-semibold leading-relaxed text-dark-100">
+              <p className="text-sm font-semibold leading-relaxed text-slate-200">
                 The dashboard answers the questions you actually have: <br />
                 "Am I on track? What's my runway? When does the money get tight?"
               </p>
               <Link href="/login?mode=signup">
-                <Button className="rounded-lg bg-primary-500 px-5 py-2 text-sm text-dark-900 hover:bg-primary-400">
+                <Button variant="primary" sub_variant="solid" className="rounded-lg px-5 py-2 text-sm font-bold focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 dark:focus-visible:ring-offset-slate-800" style={{ color: CTA_LABEL }}>
                   See it with your own numbers
                 </Button>
               </Link>
@@ -328,10 +336,10 @@ export default function LandingPage() {
               <Link
                 key={c.title}
                 href="/login?mode=signup"
-                className="flex flex-col gap-1.5 rounded-xl border border-dark-200 bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                className="group flex flex-col gap-1.5 rounded-xl border border-dark-200 bg-white p-5 transition-all hover:-translate-y-1 hover:border-primary-400/40 hover:shadow-card-lg dark:border-slate-800 dark:bg-slate-900"
               >
                 <span className="text-sm font-bold text-dark-800 dark:text-white">{c.title}</span>
-                <span className="text-xs text-dark-300">{c.desc}</span>
+                <span className="text-xs text-dark-400">{c.desc}</span>
                 <span className="mt-2 text-[10px] font-bold uppercase tracking-widest text-primary-500">
                   Soon
                 </span>
@@ -345,12 +353,12 @@ export default function LandingPage() {
           <h2 className="font-exo2 text-balance text-3xl font-bold tracking-tight text-dark-800 dark:text-white md:text-4xl">
             Your future self will thank you.
           </h2>
-          <p className="mx-auto mt-3 max-w-[42ch] text-balance text-dark-200">
+          <p className="mx-auto mt-3 max-w-[42ch] text-balance text-dark-500">
             Four minutes of numbers today, a decade of clear decisions tomorrow.
           </p>
           <div className="mt-8 flex justify-center">
             <Link href="/login?mode=signup">
-              <Button variant="primary" className="rounded-lg px-8 py-3 text-base">
+              <Button variant="primary" sub_variant="solid" className="rounded-lg px-8 py-3 text-base font-bold shadow-glow focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-50 dark:focus-visible:ring-offset-slate-950" style={{ color: CTA_LABEL }}>
                 <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-2" />
                 Start planning free
               </Button>
@@ -364,7 +372,7 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-7xl gap-10 text-sm md:grid-cols-4">
           <div className="flex flex-col gap-3">
             <Logo badge={false} className="text-2xl" />
-            <p className="max-w-[24ch] text-xs text-dark-300">
+            <p className="max-w-[24ch] text-xs text-dark-400">
               Personal financial simulation, encrypted by default.
             </p>
           </div>
@@ -372,7 +380,7 @@ export default function LandingPage() {
             {
               col: "Product",
               links: [
-                ["How it works", "#"],
+                ["How it works", "#how-it-works"],
                 ["Templates", "/shared_templates"],
                 ["Compare", "/plans/compare"],
               ],
@@ -381,7 +389,6 @@ export default function LandingPage() {
               col: "For developers",
               links: [
                 ["Use with an AI assistant", "#agents"],
-                ["MCP docs", "/docs/mcp-usage"],
               ],
             },
             {
@@ -404,14 +411,14 @@ export default function LandingPage() {
             <div key={g.col} className="flex flex-col gap-3">
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-dark-400">{g.col}</span>
               {g.links.map(([label, href]) => (
-                <Link key={label} href={href} className="text-xs font-semibold text-dark-300 hover:text-primary-500">
+                <Link key={label} href={href} className="text-xs font-semibold text-dark-400 transition-colors hover:text-primary-500">
                   {label}
                 </Link>
               ))}
             </div>
           ))}
         </div>
-        <div className="mx-auto mt-10 flex max-w-7xl flex-col items-center justify-between gap-2 border-t border-dark-100 pt-6 text-[11px] text-dark-300 md:flex-row dark:border-slate-800">
+        <div className="mx-auto mt-10 flex max-w-7xl flex-col items-center justify-between gap-2 border-t border-dark-100 pt-6 text-[11px] text-dark-400 md:flex-row dark:border-slate-800">
           <span>© 2026 Fi-Plan</span>
           <span>Not investment advice — a simulator, not an advisor.</span>
           <span>Made in India 🇮🇳</span>
