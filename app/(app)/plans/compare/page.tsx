@@ -199,23 +199,22 @@ function ComparablePlanWidget({
           <button
             onClick={SavePlan}
             disabled={is_plan_synced}
-            className={`gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm ${
+            title="Save Plan Changes"
+            className={`flex h-8 w-8 items-center justify-center gap-1.5 rounded-lg transition-colors disabled:opacity-50 md:h-9 md:w-auto md:px-2.5 ${
               is_plan_synced
-                ? "border-dark-100 text-dark-400 bg-dark-50"
-                : "border-primary-500 border-[2px] text-primary-50 bg-primary-500"
-            } flex h-fit w-fit gap-2 rounded-lg px-2 py-1 font-bold`}
+                ? "border border-dark-200 bg-dark-50 text-dark-400 hover:bg-dark-100"
+                : "border-2 border-primary-500 bg-primary-500 text-primary-50 hover:opacity-80"
+            }`}
           >
-            <div className="flex gap-2">
-              <span className={`hidden self-center md:inline ${!is_plan_synced ? "animate-pulse" : ""}`}> Save </span>
-              {plan_sync_inprogress ? (
-                <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <FontAwesomeIcon icon={faCloudArrowUp} className={`self-center font-bold md:text-lg ${!is_plan_synced ? "animate-pulse" : ""}`} />
-              )}
-            </div>
+            <span className={`hidden md:inline ${!is_plan_synced ? "animate-pulse" : ""}`}> Save </span>
+            {plan_sync_inprogress ? (
+              <svg className="h-[16px] w-[16px] animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <FontAwesomeIcon icon={faCloudArrowUp} className={`text-sm font-bold md:text-base ${!is_plan_synced ? "animate-pulse" : ""}`} />
+            )}
           </button>
           <div className="flex w-0 border-l border-dark-200" />
           {children}
@@ -631,7 +630,7 @@ function ComparePageInner() {
   ];
 
   return (
-    <div className="relative flex flex-col gap-10 border-0 pb-52 md:pb-40">
+    <div className="relative flex flex-col gap-4 border-0 pb-52 md:pb-40">
       {bar_hidden && (
         <button
           type="button"
@@ -646,7 +645,7 @@ function ComparePageInner() {
       {/* bottom control panel */}
       {!bar_hidden && (
       <div className="fixed bottom-4 left-0 z-10 mx-auto flex w-full justify-center">
-        <div className="flex w-[80.6vw] rounded-xl border-2 border-b-0 bg-slate-900 px-4 pt-2 shadow-lg md:pr-2 md:pt-0">
+        <div className="flex w-[80.6vw] rounded-xl border-2 border-b-0 bg-slate-900 px-3 pt-1 shadow-lg md:px-4 md:pt-0">
           <div className="flex w-full flex-col">
             <div className="ms:pt-2 flex pt-1">
               <div className="flex w-full gap-5 self-center uppercase text-dark-100">Compare plans</div>
@@ -729,24 +728,24 @@ function ComparePageInner() {
                   </div>
                 </div>
               )}
-              <div className="flex w-fit grow flex-col justify-center gap-2">
-                <div className="flex grow justify-between gap-3 md:justify-center">
+              <div className="flex w-fit grow flex-col justify-center gap-1">
+                <div className="flex grow justify-between gap-2 md:justify-center">
                   <button
-                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-3 text-lg text-dark-600 hover:bg-dark-700 disabled:opacity-20"
+                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-2 text-dark-600 hover:bg-dark-700 disabled:opacity-20"
                     onClick={SetPreviousMonth}
                     disabled={current_hover_month === 1}
                   >
-                    <FontAwesomeIcon icon={faChevronLeft} className="self-center text-lg text-white md:text-xs" />
+                    <FontAwesomeIcon icon={faChevronLeft} className="self-center text-sm text-white md:text-xs" />
                   </button>
-                  <div className="w-[10rem] self-center py-2 text-center text-2xl font-bold text-dark-50">
+                  <div className="min-w-[7rem] self-center px-1 py-1 text-center text-xl font-bold text-dark-50 md:w-[10rem] md:text-2xl">
                     {annotation[0]?.value}
                   </div>
                   <button
-                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-3 text-lg text-dark-600 hover:bg-dark-700 disabled:opacity-20"
+                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-2 text-dark-600 hover:bg-dark-700 disabled:opacity-20"
                     onClick={SetNextMonth}
                     disabled={current_hover_month === duration - 1}
                   >
-                    <FontAwesomeIcon icon={faChevronRight} className="self-center text-lg text-white md:text-xs" />
+                    <FontAwesomeIcon icon={faChevronRight} className="self-center text-sm text-white md:text-xs" />
                   </button>
                 </div>
               </div>
@@ -764,7 +763,7 @@ function ComparePageInner() {
                 onPointerUp={() => setScrubActive(false)}
                 onPointerCancel={() => setScrubActive(false)}
                 onBlur={() => setScrubActive(false)}
-                className="mb-2 w-full accent-success-500 transition-all duration-200"
+                className="mb-1 w-full accent-success-500 transition-all duration-200"
               />
               {scrub_active && aggregated_balance_chart_data.labels.length > 0 && (
                 <div
@@ -781,7 +780,7 @@ function ComparePageInner() {
       )}
 
       {/* plan columns */}
-      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-11">
+      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-2">
         {plan_ids.map((plan_id, index) => (
           <div key={plan_id} className="w-[88vw] snap-start md:w-1/2">
             <ComparablePlanWidget
@@ -790,34 +789,28 @@ function ComparePageInner() {
               current_plan_id={plan_id}
               current_month={current_hover_month}
             >
-              <div className="flex gap-2 rounded-md border">
+              <div className="flex items-center gap-1.5">
                 <button
                   aria-label="Edit plan"
                   onClick={() => OnEdit(plan_id)}
-                  className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 h-fit self-center border-0 px-2 py-1"
+                  className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
                 >
-                  <div className="flex gap-2">
-                    <FontAwesomeIcon icon={faPenToSquare} className="self-center" />
-                  </div>
+                  <FontAwesomeIcon icon={faPenToSquare} className="text-xs" />
                 </button>
                 <button
                   aria-label="View plan"
                   onClick={() => router.push(`/plan?p_id=${plan_id}`)}
-                  className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 ml-1 h-fit self-center border-0 py-1 pr-2"
+                  className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
                 >
-                  <div className="flex gap-2">
-                    <FontAwesomeIcon icon={faExpand} className="self-center" />
-                  </div>
+                  <FontAwesomeIcon icon={faExpand} className="text-xs" />
                 </button>
                 {plans_to_be_compared.length > 1 && (
                   <button
                     aria-label="Remove from comparison"
                     onClick={() => removePlan(plan_id)}
-                    className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-md hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 h-fit self-center border-0 px-2 py-1"
+                    className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faXmark} />
-                    </div>
+                    <FontAwesomeIcon icon={faXmark} className="text-xs" />
                   </button>
                 )}
               </div>
