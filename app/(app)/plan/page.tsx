@@ -1066,6 +1066,36 @@ function PlanPageInner() {
           </Popover>
         </div>
 
+        {/* Current month indicator — answers "which month am I looking at?" at a glance */}
+        <div className="flex items-center justify-center gap-1.5 mb-1 md:justify-start">
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dark-200 bg-white px-2 py-1.5 shadow-xs">
+            <button
+              type="button"
+              className="grid place-content-center rounded-md h-6 w-6 text-dark-500 transition-colors hover:bg-dark-50 hover:text-dark-800 disabled:opacity-30"
+              disabled={current_month === 1}
+              onClick={() => setCurrentMonth((m) => Math.max(1, m - 1))}
+              title="Previous Month"
+            >
+              <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
+            </button>
+            <span className="min-w-[96px] px-1 text-center text-sm font-bold text-dark-800">
+              {GetMonthAndYear(plan, current_month)}
+            </span>
+            <button
+              type="button"
+              className="grid place-content-center rounded-md h-6 w-6 text-dark-500 transition-colors hover:bg-dark-50 hover:text-dark-800 disabled:opacity-30"
+              disabled={current_month === plan_duration}
+              onClick={() => setCurrentMonth((m) => Math.min(plan_duration, m + 1))}
+              title="Next Month"
+            >
+              <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
+            </button>
+          </div>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-dark-400 md:inline">
+            — scrub the timeline or use the chart to travel time
+          </span>
+        </div>
+
         {/* Mobile wealth card */}
         <div className="flex flex-col p-3.5 mt-2 rounded-2xl border border-dark-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs md:hidden">
           <div className="flex flex-col gap-2 pb-2.5 border-b border-dark-100 dark:border-slate-800 mb-2">
