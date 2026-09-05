@@ -74,7 +74,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex gap-5">
         <ErrorBoundary>
           {/* matches original App.vue: <error-boundary class="w-full md:mt-16 md:px-2"> */}
-          <div className="w-full mt-16 md:mt-20 md:px-3 pt-2 md:pt-4">{children}</div>
+          <div className="w-full mt-16 md:mt-20 md:px-3 pt-0 md:pt-0">{children}</div>
         </ErrorBoundary>
       </div>
       {plan_component_state === "open" && <CreatePlan />}

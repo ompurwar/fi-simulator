@@ -186,7 +186,7 @@ function ComparablePlanWidget({
   );
 
   return (
-    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-3 py-4 md:px-5 md:pt-5">
+    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-3 py-0 md:px-5 md:pt-0">
       {/* header row */}
       <div className="flex snap-start flex-wrap items-start gap-x-3 gap-y-2 py-2">
         <div className="flex min-w-0 flex-1 flex-col px-0">
@@ -780,7 +780,7 @@ function ComparePageInner() {
       )}
 
       {/* plan columns */}
-      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-2">
+      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-0">
         {plan_ids.map((plan_id, index) => (
           <div key={plan_id} className="w-[88vw] snap-start md:w-1/2">
             <ComparablePlanWidget
