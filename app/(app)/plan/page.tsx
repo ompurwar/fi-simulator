@@ -1101,7 +1101,7 @@ function PlanPageInner() {
             type="button"
             onClick={() => setSliderHidden(false)}
             title="Show timeline"
-            className="fixed bottom-4 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1.5 rounded-full border border-dark-200 bg-white px-4 py-1.5 text-xs font-bold text-dark-700 shadow-lg transition-all hover:shadow-xl hover:bg-dark-50 md:flex"
+            className="fixed bottom-4 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-dark-900/90 px-4 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md transition-all hover:bg-dark-900 hover:shadow-2xl md:flex"
           >
             <FontAwesomeIcon icon={faChevronUp} className="text-[10px]" />
             Show timeline
@@ -1261,7 +1261,7 @@ function PlanPageInner() {
 
         {/* Month insights — "so what?" chips for the scrubbed month */}
         {insights && (
-          <div className="grid w-full grid-cols-1 gap-2 mb-3 sm:grid-cols-3 sm:items-stretch">
+          <div className="grid w-full grid-cols-1 gap-2 mb-3 md:grid-cols-3 md:items-stretch">
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
