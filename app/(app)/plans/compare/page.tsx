@@ -32,6 +32,7 @@ import {
   faDownLong,
   faFileLines,
   faChevronDown,
+  faChevronUp,
   faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -361,6 +362,16 @@ function ComparePageInner() {
   const [duration, setDuration] = useState(plan_duration);
   const [show_control_panel, setShowControlPanel] = useState(false);
   const [selected_plan_id, setSelectedPlanId] = useState("");
+  const [bar_hidden, setBarHidden] = useState(false);
+  const [scrub_active, setScrubActive] = useState(false);
+
+  useEffect(() => {
+    const v = window.localStorage.getItem("compare-bar-hidden");
+    if (v) setBarHidden(v === "1");
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem("compare-bar-hidden", bar_hidden ? "1" : "0");
+  }, [bar_hidden]);
   const [plan_balance_map, setPlanBalanceMap] = useState<
     Record<string, { title: string; statement: any[]; asset_month_map?: Record<number, any[]> }>
   >({});
@@ -402,17 +413,21 @@ function ComparePageInner() {
     return map;
   }, [plan_balance_map, duration]);
 
-  const randomHexColor = () =>
-    `#${Math.floor(Math.random() * 0xffffff)
-      .toString(16)
-      .padEnd(6, "0")}`;
+  /** Stable per-plan colors (random colors per render made line colors flicker). */
+  const PLAN_COLOR_VARS = ["--color-primary-500", "--color-warning-500", "--color-danger-500", "--color-success-500"];
+  const cssColor = (name: string) =>
+    typeof document !== "undefined"
+      ? getComputedStyle(document.body).getPropertyValue(name).trim() || "#10b981"
+      : "#10b981";
+  const planColor = (index: number) => cssColor(PLAN_COLOR_VARS[index % PLAN_COLOR_VARS.length]);
 
   const aggregated_balance_chart_data = useMemo(() => {
     const labels: string[] = [];
     const datasets: any[] = [];
-    for (const plan_id of Object.keys(aggregated_balance_map)) {
+    const plan_ids_sorted = Object.keys(aggregated_balance_map).sort();
+    plan_ids_sorted.forEach((plan_id, index) => {
       const { title, aggregated_balance } = aggregated_balance_map[plan_id];
-      const color = randomHexColor();
+      const color = planColor(index);
       datasets.push({
         data: aggregated_balance,
         label: title.toLocaleUpperCase(),
@@ -429,9 +444,50 @@ function ComparePageInner() {
           typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue("--color-dark-500") : "",
         pointHoverBorderWidth: 5,
       });
-    }
+    });
     labels.push(...(datasets[0]?.data.map((_: any, index: number) => GetMonthAndYear(most_recent_plan, index + 1)) || []));
     return { labels, datasets };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregated_balance_map]);
+
+  /* Verdict strip — per-plan metrics at the hovered month (Net worth / Runway /
+   * Monthly net). Runway replicates useRunway's trailing-12mo avg expense. */
+  const verdict = useMemo(() => {
+    const entries = Object.entries(aggregated_balance_map).sort(([a], [b]) => a.localeCompare(b));
+    if (entries.length < 2) return null;
+    const m = current_hover_month - 1;
+    return entries.map(([plan_id, e]) => {
+      const statement = plan_balance_map[plan_id]?.statement || [];
+      const net_worth = Number(e.aggregated_balance[m]) || 0;
+      const window = statement.slice(Math.max(0, m - 11), m + 1);
+      const sum = window.reduce((s, r) => s + (r.expense?.total_expense || 0), 0);
+      const avg_expense = window.length ? sum / window.length : 0;
+      const runway = avg_expense > 0 ? net_worth / avg_expense : 0;
+      const monthly_net = Number(statement[m]?.net_cashflow?.total) || 0;
+      return { plan_id, title: e.title, net_worth, runway, monthly_net };
+    });
+  }, [aggregated_balance_map, plan_balance_map, current_hover_month]);
+
+  /* Delta map — Net worth A − B per month (green A leads / rose B leads). */
+  const delta_chart_data = useMemo(() => {
+    const entries = Object.entries(aggregated_balance_map).sort(([a], [b]) => a.localeCompare(b));
+    if (entries.length < 2) return null;
+    const first = entries[0][1].aggregated_balance;
+    const second = entries[1][1].aggregated_balance;
+    const diffs = first.map((v, i) => Number(v) - Number(second[i] || 0));
+    const green = cssColor("--color-success-500") || "#10b981";
+    const rose = cssColor("--color-danger-500") || "#f43f5e";
+    return {
+      label: `${entries[0][1].title} − ${entries[1][1].title}`,
+      datasets: [
+        {
+          data: diffs,
+          label: `${entries[0][1].title} − ${entries[1][1].title}`,
+          backgroundColor: diffs.map((d) => (d >= 0 ? green : rose)),
+          borderColor: "transparent",
+        },
+      ],
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aggregated_balance_map]);
 
@@ -468,7 +524,7 @@ function ComparePageInner() {
       Track(EVENT_TYPES.COMPARE.id, { plan_ids: newIds }, {});
       updateQuery(newIds);
     } else {
-      alert("Plan is already selected!");
+      FireNotification({ title: "Plan already selected!", variant: "warning" });
     }
   }
   function OnEdit(plan_id: string) {
@@ -564,22 +620,73 @@ function ComparePageInner() {
   ];
 
   return (
-    <div className="relative flex flex-col gap-10 border-0">
+    <div className="relative flex flex-col gap-10 border-0 pb-40">
+      {bar_hidden && (
+        <button
+          type="button"
+          onClick={() => setBarHidden(false)}
+          title="Show compare bar"
+          className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-dark-900/90 px-4 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md transition-all hover:bg-dark-900 hover:shadow-2xl flex"
+        >
+          <FontAwesomeIcon icon={faChevronUp} className="text-[10px]" />
+          Show compare bar
+        </button>
+      )}
       {/* bottom control panel */}
+      {!bar_hidden && (
       <div className="fixed bottom-4 left-0 z-10 mx-auto flex w-full justify-center">
         <div className="flex w-[80.6vw] rounded-xl border-2 border-b-0 bg-slate-900 px-4 pt-2 shadow-lg md:pr-2 md:pt-0">
           <div className="flex w-full flex-col">
             <div className="ms:pt-2 flex pt-1">
               <div className="flex w-full gap-5 self-center uppercase text-dark-100">Compare plans</div>
               <div className="flex w-fit justify-end gap-5 self-center pt-1 text-dark-100">
+                <button onClick={() => setBarHidden(true)} title="Hide compare bar (open via month control)">
+                  <FontAwesomeIcon icon={faChevronDown} className="self-center rounded-md bg-dark-200 p-1 px-2 text-lg font-bold text-dark-500" />
+                </button>
                 <button onClick={Exit}>
                   <FontAwesomeIcon icon={faXmark} className="self-center rounded-md bg-dark-200 p-1 px-2 text-lg font-bold text-dark-500" />
                 </button>
               </div>
             </div>
+
+            {verdict ? (
+              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 pb-1 md:justify-start">
+                {[
+                  { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToDisplayableMoney(v) },
+                  { label: "Runway", metrics: verdict.map((r) => r.runway), fmt: (v: number) => (v < 12 ? `${v.toFixed(1)} mth` : `${(v / 12).toFixed(1)} yrs`) },
+                  { label: "Monthly net", metrics: verdict.map((r) => r.monthly_net), fmt: (v: number) => ToDisplayableMoney(v) },
+                ].map((cell) => {
+                  const max = Math.max(...cell.metrics);
+                  const min = Math.min(...cell.metrics);
+                  const winner = max !== min ? cell.metrics.indexOf(max) : -1;
+                  return (
+                    <div key={cell.label} className="flex flex-col items-center gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
+                      <div className="flex items-center gap-3">
+                        {verdict.map((row, i) => (
+                          <span
+                            key={row.plan_id}
+                            className={`flex items-center gap-1 text-xs font-bold ${i === winner ? "" : "opacity-70"}`}
+                            style={{ color: planColor(i) }}
+                          >
+                            {cell.fmt(cell.metrics[i])}
+                            {i === winner && <FontAwesomeIcon icon={faCircleCheck} className="text-[9px]" />}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="pb-1 text-center text-xs font-semibold text-dark-200">
+                Add a second plan to see the winner — Net worth / Runway / Monthly net
+              </div>
+            )}
+
             <div className="flex justify-center gap-3">
               {aggregated_balance_chart_data.labels.length > 0 && aggregated_balance_chart_data.datasets.length > 0 && (
-                <div className="hidden w-full rounded-lg py-0 md:inline">
+                <div className="hidden w-2/3 rounded-lg py-0 md:inline">
                   <div className="h-full" style={{ height: 100 }}>
                     <MyChart
                       labels={aggregated_balance_chart_data.labels}
@@ -590,6 +697,23 @@ function ComparePageInner() {
                       width={400}
                       formatter={ToDisplayableMoney}
                       annotation={annotation}
+                      onClick={(index) => setCurrentHoverMonthInput(Math.min(duration - 1, index + 1))}
+                    />
+                  </div>
+                </div>
+              )}
+              {delta_chart_data && (
+                <div className="hidden w-1/3 rounded-lg py-0 md:inline">
+                  <div className="h-full" style={{ height: 100 }}>
+                    <MyChart
+                      labels={aggregated_balance_chart_data.labels}
+                      dataset={delta_chart_data.datasets}
+                      chart_type="bar"
+                      stacked={false}
+                      height={100}
+                      width={400}
+                      formatter={(v: number) => ToDisplayableMoney(Math.abs(v))}
+                      onClick={(index) => setCurrentHoverMonthInput(Math.min(duration - 1, index + 1))}
                     />
                   </div>
                 </div>
@@ -616,7 +740,7 @@ function ComparePageInner() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="relative flex justify-center gap-3">
               <input
                 type="range"
                 step="1"
@@ -625,12 +749,25 @@ function ComparePageInner() {
                 value={current_hover_month_input}
                 max={duration - 1}
                 onChange={(e) => setCurrentHoverMonthInput(Number(e.target.value))}
+                onPointerDown={() => setScrubActive(true)}
+                onPointerUp={() => setScrubActive(false)}
+                onPointerCancel={() => setScrubActive(false)}
+                onBlur={() => setScrubActive(false)}
                 className="mb-2 w-full accent-success-500 transition-all duration-200"
               />
+              {scrub_active && aggregated_balance_chart_data.labels.length > 0 && (
+                <div
+                  className="pointer-events-none absolute -top-9 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/15 bg-dark-900/95 px-2.5 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md"
+                  style={{ left: `${((current_hover_month_input - 1) / Math.max(1, duration - 2)) * 100}%` }}
+                >
+                  {aggregated_balance_chart_data.labels[current_hover_month_input - 1]}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+      )}
 
       {/* plan columns */}
       <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-11">
@@ -678,9 +815,10 @@ function ComparePageInner() {
         ))}
 
         {plans_to_be_compared.length < MAX_PLAN_LIMIT && (
-          <div className="mt-11 flex flex-col gap-3 px-5 py-16 md:mt-0 md:w-1/2">
-            <div className="flex justify-center text-dark-300">
-              <FontAwesomeIcon icon={faPlus} className="text-9xl" />
+          <div className="mt-11 flex flex-col gap-3 px-5 py-8 md:mt-0 md:w-1/2">
+            <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-dark-200 px-4 py-6 text-center">
+              <FontAwesomeIcon icon={faPlus} className="text-3xl text-dark-300" />
+              <span className="text-xs font-bold text-dark-400">Add plan to compare</span>
             </div>
             <Listbox value={available_plans[0]?._id} onChange={(v: string) => addPlan(v)}>
               <div className="relative w-full self-center">
