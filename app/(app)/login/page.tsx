@@ -28,6 +28,9 @@ function LoginInner() {
   const oauth = searchParams.get("oauth");
   const modeParam = searchParams.get("mode");
   const google_error = searchParams.get("google_error");
+  const next = searchParams.get("next") || "";
+  /** Internal-only deep link (blocks open-redirects like //evil.com). */
+  const safe_next = next.startsWith("/") && !next.startsWith("//") ? next : "";
 
   const [mode, setMode] = useState<"login" | "signup">(
     modeParam === "signup" ? "signup" : "login"
@@ -145,6 +148,11 @@ function LoginInner() {
               window.location.href = location;
               return;
             }
+          }
+
+          if (safe_next) {
+            router.push(safe_next);
+            return;
           }
 
           if (!sid) {

@@ -57,7 +57,10 @@ export function makePlanTools(container: Container): ToolDefinition[] {
         if (missing) return missing;
         const plan = await plan_list.FindById(args.plan_id);
         if (!plan) return fail("NOT_FOUND", `plan not found: ${args.plan_id}`);
-        return ok(planToPlain(plan));
+        const plain = planToPlain(plan);
+        // Agent → web continuation: agents finish, users continue in the app.
+        plain.open_in_app = `/plan?p_id=${args.plan_id}`;
+        return ok(plain);
       },
     },
     {
@@ -75,7 +78,7 @@ export function makePlanTools(container: Container): ToolDefinition[] {
       async handler(ctx, args) {
         const missing = requireFields(args, ["title"]);
         if (missing) return missing;
-        return callUseCase(() =>
+        const res = await callUseCase(() =>
           app.AddPlan({
             user_id: ctx.user_id,
             title: args.title,
@@ -85,6 +88,12 @@ export function makePlanTools(container: Container): ToolDefinition[] {
             runway: args.runway,
           })
         );
+        // Agent → web continuation: tell the agent (and the human) where to open the plan.
+        if (res.ok) {
+          const created = res.data as any;
+          if (created?._id) created.open_in_app = `/plan?p_id=${created._id}`;
+        }
+        return res;
       },
     },
     {
