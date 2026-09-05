@@ -17,7 +17,8 @@ import {
   faWandMagicSparkles,
   faCircleCheck,
   faClipboardList,
-  faBolt,
+  faCirclePlus,
+  faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 
 const FEATURES = [
@@ -87,23 +88,24 @@ export default function LandingPage() {
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
         <section className="flex flex-col items-center gap-6 text-center">
-          <div className="flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
+          <div className="flex items-center gap-2">
             <EncryptionPill />
-            <span>Read-only integrations · your keys, your data</span>
+            <span className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700 dark:border-primary-800 dark:bg-primary-950/60 dark:text-primary-300">
+              Read-only sync
+            </span>
           </div>
           <h1 className="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-dark-800 md:text-6xl">
             Plan your financial future
             <br className="hidden md:block" />
-            <span className="text-primary-600"> like a time machine</span>
+            <span className="text-primary-600 dark:text-primary-400"> like a time machine</span>
           </h1>
           <p className="max-w-2xl text-balance text-base text-dark-400 md:text-lg">
-            Trackers tell you what happened. Fi-Plan shows you what is possible — income, expenses,
-            EMIs, SIPs, taxes and assets simulated for decades, with honest gaps surfaced early.
+            Simulate your entire financial life, decades ahead — and spot the gaps before they happen.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link href="/login?mode=signup">
               <Button variant="primary" className="rounded-xl px-6 py-3 text-base">
-                <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-2" />
+                <FontAwesomeIcon icon={faCirclePlus} className="mr-2" />
                 Create your free plan
               </Button>
             </Link>
@@ -114,17 +116,28 @@ export default function LandingPage() {
               </Button>
             </a>
           </div>
+          <div className="hidden animate-bounce text-dark-300 md:block" aria-hidden>
+            <FontAwesomeIcon icon={faChevronDown} />
+          </div>
         </section>
 
-        <section className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-xs font-bold text-dark-400">
-          {["600-month engine", "₹ Lakh → Crore units", "AES-256 + Google KMS", "26 MCP tools", "Read-only sync"].map((chip) => (
-            <span
-              key={chip}
-              className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900"
-            >
-              {chip}
+        <section className="flex flex-col items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-dark-400">
+            <span className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900">
+              Encrypted at rest — AES-256 + Google KMS
             </span>
-          ))}
+            <span className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900">
+              Read-only sync — no broker passwords
+            </span>
+            <span className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900">
+              ₹ Lakh → Crore units
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-semibold text-dark-300">
+            <span>600-month engine</span>
+            <span aria-hidden>·</span>
+            <span>Works with your AI assistant</span>
+          </div>
         </section>
 
         <section className="grid gap-6 md:grid-cols-3">
