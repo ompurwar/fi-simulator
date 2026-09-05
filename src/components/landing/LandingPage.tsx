@@ -16,6 +16,8 @@ import {
   faClockRotateLeft,
   faWandMagicSparkles,
   faCircleCheck,
+  faClipboardList,
+  faBolt,
 } from "@fortawesome/free-solid-svg-icons";
 
 const FEATURES = [
@@ -34,6 +36,12 @@ const FEATURES = [
     title: "Compare & what-if",
     desc: "Ask the engine instead of guessing: what if I raise my SIP by 10%? Should I prepay the loan or invest? Compare plans side by side on the same timeline.",
   },
+];
+
+const STEPS = [
+  { icon: faClipboardList, title: "Set your numbers", desc: "Income, expenses, EMIs, SIPs, assets — minutes, not spreadsheets." },
+  { icon: faChartLine, title: "Watch 50 years simulate", desc: "Net worth, runway, gaps — every single month, scrubbable like a timeline." },
+  { icon: faWandMagicSparkles, title: "What-if & compare", desc: "Test the raise, the loan prepay, the sabbatical — then pick the better plan." },
 ];
 
 const INDIA_LINES = [
@@ -81,12 +89,14 @@ export default function LandingPage() {
         <section className="flex flex-col items-center gap-6 text-center">
           <div className="flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
             <EncryptionPill />
-            <span>Encrypted at rest · read-only integrations</span>
+            <span>Read-only integrations · your keys, your data</span>
           </div>
-          <h1 className="max-w-3xl text-4xl font-extrabold leading-tight text-dark-800 md:text-6xl">
-            Plan your financial future like a <span className="text-primary-600">time machine</span>
+          <h1 className="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-dark-800 md:text-6xl">
+            Plan your financial future
+            <br className="hidden md:block" />
+            <span className="text-primary-600"> like a time machine</span>
           </h1>
-          <p className="max-w-2xl text-base text-dark-400 md:text-lg">
+          <p className="max-w-2xl text-balance text-base text-dark-400 md:text-lg">
             Trackers tell you what happened. Fi-Plan shows you what is possible — income, expenses,
             EMIs, SIPs, taxes and assets simulated for decades, with honest gaps surfaced early.
           </p>
@@ -106,17 +116,43 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-xs font-bold text-dark-400">
+          {["600-month engine", "₹ Lakh → Crore units", "AES-256 + Google KMS", "26 MCP tools", "Read-only sync"].map((chip) => (
+            <span
+              key={chip}
+              className="rounded-full border border-dark-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900"
+            >
+              {chip}
+            </span>
+          ))}
+        </section>
+
         <section className="grid gap-6 md:grid-cols-3">
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="flex flex-col gap-3 rounded-2xl border border-dark-200 bg-white p-6 shadow-xs"
+              className="flex flex-col gap-3 rounded-2xl border border-dark-200 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-xl text-primary-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-xl text-primary-600 dark:bg-primary-950/60 dark:text-primary-400">
                 <FontAwesomeIcon icon={f.icon} />
               </div>
-              <h3 className="text-lg font-bold text-dark-800">{f.title}</h3>
+              <h3 className="text-lg font-bold text-dark-800 dark:text-white">{f.title}</h3>
               <p className="text-sm leading-relaxed text-dark-400">{f.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-6 rounded-3xl border border-dark-200 bg-white p-8 shadow-xs md:grid-cols-3 md:p-10 dark:border-slate-800 dark:bg-slate-900">
+          {STEPS.map((s, i) => (
+            <div key={s.title} className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <span className="grid h-8 w-8 place-content-center rounded-full bg-primary-600 text-sm font-extrabold text-white">
+                  {i + 1}
+                </span>
+                <FontAwesomeIcon icon={s.icon} className="text-xl text-primary-600 dark:text-primary-400" />
+              </div>
+              <h3 className="text-base font-bold text-dark-800 dark:text-white">{s.title}</h3>
+              <p className="text-sm leading-relaxed text-dark-400">{s.desc}</p>
             </div>
           ))}
         </section>
