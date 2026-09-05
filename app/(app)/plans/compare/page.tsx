@@ -650,7 +650,7 @@ function ComparePageInner() {
             </div>
 
             {verdict ? (
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-1 px-1 sm:gap-x-8 md:justify-start">
+              <div className="grid w-full grid-cols-1 gap-2 pb-2 sm:grid-cols-3">
                 {[
                   { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToDisplayableMoney(v) },
                   { label: "Runway", metrics: verdict.map((r) => r.runway), fmt: (v: number) => (v < 12 ? `${v.toFixed(1)} mth` : `${(v / 12).toFixed(1)} yrs`) },
@@ -660,13 +660,13 @@ function ComparePageInner() {
                   const min = Math.min(...cell.metrics);
                   const winner = max !== min ? cell.metrics.indexOf(max) : -1;
                   return (
-                    <div key={cell.label} className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
-                      <div className="flex items-center gap-3">
+                    <div key={cell.label} className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-slate-700/50 px-2.5 py-1.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
                         {verdict.map((row, i) => (
                           <span
                             key={row.plan_id}
-                            className={`flex items-center gap-1 text-xs font-bold ${i === winner ? "" : "opacity-70"}`}
+                            className={`flex items-center gap-1 whitespace-nowrap text-xs font-bold ${i === winner ? "" : "opacity-70"}`}
                             style={{ color: planColor(i) }}
                           >
                             {cell.fmt(cell.metrics[i])}
