@@ -63,6 +63,9 @@ function GetMonthAndYear(plan: any, month: number) {
   return `${months[d.getMonth()]}-${d.getFullYear()}`;
 }
 
+/** ₹ corpus milestones celebrated by the Net Worth card (1Cr → 1Ki). */
+const WEALTH_MILESTONES = [1e7, 5e7, 1e8, 5e8, 1e9, 5e9, 1e11, 5e11, 1e13];
+
 function MonthlyIncomeExpense({ cashflow, category, previous }: { cashflow: any; category: "income" | "expense"; previous?: number }) {
   const is_income = category === "income";
   const total = is_income ? cashflow?.total_income : cashflow?.total_expense;
@@ -547,7 +550,15 @@ function PlanPageInner() {
     const unfunded_next = (engine.unfunded_expenses || []).find(
       (u: any) => Number(u.month) > current_month
     ) as { month: number; amount: number } | undefined;
-    return { start_wealth, wealth_delta, wealth_pct, best, tough, unfunded_next };
+    /* milestone crossed between the previous month and the scrubbed month */
+    let milestone = 0;
+    const prev_wealth = current_month > 1 ? wealth_by_month[current_month - 2] : null;
+    if (prev_wealth != null && now_wealth > prev_wealth) {
+      for (const m of WEALTH_MILESTONES) {
+        if (prev_wealth < m && m <= now_wealth) milestone = Math.max(milestone, m);
+      }
+    }
+    return { start_wealth, wealth_delta, wealth_pct, best, tough, unfunded_next, milestone };
   }, [income_expense_and_net_cashflow, engine.asset_month_map, engine.unfunded_expenses, current_month]);
 
   /* ±12-month window of the transactions sidebar, tagged with a year header. */
@@ -1225,35 +1236,57 @@ function PlanPageInner() {
             )}
 
             {insights.tough || insights.unfunded_next ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentMonth(Math.min(plan_duration, insights.unfunded_next?.month ?? insights.tough!.month))
-                }
-                title="Jump to this month"
-                className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2 shadow-xs transition-all hover:shadow-md text-left"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
-                  <FontAwesomeIcon icon={faTriangleExclamation} className="text-[11px]" />
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
-                  <span className="text-xs font-bold text-rose-700">
-                    {insights.unfunded_next
-                      ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · unfunded ₹${Number(insights.unfunded_next.amount).toLocaleString("en-IN")}`
-                      : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses exceed income`}
+              <div className="flex items-stretch gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-1.5 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentMonth(Math.min(plan_duration, insights.unfunded_next?.month ?? insights.tough!.month))
+                  }
+                  title="Jump to this month"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-white/70 text-left"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="text-[11px]" />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-500">Next funding gap</span>
+                    <span className="text-xs font-bold text-rose-700">
+                      {insights.unfunded_next
+                        ? `${GetMonthAndYear(plan, insights.unfunded_next.month)} · unfunded ₹${Number(insights.unfunded_next.amount).toLocaleString("en-IN")}`
+                        : `${GetMonthAndYear(plan, insights.tough!.month)} · expenses exceed income`}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWhatifOpen(true)}
+                  title="Simulate fixes without saving"
+                  className="grid place-content-center self-center rounded-lg border border-rose-200 bg-white px-2 py-1 text-[10px] font-bold text-rose-600 hover:bg-rose-100 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-1 text-[9px]" />
+                  What-if
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-stretch gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-1.5 shadow-xs">
+                <div className="flex items-center gap-2 rounded-lg px-2 py-1">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <FontAwesomeIcon icon={faCircleCheck} className="text-[11px]" />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-500">No gaps ahead</span>
+                    <span className="text-xs font-bold text-emerald-700">Full runway covered</span>
                   </span>
                 </div>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 shadow-xs">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                  <FontAwesomeIcon icon={faCircleCheck} className="text-[11px]" />
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-500">No gaps ahead</span>
-                  <span className="text-xs font-bold text-emerald-700">Full runway covered</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setWhatifOpen(true)}
+                  title="Simulate a bump in income, SIPs or expenses without saving"
+                  className="grid place-content-center self-center rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} className="mr-1 text-[9px]" />
+                  Boost
+                </button>
               </div>
             )}
           </div>
@@ -1366,6 +1399,13 @@ function PlanPageInner() {
                     amount={aggregated_balance_for_month}
                   />
                 </div>
+                {insights && insights.milestone > 0 && (
+                  <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 animate-[pulse_1.2s_ease-in-out_2]">
+                    <FontAwesomeIcon icon={faMedal} className="text-[10px]" />
+                    Milestone crossed
+                    <DisplayAmount notation="compact" amount={insights.milestone} />
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
