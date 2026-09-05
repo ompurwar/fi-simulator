@@ -66,12 +66,22 @@ describe("Google OAuth callback flow", () => {
     expect(user.IsValidPassword!("google-id-rt-7")).toBe(true);
   });
 
-  it("refuses to hijack an existing password-based account", async () => {
+  it("logs in an existing password-based account instead of refusing", async () => {
     const email = `std-${Date.now()}@test.com`;
-    await signupUser(t.app, { email });
+    const { session_id: legacy_session } = await signupUser(t.app, { email });
 
     t.container.googleOAuth = fakeGoogleOAuth({ id: "google-id-456", email });
     const outcome = await CompleteGoogleOAuth(t.container, "code-3");
-    expect(outcome.kind).toBe("email_taken");
+    expect(outcome.kind).toBe("login");
+    if (outcome.kind !== "login") throw new Error("expected login");
+
+    // a fresh session was issued for the same user (not the legacy one)
+    expect(outcome.session_id).toBeTruthy();
+    expect(outcome.session_id).not.toBe(legacy_session);
+    expect(outcome.tokens.access_token).toContain("eyJ");
+
+    // the same user profile is behind the new session
+    const [user] = await t.container.user_list.FindByEmail(email);
+    expect(user._id).toBeTruthy();
   });
 });
