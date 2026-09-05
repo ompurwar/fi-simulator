@@ -876,20 +876,20 @@ function ComparePageInner() {
 
       {/* edit modal */}
       <div className="flex w-full">
-        <ModalUi show={show_control_panel} onClose={Close} custom_class="w-fit bg-dark-50 rounded-xl p-2" title="Edit">
-          <div className="my-3 grid h-fit w-fit grid-cols-2 gap-3">
+        <ModalUi show={show_control_panel} onClose={Close} custom_class="w-[90vw] max-w-md bg-dark-50 rounded-xl p-2" title="Edit">
+          <div className="my-3 grid w-full grid-cols-2 gap-2.5 md:gap-3">
             {editTiles.map((tile) => (
               <div
                 key={tile.label}
-                className={`flex h-fit snap-start cursor-pointer gap-3 rounded-lg border bg-dark-50 bg-opacity-25 p-2 px-2 ${tile.hoverCls}`}
+                className={`flex min-w-0 h-fit snap-start cursor-pointer gap-2.5 rounded-lg border bg-dark-50 bg-opacity-25 p-2 px-2 ${tile.hoverCls}`}
                 onClick={() => HandleEdit(tile.entity_type, tile.sub_entity_type)}
               >
-                <div className={`relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md p-2 ${tile.boxCls}`}>
+                <div className={`relative grid h-[3rem] w-[3.6rem] shrink-0 place-content-center self-center rounded-md p-2 ${tile.boxCls}`}>
                   <FontAwesomeIcon icon={tile.icon} className={tile.iconCls} />
                 </div>
-                <div className="w-full self-center">
+                <div className="w-full min-w-0 self-center">
                   <div className="flex grow justify-between text-dark-300">
-                    <div className="w-[5rem] text-sm font-medium leading-tight">{tile.label}</div>
+                    <div className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{tile.label}</div>
                     <FontAwesomeIcon icon={faChevronRight} className="self-center px-1" />
                   </div>
                 </div>
