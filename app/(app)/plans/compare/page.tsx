@@ -186,7 +186,7 @@ function ComparablePlanWidget({
   );
 
   return (
-    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-5 pt-5">
+    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-3 py-4 md:px-5 md:pt-5">
       {/* header row */}
       <div className="flex snap-start flex-wrap items-start gap-x-3 gap-y-2 py-2">
         <div className="flex min-w-0 flex-1 flex-col px-0">
@@ -222,7 +222,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* chart — matches ComparablePlanWidget.vue: border-b-2 wrapper + h-full div + 200px canvas */}
-      <div className="mb-3 flex flex-col gap-12 rounded-xl px-0">
+      <div className="mb-3 flex flex-col gap-3 rounded-xl px-0">
         <div className="flex flex-col gap-6 place-content-end">
           <div className="flex w-full flex-col">
             <div className="w-full px-2 border-b-2">
@@ -244,7 +244,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* net worth / runway */}
-      <div className="mb-3 flex justify-between gap-12 rounded-xl px-0">
+      <div className="mb-3 flex justify-between gap-4 rounded-xl px-0">
         <div className="flex flex-col">
           <div className="text-dark-200">Net worth</div>
           <DisplayAmount className="text-3xl font-bold text-primary-500" notation="compact" amount={net_worth + current_assets_now} />
@@ -269,7 +269,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* account balances */}
-      <div className="flex flex-col justify-between gap-12 rounded-xl px-0">
+      <div className="flex flex-col justify-between gap-3 rounded-xl px-0">
         <div className="flex flex-col divide-y-2 overflow-hidden rounded-xl border border-dark-100 shadow-sm border-collapse">
           {account_balances.map((account: any, index: number) => (
             <div className="flex" key={index}>
@@ -286,7 +286,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* income / expense / net cashflow */}
-      <div className="mb-3 flex flex-col justify-between gap-12 rounded-xl px-0">
+      <div className="mb-3 flex flex-col justify-between gap-3 rounded-xl px-0">
         <div className="flex flex-col divide-y-2 overflow-hidden rounded-xl border border-dark-100 shadow-sm border-collapse">
           <div className="flex">
             <div className="w-[10rem] border-r bg-slate-100 p-3 md:w-[15rem]">Income</div>
@@ -310,7 +310,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* monthly statement */}
-      <div className="mb-56 flex px-0">
+      <div className="mb-44 flex px-0">
         <div className="w-full">
           <details className="w-full">
             <summary className="flex w-full cursor-pointer list-none justify-between rounded-lg bg-dark-100 px-4 py-4 text-left text-sm font-semibold text-dark-500 shadow-sm hover:bg-dark-200 md:py-2">
