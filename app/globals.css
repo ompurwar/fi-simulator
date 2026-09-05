@@ -177,3 +177,18 @@
   background-color: var(--color-dark-100);
   border-radius: 9999px;
 }
+
+/* Landing page motion (additive, prefers-reduced-motion safe) */
+@keyframes draw-line {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*='animation'] {
+    animation: none !important;
+  }
+}

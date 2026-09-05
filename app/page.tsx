@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import LandingPage from "@/components/landing/LandingPage";
 
 export const metadata: Metadata = {
-  title: "Fi-Plan — plan your financial future like a time machine",
+  title: "Fi-Plan — Retirement & FIRE Planning Simulator for India",
   description:
-    "Simulate income, expenses, EMIs, SIPs, taxes and assets for decades. Fi-Plan is the independent, encrypted-first financial planning simulator built for India — salary earners, FIRE planners and NRIs alike.",
+    "Simulate income, expenses, EMIs, SIPs, taxes and assets for 50 years, month by month. Fi-Plan is the independent, encrypted-first retirement & FIRE planning simulator built for India — salary earners, FIRE planners and NRIs alike.",
   keywords: [
-    "financial planning india",
-    "financial independence",
-    "FIRE calculator india",
+    "retirement planning india",
+    "fire calculator india",
+    "financial independence india",
+    "financial planning app",
+    "sip planning",
     "net worth tracker",
-    "retirement planner",
-    "SIP planning",
-    "NRI financial planning",
+    "nri financial planning",
   ],
 };
 
