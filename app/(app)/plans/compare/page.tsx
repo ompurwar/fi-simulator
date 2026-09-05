@@ -7,6 +7,8 @@ import { useFiPlanStore } from "@/store";
 import { usePlanEngine } from "@/hooks/usePlanEngine";
 import { useRunway } from "@/hooks/useRunway";
 import { BuildWealthChartData } from "@/lib/wealthChart";
+import { FormatCompactMoney } from "@/lib/money";
+import { GetCurrencySymbol } from "@/lib/country";
 import { Button, DisplayAmount } from "@/components/ui/Button";
 import { MyChart } from "@/components/ui/MyChart";
 import { ModalUi } from "@/components/ui/ModalUi";
@@ -32,6 +34,7 @@ import {
   faDownLong,
   faFileLines,
   faChevronDown,
+  faChevronUp,
   faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -183,36 +186,35 @@ function ComparablePlanWidget({
   );
 
   return (
-    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-5 pt-5">
+    <div className="flex w-full flex-col gap-4 border-0 bg-transparent px-3 py-0 md:px-5 md:pt-0">
       {/* header row */}
-      <div className="flex snap-start gap-4 overflow-x-scroll- py-2">
-        <div className="flex flex-col px-0">
-          <div className="w-[11rem] truncate text-xl font-bold text-dark-300 md:w-[17rem] md:text-2xl">
+      <div className="flex snap-start flex-wrap items-start gap-x-3 gap-y-2 py-2">
+        <div className="flex min-w-0 flex-1 flex-col px-0">
+          <div className="max-w-full truncate text-xl font-bold text-dark-300 md:w-[17rem] md:text-2xl">
             {plan?.title}
           </div>
-          <div className="h-[1rem] w-[11rem] truncate text-xs text-dark-200 md:w-[12rem]">{plan?.description}</div>
+          <div className="max-w-full truncate text-xs text-dark-200 md:w-[12rem]">{plan?.description}</div>
         </div>
-        <div className="ml-auto flex h-fit snap-start justify-between gap-2 md:pl-3">
+        <div className="ml-auto flex h-fit shrink-0 snap-start flex-wrap items-center justify-end gap-1.5 md:pl-3">
           <button
             onClick={SavePlan}
             disabled={is_plan_synced}
-            className={`gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm ${
+            title="Save Plan Changes"
+            className={`flex h-8 w-8 items-center justify-center gap-1.5 rounded-lg transition-colors disabled:opacity-50 md:h-9 md:w-auto md:px-2.5 ${
               is_plan_synced
-                ? "border-dark-100 text-dark-400 bg-dark-50"
-                : "border-primary-500 border-[2px] text-primary-50 bg-primary-500"
-            } flex h-fit w-full gap-2 rounded-lg px-2 py-1 font-bold`}
+                ? "border border-dark-200 bg-dark-50 text-dark-400 hover:bg-dark-100"
+                : "border-2 border-primary-500 bg-primary-500 text-primary-50 hover:opacity-80"
+            }`}
           >
-            <div className="flex gap-2">
-              <span className={`hidden self-center md:inline ${!is_plan_synced ? "animate-pulse" : ""}`}> Save </span>
-              {plan_sync_inprogress ? (
-                <svg className="-ml-1 h-[20px] w-[20px] animate-spin self-center" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <FontAwesomeIcon icon={faCloudArrowUp} className={`self-center font-bold md:text-lg ${!is_plan_synced ? "animate-pulse" : ""}`} />
-              )}
-            </div>
+            <span className={`hidden md:inline ${!is_plan_synced ? "animate-pulse" : ""}`}> Save </span>
+            {plan_sync_inprogress ? (
+              <svg className="h-[16px] w-[16px] animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <FontAwesomeIcon icon={faCloudArrowUp} className={`text-sm font-bold md:text-base ${!is_plan_synced ? "animate-pulse" : ""}`} />
+            )}
           </button>
           <div className="flex w-0 border-l border-dark-200" />
           {children}
@@ -220,7 +222,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* chart — matches ComparablePlanWidget.vue: border-b-2 wrapper + h-full div + 200px canvas */}
-      <div className="mb-3 flex flex-col gap-12 rounded-xl px-0">
+      <div className="mb-3 flex flex-col gap-3 rounded-xl px-0">
         <div className="flex flex-col gap-6 place-content-end">
           <div className="flex w-full flex-col">
             <div className="w-full px-2 border-b-2">
@@ -242,7 +244,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* net worth / runway */}
-      <div className="mb-3 flex justify-between gap-12 rounded-xl px-0">
+      <div className="mb-3 flex justify-between gap-4 rounded-xl px-0">
         <div className="flex flex-col">
           <div className="text-dark-200">Net worth</div>
           <DisplayAmount className="text-3xl font-bold text-primary-500" notation="compact" amount={net_worth + current_assets_now} />
@@ -267,7 +269,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* account balances */}
-      <div className="flex flex-col justify-between gap-12 rounded-xl px-0">
+      <div className="flex flex-col justify-between gap-3 rounded-xl px-0">
         <div className="flex flex-col divide-y-2 overflow-hidden rounded-xl border border-dark-100 shadow-sm border-collapse">
           {account_balances.map((account: any, index: number) => (
             <div className="flex" key={index}>
@@ -284,7 +286,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* income / expense / net cashflow */}
-      <div className="mb-3 flex flex-col justify-between gap-12 rounded-xl px-0">
+      <div className="mb-3 flex flex-col justify-between gap-3 rounded-xl px-0">
         <div className="flex flex-col divide-y-2 overflow-hidden rounded-xl border border-dark-100 shadow-sm border-collapse">
           <div className="flex">
             <div className="w-[10rem] border-r bg-slate-100 p-3 md:w-[15rem]">Income</div>
@@ -308,7 +310,7 @@ function ComparablePlanWidget({
       </div>
 
       {/* monthly statement */}
-      <div className="mb-56 flex px-0">
+      <div className="mb-44 flex px-0">
         <div className="w-full">
           <details className="w-full">
             <summary className="flex w-full cursor-pointer list-none justify-between rounded-lg bg-dark-100 px-4 py-4 text-left text-sm font-semibold text-dark-500 shadow-sm hover:bg-dark-200 md:py-2">
@@ -361,6 +363,16 @@ function ComparePageInner() {
   const [duration, setDuration] = useState(plan_duration);
   const [show_control_panel, setShowControlPanel] = useState(false);
   const [selected_plan_id, setSelectedPlanId] = useState("");
+  const [bar_hidden, setBarHidden] = useState(false);
+  const [scrub_active, setScrubActive] = useState(false);
+
+  useEffect(() => {
+    const v = window.localStorage.getItem("compare-bar-hidden");
+    if (v) setBarHidden(v === "1");
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem("compare-bar-hidden", bar_hidden ? "1" : "0");
+  }, [bar_hidden]);
   const [plan_balance_map, setPlanBalanceMap] = useState<
     Record<string, { title: string; statement: any[]; asset_month_map?: Record<number, any[]> }>
   >({});
@@ -402,17 +414,21 @@ function ComparePageInner() {
     return map;
   }, [plan_balance_map, duration]);
 
-  const randomHexColor = () =>
-    `#${Math.floor(Math.random() * 0xffffff)
-      .toString(16)
-      .padEnd(6, "0")}`;
+  /** Stable per-plan colors (random colors per render made line colors flicker). */
+  const PLAN_COLOR_VARS = ["--color-primary-500", "--color-warning-500", "--color-danger-500", "--color-success-500"];
+  const cssColor = (name: string) =>
+    typeof document !== "undefined"
+      ? getComputedStyle(document.body).getPropertyValue(name).trim() || "#10b981"
+      : "#10b981";
+  const planColor = (index: number) => cssColor(PLAN_COLOR_VARS[index % PLAN_COLOR_VARS.length]);
 
   const aggregated_balance_chart_data = useMemo(() => {
     const labels: string[] = [];
     const datasets: any[] = [];
-    for (const plan_id of Object.keys(aggregated_balance_map)) {
+    const plan_ids_sorted = Object.keys(aggregated_balance_map).sort();
+    plan_ids_sorted.forEach((plan_id, index) => {
       const { title, aggregated_balance } = aggregated_balance_map[plan_id];
-      const color = randomHexColor();
+      const color = planColor(index);
       datasets.push({
         data: aggregated_balance,
         label: title.toLocaleUpperCase(),
@@ -429,9 +445,50 @@ function ComparePageInner() {
           typeof document !== "undefined" ? getComputedStyle(document.body).getPropertyValue("--color-dark-500") : "",
         pointHoverBorderWidth: 5,
       });
-    }
+    });
     labels.push(...(datasets[0]?.data.map((_: any, index: number) => GetMonthAndYear(most_recent_plan, index + 1)) || []));
     return { labels, datasets };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregated_balance_map]);
+
+  /* Verdict strip — per-plan metrics at the hovered month (Net worth / Runway /
+   * Monthly net). Runway replicates useRunway's trailing-12mo avg expense. */
+  const verdict = useMemo(() => {
+    const entries = Object.entries(aggregated_balance_map).sort(([a], [b]) => a.localeCompare(b));
+    if (entries.length < 2) return null;
+    const m = current_hover_month - 1;
+    return entries.map(([plan_id, e]) => {
+      const statement = plan_balance_map[plan_id]?.statement || [];
+      const net_worth = Number(e.aggregated_balance[m]) || 0;
+      const window = statement.slice(Math.max(0, m - 11), m + 1);
+      const sum = window.reduce((s, r) => s + (r.expense?.total_expense || 0), 0);
+      const avg_expense = window.length ? sum / window.length : 0;
+      const runway = avg_expense > 0 ? net_worth / avg_expense : 0;
+      const monthly_net = Number(statement[m]?.net_cashflow?.total) || 0;
+      return { plan_id, title: e.title, net_worth, runway, monthly_net };
+    });
+  }, [aggregated_balance_map, plan_balance_map, current_hover_month]);
+
+  /* Delta map — Net worth A − B per month (green A leads / rose B leads). */
+  const delta_chart_data = useMemo(() => {
+    const entries = Object.entries(aggregated_balance_map).sort(([a], [b]) => a.localeCompare(b));
+    if (entries.length < 2) return null;
+    const first = entries[0][1].aggregated_balance;
+    const second = entries[1][1].aggregated_balance;
+    const diffs = first.map((v, i) => Number(v) - Number(second[i] || 0));
+    const green = cssColor("--color-success-500") || "#10b981";
+    const rose = cssColor("--color-danger-500") || "#f43f5e";
+    return {
+      label: `${entries[0][1].title} − ${entries[1][1].title}`,
+      datasets: [
+        {
+          data: diffs,
+          label: `${entries[0][1].title} − ${entries[1][1].title}`,
+          backgroundColor: diffs.map((d) => (d >= 0 ? green : rose)),
+          borderColor: "transparent",
+        },
+      ],
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aggregated_balance_map]);
 
@@ -454,6 +511,15 @@ function ComparePageInner() {
       currency: useFiPlanStore.getState().currency || "INR",
       maximumSignificantDigits: 2,
     }).format(value);
+  /* Indian-unit money (₹K/L/Cr/Ar) for the verdict strip — Intl compact follows
+   * the device locale (en-US → "M"), which reads wrong for INR figures. */
+  const ToVerdictMoney = (value: number) =>
+    FormatCompactMoney(
+      Number(value),
+      useFiPlanStore.getState().currency || "INR",
+      GetCurrencySymbol(useFiPlanStore.getState().currency || "INR"),
+      money_local
+    );
 
   function updateQuery(ids: string[]) {
     router.push(`/plans/compare?p_ids=${ids.join(",")}`);
@@ -468,7 +534,7 @@ function ComparePageInner() {
       Track(EVENT_TYPES.COMPARE.id, { plan_ids: newIds }, {});
       updateQuery(newIds);
     } else {
-      alert("Plan is already selected!");
+      FireNotification({ title: "Plan already selected!", variant: "warning" });
     }
   }
   function OnEdit(plan_id: string) {
@@ -564,22 +630,73 @@ function ComparePageInner() {
   ];
 
   return (
-    <div className="relative flex flex-col gap-10 border-0">
+    <div className="relative flex flex-col gap-4 border-0 pb-52 md:pb-40">
+      {bar_hidden && (
+        <button
+          type="button"
+          onClick={() => setBarHidden(false)}
+          title="Show compare bar"
+          className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-dark-900/90 px-4 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md transition-all hover:bg-dark-900 hover:shadow-2xl flex"
+        >
+          <FontAwesomeIcon icon={faChevronUp} className="text-[10px]" />
+          Show compare bar
+        </button>
+      )}
       {/* bottom control panel */}
+      {!bar_hidden && (
       <div className="fixed bottom-4 left-0 z-10 mx-auto flex w-full justify-center">
-        <div className="flex w-[80.6vw] rounded-xl border-2 border-b-0 bg-slate-900 px-4 pt-2 shadow-lg md:pr-2 md:pt-0">
+        <div className="flex w-[80.6vw] rounded-xl border-2 border-b-0 bg-slate-900 px-3 pt-1 shadow-lg md:px-4 md:pt-0">
           <div className="flex w-full flex-col">
             <div className="ms:pt-2 flex pt-1">
               <div className="flex w-full gap-5 self-center uppercase text-dark-100">Compare plans</div>
               <div className="flex w-fit justify-end gap-5 self-center pt-1 text-dark-100">
+                <button onClick={() => setBarHidden(true)} title="Hide compare bar (open via month control)">
+                  <FontAwesomeIcon icon={faChevronDown} className="self-center rounded-md bg-dark-200 p-1 px-2 text-lg font-bold text-dark-500" />
+                </button>
                 <button onClick={Exit}>
                   <FontAwesomeIcon icon={faXmark} className="self-center rounded-md bg-dark-200 p-1 px-2 text-lg font-bold text-dark-500" />
                 </button>
               </div>
             </div>
+
+            {verdict ? (
+              <div className="flex flex-wrap items-start gap-x-6 gap-y-1 pb-2">
+                {[
+                  { label: "Net worth", metrics: verdict.map((r) => r.net_worth), fmt: (v: number) => ToVerdictMoney(v) },
+                  { label: "Runway", metrics: verdict.map((r) => r.runway), fmt: (v: number) => (v < 12 ? `${v.toFixed(1)} mth` : `${(v / 12).toFixed(1)} yrs`) },
+                  { label: "Monthly net", metrics: verdict.map((r) => r.monthly_net), fmt: (v: number) => ToVerdictMoney(v) },
+                ].map((cell) => {
+                  const max = Math.max(...cell.metrics);
+                  const min = Math.min(...cell.metrics);
+                  const winner = max !== min ? cell.metrics.indexOf(max) : -1;
+                  return (
+                    <div key={cell.label} className="flex min-w-0 flex-col gap-0.5 text-left">
+                      <span className="truncate text-[9px] font-bold uppercase tracking-wider text-dark-300">{cell.label}</span>
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                        {verdict.map((row, i) => (
+                          <span
+                            key={row.plan_id}
+                            className={`flex items-center gap-1 whitespace-nowrap text-[10px] font-bold ${i === winner ? "" : "opacity-70"}`}
+                            style={{ color: planColor(i) }}
+                          >
+                            {cell.fmt(cell.metrics[i])}
+                            {i === winner && <FontAwesomeIcon icon={faCircleCheck} className="text-[9px]" />}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="pb-1 text-center text-xs font-semibold text-dark-200">
+                Add a second plan to see the winner — Net worth / Runway / Monthly net
+              </div>
+            )}
+
             <div className="flex justify-center gap-3">
               {aggregated_balance_chart_data.labels.length > 0 && aggregated_balance_chart_data.datasets.length > 0 && (
-                <div className="hidden w-full rounded-lg py-0 md:inline">
+                <div className="hidden w-2/3 rounded-lg py-0 md:inline">
                   <div className="h-full" style={{ height: 100 }}>
                     <MyChart
                       labels={aggregated_balance_chart_data.labels}
@@ -590,33 +707,50 @@ function ComparePageInner() {
                       width={400}
                       formatter={ToDisplayableMoney}
                       annotation={annotation}
+                      onClick={(index) => setCurrentHoverMonthInput(Math.min(duration - 1, index + 1))}
                     />
                   </div>
                 </div>
               )}
-              <div className="flex w-fit grow flex-col justify-center gap-2">
-                <div className="flex grow justify-between gap-3 md:justify-center">
+              {delta_chart_data && (
+                <div className="hidden w-1/3 rounded-lg py-0 md:inline">
+                  <div className="h-full" style={{ height: 100 }}>
+                    <MyChart
+                      labels={aggregated_balance_chart_data.labels}
+                      dataset={delta_chart_data.datasets}
+                      chart_type="bar"
+                      stacked={false}
+                      height={100}
+                      width={400}
+                      formatter={(v: number) => ToDisplayableMoney(Math.abs(v))}
+                      onClick={(index) => setCurrentHoverMonthInput(Math.min(duration - 1, index + 1))}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex w-fit grow flex-col justify-center gap-1">
+                <div className="flex grow justify-between gap-2 md:justify-center">
                   <button
-                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-3 text-lg text-dark-600 hover:bg-dark-700 disabled:opacity-20"
+                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-2 text-dark-600 hover:bg-dark-700 disabled:opacity-20"
                     onClick={SetPreviousMonth}
                     disabled={current_hover_month === 1}
                   >
-                    <FontAwesomeIcon icon={faChevronLeft} className="self-center text-lg text-white md:text-xs" />
+                    <FontAwesomeIcon icon={faChevronLeft} className="self-center text-sm text-white md:text-xs" />
                   </button>
-                  <div className="w-[10rem] self-center py-2 text-center text-2xl font-bold text-dark-50">
+                  <div className="min-w-[7rem] self-center px-1 py-1 text-center text-xl font-bold text-dark-50 md:w-[10rem] md:text-2xl">
                     {annotation[0]?.value}
                   </div>
                   <button
-                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-3 text-lg text-dark-600 hover:bg-dark-700 disabled:opacity-20"
+                    className="grid h-fit place-content-center self-center rounded-lg bg-dark-600 p-2 text-dark-600 hover:bg-dark-700 disabled:opacity-20"
                     onClick={SetNextMonth}
                     disabled={current_hover_month === duration - 1}
                   >
-                    <FontAwesomeIcon icon={faChevronRight} className="self-center text-lg text-white md:text-xs" />
+                    <FontAwesomeIcon icon={faChevronRight} className="self-center text-sm text-white md:text-xs" />
                   </button>
                 </div>
               </div>
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="relative flex justify-center gap-3">
               <input
                 type="range"
                 step="1"
@@ -625,51 +759,58 @@ function ComparePageInner() {
                 value={current_hover_month_input}
                 max={duration - 1}
                 onChange={(e) => setCurrentHoverMonthInput(Number(e.target.value))}
-                className="mb-2 w-full accent-success-500 transition-all duration-200"
+                onPointerDown={() => setScrubActive(true)}
+                onPointerUp={() => setScrubActive(false)}
+                onPointerCancel={() => setScrubActive(false)}
+                onBlur={() => setScrubActive(false)}
+                className="mb-1 w-full accent-success-500 transition-all duration-200"
               />
+              {scrub_active && aggregated_balance_chart_data.labels.length > 0 && (
+                <div
+                  className="pointer-events-none absolute -top-9 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/15 bg-dark-900/95 px-2.5 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md"
+                  style={{ left: `${((current_hover_month_input - 1) / Math.max(1, duration - 2)) * 100}%` }}
+                >
+                  {aggregated_balance_chart_data.labels[current_hover_month_input - 1]}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+      )}
 
       {/* plan columns */}
-      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-11">
+      <div className="flex w-fit snap-x snap-mandatory divide-x overflow-x-scroll md:mt-0 md:w-full mt-0">
         {plan_ids.map((plan_id, index) => (
-          <div key={plan_id} className="w-[380px] snap-start md:w-1/2">
+          <div key={plan_id} className="w-[88vw] snap-start md:w-1/2">
             <ComparablePlanWidget
               offset={plan_offset_map[plan_id] || 1}
               onStatementUpdate={OnStatementUpdate}
               current_plan_id={plan_id}
               current_month={current_hover_month}
             >
-              <div className="flex gap-2 rounded-md border">
+              <div className="flex items-center gap-1.5">
                 <button
                   aria-label="Edit plan"
                   onClick={() => OnEdit(plan_id)}
-                  className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 h-fit self-center border-0 px-2 py-1"
+                  className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
                 >
-                  <div className="flex gap-2">
-                    <FontAwesomeIcon icon={faPenToSquare} className="self-center" />
-                  </div>
+                  <FontAwesomeIcon icon={faPenToSquare} className="text-xs" />
                 </button>
                 <button
                   aria-label="View plan"
                   onClick={() => router.push(`/plan?p_id=${plan_id}`)}
-                  className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-xs hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 ml-1 h-fit self-center border-0 py-1 pr-2"
+                  className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-dark-100 hover:text-dark-800"
                 >
-                  <div className="flex gap-2">
-                    <FontAwesomeIcon icon={faExpand} className="self-center" />
-                  </div>
+                  <FontAwesomeIcon icon={faExpand} className="text-xs" />
                 </button>
                 {plans_to_be_compared.length > 1 && (
                   <button
                     aria-label="Remove from comparison"
                     onClick={() => removePlan(plan_id)}
-                    className="gap-2 rounded-[.5rem] grid place-content-center disabled:opacity-50 text-md hover:opacity-75 font-medium border-2 hover:shadow-sm border-dark-100 text-dark-400 bg-dark-50 h-fit self-center border-0 px-2 py-1"
+                    className="grid h-8 w-8 place-content-center rounded-lg border border-dark-200 bg-dark-50 text-dark-500 transition-colors hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                   >
-                    <div className="flex gap-2">
-                      <FontAwesomeIcon icon={faXmark} />
-                    </div>
+                    <FontAwesomeIcon icon={faXmark} className="text-xs" />
                   </button>
                 )}
               </div>
@@ -678,9 +819,10 @@ function ComparePageInner() {
         ))}
 
         {plans_to_be_compared.length < MAX_PLAN_LIMIT && (
-          <div className="mt-11 flex flex-col gap-3 px-5 py-16 md:mt-0 md:w-1/2">
-            <div className="flex justify-center text-dark-300">
-              <FontAwesomeIcon icon={faPlus} className="text-9xl" />
+          <div className="mt-11 flex w-[88vw] flex-col gap-3 px-5 py-8 md:mt-0 md:w-1/2">
+            <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-dark-200 px-4 py-6 text-center">
+              <FontAwesomeIcon icon={faPlus} className="text-3xl text-dark-300" />
+              <span className="text-xs font-bold text-dark-400">Add plan to compare</span>
             </div>
             <Listbox value={available_plans[0]?._id} onChange={(v: string) => addPlan(v)}>
               <div className="relative w-full self-center">
@@ -734,20 +876,20 @@ function ComparePageInner() {
 
       {/* edit modal */}
       <div className="flex w-full">
-        <ModalUi show={show_control_panel} onClose={Close} custom_class="w-fit bg-dark-50 rounded-xl p-2" title="Edit">
-          <div className="my-3 grid h-fit w-fit grid-cols-2 gap-3">
+        <ModalUi show={show_control_panel} onClose={Close} custom_class="w-[90vw] max-w-md bg-dark-50 rounded-xl p-2" title="Edit">
+          <div className="my-3 grid w-full grid-cols-2 gap-2.5 md:gap-3">
             {editTiles.map((tile) => (
               <div
                 key={tile.label}
-                className={`flex h-fit snap-start cursor-pointer gap-3 rounded-lg border bg-dark-50 bg-opacity-25 p-2 px-2 ${tile.hoverCls}`}
+                className={`flex min-w-0 h-fit snap-start cursor-pointer gap-2.5 rounded-lg border bg-dark-50 bg-opacity-25 p-2 px-2 ${tile.hoverCls}`}
                 onClick={() => HandleEdit(tile.entity_type, tile.sub_entity_type)}
               >
-                <div className={`relative grid h-[3rem] w-[3.6rem] place-content-center self-center rounded-md p-2 ${tile.boxCls}`}>
+                <div className={`relative grid h-[3rem] w-[3.6rem] shrink-0 place-content-center self-center rounded-md p-2 ${tile.boxCls}`}>
                   <FontAwesomeIcon icon={tile.icon} className={tile.iconCls} />
                 </div>
-                <div className="w-full self-center">
+                <div className="w-full min-w-0 self-center">
                   <div className="flex grow justify-between text-dark-300">
-                    <div className="w-[5rem] text-sm font-medium leading-tight">{tile.label}</div>
+                    <div className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{tile.label}</div>
                     <FontAwesomeIcon icon={faChevronRight} className="self-center px-1" />
                   </div>
                 </div>

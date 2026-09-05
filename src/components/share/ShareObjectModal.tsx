@@ -175,15 +175,15 @@ export function ShareObjectModal() {
   return (
     <ModalUi
       show={share_data?.modal_state === "open"}
-      custom_class="bg-dark-50 w-[100vw] md:w-[40vw] h-fit rounded-lg"
+      custom_class="bg-dark-50 w-[94vw] md:w-[40vw] h-fit rounded-lg"
       onClose={Close}
       header={
         <div className="flex flex-col">
           <div className="flex text-xl font-bold text-dark-600">{modal_title}</div>
           {panel_view !== PANEL_VIEW_OPTIONS.LINK_DISPLAY && data_being_shared.length > 0 && (
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {data_being_shared.map((data: string, index: number) => (
-                <div key={index} className="rounded-md border border-dark-200 bg-dark-50 p-[.3rem] px-3 text-xs text-dark-300">
+                <div key={index} className="max-w-full truncate rounded-md border border-dark-200 bg-dark-50 px-2 py-1 text-[10px] text-dark-300">
                   {data}
                 </div>
               ))}
@@ -203,7 +203,7 @@ export function ShareObjectModal() {
                     <textarea
                       rows={3}
                       required
-                      style={{ fontSize: "1.25rem" }}
+                      style={{ fontSize: "1rem" }}
                       className={inputClass}
                       value={current_stage_index === 0 ? title : description}
                       onChange={(e) =>
@@ -217,7 +217,7 @@ export function ShareObjectModal() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-between gap-2">
+            <div className="flex flex-wrap justify-between gap-2">
               <div className="flex gap-2">
                 <button className={navBtnClass} disabled={!show_previous_button} onClick={Previous}>
                   <FontAwesomeIcon className="self-center text-lg font-bold" icon={faChevronLeft} />
