@@ -27,6 +27,7 @@ function LoginInner() {
   const sid = searchParams.get("sid");
   const oauth = searchParams.get("oauth");
   const modeParam = searchParams.get("mode");
+  const google_error = searchParams.get("google_error");
 
   const [mode, setMode] = useState<"login" | "signup">(
     modeParam === "signup" ? "signup" : "login"
@@ -49,6 +50,15 @@ function LoginInner() {
   useEffect(() => {
     if (modeParam === "login" || modeParam === "signup") setMode(modeParam);
   }, [modeParam]);
+
+  useEffect(() => {
+    if (!google_error) return;
+    const desc =
+      google_error === "email_taken"
+        ? "This email is already registered with a password. Please sign in with email and password."
+        : "Google sign-in failed. Please try again.";
+    FireNotification({ title: "Google sign-in failed", desc, variant: "danger" });
+  }, [google_error]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");

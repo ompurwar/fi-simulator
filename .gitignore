@@ -23,3 +23,6 @@ standalone/*
 !standalone/seed-tax-rules.ts
 cypress/videos/
 cypress/screenshots/
+
+# Google OAuth client secrets (downloaded JSON) — never commit
+client_secret_*.json
