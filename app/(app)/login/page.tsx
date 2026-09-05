@@ -53,11 +53,11 @@ function LoginInner() {
 
   useEffect(() => {
     if (!google_error) return;
-    const desc =
-      google_error === "email_taken"
-        ? "This email is already registered with a password. Please sign in with email and password."
-        : "Google sign-in failed. Please try again.";
-    FireNotification({ title: "Google sign-in failed", desc, variant: "danger" });
+    FireNotification({
+      title: "Google sign-in failed",
+      desc: "Something went wrong with Google authentication. Please try again.",
+      variant: "danger",
+    });
   }, [google_error]);
 
   useEffect(() => {

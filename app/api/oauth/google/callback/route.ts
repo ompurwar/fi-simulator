@@ -40,10 +40,6 @@ export async function GET(req: NextRequest) {
     const container = await getContainer();
     const outcome = await CompleteGoogleOAuth(container, code);
 
-    if (outcome.kind === "email_taken") {
-      return NextResponse.redirect(new URL("/login?google_error=email_taken", origin));
-    }
-
     const target =
       outcome.kind === "signup" ? "/onboarding?oauth_signup=success" : "/onboarding";
     const res = NextResponse.redirect(new URL(target, origin));

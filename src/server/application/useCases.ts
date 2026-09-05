@@ -81,6 +81,7 @@ export interface UseCaseDeps {
 
 export interface ApplicationLayer {
   Login(input: { email: string; password: string }): Promise<any>;
+  CreateSessionForUser(input: { user_id: string }): Promise<any>;
   Signup(input: {
     first_name?: string;
     last_name?: string;
@@ -217,6 +218,19 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
     } else {
       throw new UserNotFoundByEmailError(email);
     }
+  }
+
+  /** Open a session + token pair for an already-verified user (Google OAuth
+   *  callback). Bypasses the password check — Google verified the email. */
+  async function CreateSessionForUser({ user_id }: { user_id: string }) {
+    const session = MakeSession(
+      { user_id },
+      { sessionIdLength: 24, sessionTimeoutHours }
+    );
+    const { success, created } = await session_list.Add(session);
+    if (!success) throw new DbInsertFailedError("session");
+    const tokens = await auth_token_service.IssueTokenPair({ user_id });
+    return { ...created, tokens };
   }
 
   async function Signup({
@@ -1538,6 +1552,7 @@ export function MakeApplicationLayer(deps: UseCaseDeps): ApplicationLayer {
 
   return {
     Login,
+    CreateSessionForUser,
     Signup,
     Logout,
     RefreshSession,

@@ -8,14 +8,14 @@ export interface GoogleOAuthTokens {
 }
 
 export type GoogleOAuthOutcome =
-  | { kind: "login" | "signup"; session_id: string; tokens: GoogleOAuthTokens }
-  | { kind: "email_taken" };
+  | { kind: "login" | "signup"; session_id: string; tokens: GoogleOAuthTokens };
 
 /**
  * Complete the Google OAuth callback: exchange the code, fetch the profile,
- * then log the existing google user in — or create the account on first visit.
- * Matches the original flow (§6 in docs/backend-reference.md): the Google
- * profile id doubles as the account password for src:'google' users.
+ * then log the existing user in — or create the account on first visit.
+ * Google verified the email, so existing users (std or google) are signed in
+ * directly with a fresh session; new users are created with src:'google' and
+ * the profile id doubling as the password (docs/backend-reference.md §6).
  */
 export async function CompleteGoogleOAuth(
   container: Container,
@@ -28,8 +28,9 @@ export async function CompleteGoogleOAuth(
 
   const existing = await container.user_list.FindByEmail(email);
   if (existing.length > 0) {
-    if (existing[0].src !== "google") return { kind: "email_taken" };
-    const result = await container.app.Login({ email, password: profile.id });
+    const result = await container.app.CreateSessionForUser({
+      user_id: existing[0]._id.toString(),
+    });
     return { kind: "login", session_id: result.session_id, tokens: result.tokens };
   }
 
