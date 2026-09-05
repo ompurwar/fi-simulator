@@ -928,7 +928,7 @@ function PlanPageInner() {
       {/* Center column */}
       <div className="flex w-full flex-col gap-4 p-2 md:mt-0 md:w-[55%] xl:w-[60%] md:gap-2">
         {/* Month slider + cockpit popover */}
-        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-2xl bg-dark-800/80 p-3 mb-3 border border-white/15 backdrop-blur-2xl shadow-lg shadow-dark-900/50 transition-all duration-250 md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:w-[62vw] md:max-w-[1100px] md:flex md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-3xl md:bg-dark-900/60 md:p-3.5 md:shadow-2xl md:shadow-black/60 md:hover:bg-dark-900/80">
+        <div className="fixed bottom-0 z-40 grid w-[96vw] justify-items-center rounded-2xl bg-dark-800/80 p-3 mb-3 border border-white/15 backdrop-blur-2xl shadow-lg shadow-dark-900/50 transition-all duration-250 md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:w-[calc(55vw-1rem)] md:max-w-[1100px] md:flex md:justify-between md:overflow-x-hidden md:hover:overflow-x-visible md:rounded-3xl xl:w-[calc(60vw-1rem)] md:bg-dark-900/60 md:p-3.5 md:shadow-2xl md:shadow-black/60 md:hover:bg-dark-900/80">
           <span
             aria-hidden
             className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 via-white/5 to-transparent opacity-50 md:rounded-3xl"
@@ -1189,7 +1189,7 @@ function PlanPageInner() {
         {/* Month insights — "so what?" chips for the scrubbed month */}
         {insights && (
           <div className="flex w-full flex-wrap gap-2 mb-3">
-            <div className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-3 py-2 shadow-xs">
+            <div className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-lg ${
                   insights.wealth_delta >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
@@ -1220,7 +1220,7 @@ function PlanPageInner() {
                 type="button"
                 onClick={() => setCurrentMonth(insights.best!.month)}
                 title="Jump to this month"
-                className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-3 py-2 shadow-xs transition-all hover:shadow-md text-left"
+                className="flex items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs transition-all hover:shadow-md text-left md:px-3 md:py-2"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                   <FontAwesomeIcon icon={faMedal} className="text-[11px]" />
@@ -1541,9 +1541,25 @@ function PlanPageInner() {
             return (
               <Fragment key={d.month}>
                 {show_year && (
-                  <div className="flex items-center gap-2 pt-1 pr-1 pb-0.5">
+                  <div className="flex items-center gap-1.5 pt-1 pr-1 pb-0.5">
                     <span className="text-[9px] font-extrabold uppercase tracking-widest text-dark-400">{year}</span>
                     <span className="h-px flex-1 bg-dark-100" />
+                    <button
+                      type="button"
+                      title={`Previous year (${Number(year) - 1})`}
+                      onClick={() => setCurrentMonth(Math.max(1, Math.min(plan_duration, Number(d.month) - 12)))}
+                      className="grid h-5 w-5 place-content-center rounded-md border border-dark-200 text-dark-400 transition-colors hover:bg-dark-50 hover:text-dark-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    >
+                      <FontAwesomeIcon icon={faChevronLeft} className="text-[8px]" />
+                    </button>
+                    <button
+                      type="button"
+                      title={`Next year (${Number(year) + 1})`}
+                      onClick={() => setCurrentMonth(Math.min(plan_duration, Number(d.month) + 12))}
+                      className="grid h-5 w-5 place-content-center rounded-md border border-dark-200 text-dark-400 transition-colors hover:bg-dark-50 hover:text-dark-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    >
+                      <FontAwesomeIcon icon={faChevronRight} className="text-[8px]" />
+                    </button>
                   </div>
                 )}
               <div

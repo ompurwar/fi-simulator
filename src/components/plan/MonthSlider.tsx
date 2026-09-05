@@ -145,7 +145,7 @@ export function MonthSlider({
                 key={m}
                 disabled={disabled}
                 onClick={() => onChange(target)}
-                className={`flex flex-col justify-between self-center rounded-lg p-1 text-[8px] font-semibold transition-all duration-150 md:px-2.5 md:py-1 md:text-xs ${
+                className={`flex flex-col justify-between self-center rounded-lg p-1 text-[8px] font-semibold tracking-wide transition-all duration-150 md:px-2.5 md:py-1 md:text-xs ${
                   active
                     ? "bg-primary-600 text-white shadow-xs font-bold"
                     : "bg-transparent text-slate-300 hover:bg-white/15 hover:text-white disabled:opacity-20"
