@@ -1193,7 +1193,7 @@ function PlanPageInner() {
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-dark-200 bg-white px-2.5 py-1.5 shadow-xs md:px-3 md:py-2">
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                  insights.start_wealth <= 0
+                  Math.abs(insights.wealth_delta) < 1
                     ? "bg-primary-50 text-primary-600"
                     : insights.wealth_delta >= 0
                       ? "bg-emerald-50 text-emerald-600"
@@ -1201,15 +1201,15 @@ function PlanPageInner() {
                 }`}
               >
                 <FontAwesomeIcon
-                  icon={insights.start_wealth <= 0 ? faFlagCheckered : insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown}
+                  icon={Math.abs(insights.wealth_delta) < 1 ? faFlagCheckered : insights.wealth_delta >= 0 ? faArrowTrendUp : faArrowTrendDown}
                   className="text-[11px]"
                 />
               </span>
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-[9px] font-extrabold uppercase tracking-wider text-dark-400">
-                  {insights.start_wealth <= 0 ? "Plan start" : "Net worth vs start"}
+                  {Math.abs(insights.wealth_delta) < 1 ? "Plan start" : "Net worth vs start"}
                 </span>
-                {insights.start_wealth <= 0 ? (
+                {Math.abs(insights.wealth_delta) < 1 ? (
                   <span className="truncate text-xs font-bold text-dark-800">{GetMonthAndYear(plan, current_month)}</span>
                 ) : (
                   <span className={`truncate text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
