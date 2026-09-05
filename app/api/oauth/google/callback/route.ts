@@ -45,24 +45,20 @@ export async function GET(req: NextRequest) {
     const res = NextResponse.redirect(new URL(target, origin));
     const signed = (value: string) => container.UnsafeSign(value, container.cookieSecret);
 
-    res.cookies.set("session_id", signed(outcome.session_id), {
-      maxAge: SESSION_COOKIE_MAX_AGE,
-      path: "/",
-      sameSite: "none",
-      secure: true,
-    });
-    res.cookies.set("fp_access", signed(outcome.tokens.access_token), {
-      maxAge: outcome.tokens.expires_in,
-      path: "/",
-      sameSite: "none",
-      secure: true,
-    });
-    res.cookies.set("fp_refresh", signed(outcome.tokens.refresh_token), {
-      maxAge: REFRESH_COOKIE_MAX_AGE,
-      path: "/api/auth",
-      sameSite: "none",
-      secure: true,
-    });
+    // Raw Set-Cookie headers — same format as the embedded server's
+    // ToFetchResponse. NextResponse.cookies.set() percent-encodes values
+    // (base64 sigs contain "/" or "+"), which the browser sends back verbatim
+    // and VerifyCookie then rejects -> first request after login 401s.
+    const setCookie = (
+      name: string,
+      value: string,
+      maxAge: number,
+      path = "/"
+    ) => `${name}=${value}; Max-Age=${maxAge}; Path=${path}; SameSite=None; Secure`;
+
+    res.headers.append("Set-Cookie", setCookie("session_id", signed(outcome.session_id), SESSION_COOKIE_MAX_AGE));
+    res.headers.append("Set-Cookie", setCookie("fp_access", signed(outcome.tokens.access_token), outcome.tokens.expires_in));
+    res.headers.append("Set-Cookie", setCookie("fp_refresh", signed(outcome.tokens.refresh_token), REFRESH_COOKIE_MAX_AGE, "/api/auth"));
     return res;
   } catch (e: any) {
     console.error("[fi-plan] google oauth callback failed:", e?.message || e);
