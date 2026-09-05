@@ -547,7 +547,7 @@ function PlanPageInner() {
     const unfunded_next = (engine.unfunded_expenses || []).find(
       (u: any) => Number(u.month) > current_month
     ) as { month: number; amount: number } | undefined;
-    return { wealth_delta, wealth_pct, best, tough, unfunded_next };
+    return { start_wealth, wealth_delta, wealth_pct, best, tough, unfunded_next };
   }, [income_expense_and_net_cashflow, engine.asset_month_map, engine.unfunded_expenses, current_month]);
 
   /* ±12-month window of the transactions sidebar, tagged with a year header. */
@@ -1191,7 +1191,15 @@ function PlanPageInner() {
                 <span className={`text-xs font-bold ${insights.wealth_delta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
                   {insights.wealth_delta >= 0 ? "+" : "-"}
                   <DisplayAmount notation="compact" amount={Math.abs(insights.wealth_delta)} />
-                  <span className="font-semibold"> ({Math.abs(insights.wealth_pct).toFixed(1)}%)</span>
+                  <span className="font-semibold">
+                    {(() => {
+                      if (insights.start_wealth <= 0) return " from start";
+                      const mult = Math.abs(insights.wealth_delta / insights.start_wealth);
+                      if (mult >= 10) return ` (${mult.toFixed(0)}x)`;
+                      if (mult >= 1) return ` (${(mult * 100).toFixed(1)}%)`;
+                      return ` (${Math.abs(insights.wealth_pct).toFixed(1)}%)`;
+                    })()}
+                  </span>
                 </span>
               </div>
             </div>
